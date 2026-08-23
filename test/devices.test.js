@@ -41,7 +41,10 @@ function stubFetch(routes) {
     if (!match) {
       throw new Error(`Unexpected request: ${href}`);
     }
-    return { ok: true, status: 200, json: async () => routes[match] };
+    // `headers` is not decoration: the Data Grand Lyon client reads the
+    // Location header to follow the platform's redirects itself, so a stub
+    // without headers is not a Response.
+    return { ok: true, status: 200, headers: new Headers(), json: async () => routes[match] };
   };
   return calls;
 }

@@ -22,6 +22,7 @@ import { createVelovStationBlueprint } from './velovStation.js';
 import { createParkAndRideBlueprint } from './parkAndRide.js';
 import { fetchParkAndRideFacilities, searchStops } from '../api/tcl.js';
 import { searchStations } from '../api/velov.js';
+import { GrandLyonError } from '../api/grandlyon.js';
 import { hasGrandLyonCredentials } from '../config.js';
 
 const logger = createLogger({ name: 'devices' });
@@ -77,10 +78,13 @@ export function findBlueprintByDevice(gladys, device, config) {
  * integration up is finding the identifiers: they let the user look a stop or
  * a station up from inside Gladys, and paste the answer into the watch lists.
  */
-export const ACTIONS = {
+const RAW_ACTIONS = {
   /**
    * Check that the Data Grand Lyon credentials work, by reading the park &
    * ride layer (small, and covers one of the two TCL features).
+   *
+   * A rejected account is the case this button exists for, and it is reported
+   * by the wrapper below rather than here.
    */
   async test_grandlyon(gladys, { config }) {
     if (!hasGrandLyonCredentials(config)) {
@@ -162,3 +166,30 @@ export const ACTIONS = {
     };
   },
 };
+
+/**
+ * Handlers of the manifest actions, with the Data Grand Lyon failures turned
+ * into something the user can act on.
+ *
+ * An action that throws shows the raw error under the button, which for the
+ * most common failure — the platform refusing the credentials — is a bare
+ * "HTTP 401" the user cannot do anything with. `GrandLyonError` carries the
+ * bilingual explanation instead (see src/api/grandlyon.js), so display it and
+ * let anything else bubble up as a genuine bug.
+ */
+export const ACTIONS = Object.fromEntries(
+  Object.entries(RAW_ACTIONS).map(([key, handler]) => [
+    key,
+    async (gladys, context) => {
+      try {
+        return await handler(gladys, context);
+      } catch (err) {
+        if (err instanceof GrandLyonError && err.userMessage) {
+          logger.warn(`Action ${key} failed: ${err.message}`);
+          return err.userMessage;
+        }
+        throw err;
+      }
+    },
+  ]),
+);

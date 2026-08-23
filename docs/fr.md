@@ -46,11 +46,25 @@ Vélo'v fonctionne sans rien configurer : son flux est totalement ouvert.
 
 Les passages et l'occupation des parcs relais proviennent des jeux de données
 temps réel TCL hébergés sur [data.grandlyon.com](https://data.grandlyon.com),
-qui nécessitent un compte gratuit :
+qui nécessitent un compte gratuit.
 
-1. Créez un compte sur data.grandlyon.com.
-2. Renseignez l'identifiant et le mot de passe dans la configuration.
-3. Appuyez sur **Tester le compte Data Grand Lyon** : le bouton indique combien
+> **Le mot de passe demandé ici n'est pas celui de connexion au portail.** Vous
+> naviguez sur le portail avec GrandLyon Connect (l'authentification unique
+> commune à tous les services de la Métropole), mais le service web appelé par
+> cette intégration n'accepte qu'un mot de passe propre à la plateforme de
+> données. Saisir le mot de passe GrandLyon Connect donne « Data Grand Lyon a
+> refusé les identifiants ».
+
+1. Créez un compte, ou connectez-vous, sur
+   [GrandLyon Connect](https://moncompte.grandlyon.com/login/).
+2. Rendez-vous sur
+   [votre profil de la plateforme de données](https://data.grandlyon.com/onegeo-login/fr/profile/)
+   et définissez le mot de passe de la plateforme. Il peut — et devrait — être
+   différent de celui de GrandLyon Connect.
+3. Dans la configuration de l'intégration, renseignez l'**identifiant** (en
+   général l'adresse email de votre compte) et ce **mot de passe de la
+   plateforme**.
+4. Appuyez sur **Tester le compte Data Grand Lyon** : le bouton indique combien
    de parcs relais ont pu être lus.
 
 Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v.
@@ -127,9 +141,13 @@ stations et parcs y sont, prêts à être ajoutés à Gladys.
 statut de l'intégration reste rouge parce que vous avez listé un arrêt ou un
 parc sans renseigner les identifiants. Ajoutez-les, ou retirez les entrées.
 
-**« Data Grand Lyon refused the credentials »** — l'identifiant ou le mot de
-passe est erroné, ou le compte n'a pas encore confirmé son adresse email.
-Vérifiez avec **Tester le compte Data Grand Lyon**.
+**« Data Grand Lyon a refusé les identifiants »** — neuf fois sur dix, le mot
+de passe saisi est celui de GrandLyon Connect. Le service web attend le mot de
+passe que vous définissez sur
+[data.grandlyon.com/onegeo-login/fr/profile/](https://data.grandlyon.com/onegeo-login/fr/profile/),
+avec l'adresse email de votre compte comme identifiant. Définissez-le là-bas,
+collez-le ici, puis appuyez sur **Tester le compte Data Grand Lyon**. Si l'appel
+échoue encore, le compte n'a peut-être pas confirmé son adresse email.
 
 **Un arrêt affiche toujours `999`** — `999` signifie « aucun passage annoncé ».
 Hors des heures de service, c'est normal. Si cela persiste en journée,

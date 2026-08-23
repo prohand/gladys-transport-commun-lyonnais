@@ -56,15 +56,22 @@
         "fr": "Compte Data Grand Lyon"
       },
       "description": {
-        "en": "Create a free account on data.grandlyon.com, then enter it here. Leave both fields empty if you only watch Vélo'v stations.",
-        "fr": "Créez un compte gratuit sur data.grandlyon.com, puis renseignez-le ici. Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v."
+        "en": "You sign in on data.grandlyon.com with GrandLyon Connect, but the API needs a separate password that you set on the data platform itself. Leave both fields empty if you only watch Vélo'v stations.",
+        "fr": "Vous vous connectez à data.grandlyon.com avec GrandLyon Connect, mais l'API exige un mot de passe distinct, à définir sur la plateforme de données. Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v."
       },
       "links": [
         {
-          "url": "https://data.grandlyon.com/portail/fr/signup",
+          "url": "https://moncompte.grandlyon.com/login/",
           "label": {
-            "en": "Create an account",
-            "fr": "Créer un compte"
+            "en": "Create a GrandLyon Connect account",
+            "fr": "Créer un compte GrandLyon Connect"
+          }
+        },
+        {
+          "url": "https://data.grandlyon.com/onegeo-login/fr/profile/",
+          "label": {
+            "en": "Set the data platform password",
+            "fr": "Définir le mot de passe de la plateforme"
           }
         }
       ]
@@ -73,21 +80,29 @@
       "key": "grandlyon_username",
       "type": "string",
       "label": {
-        "en": "Data Grand Lyon username",
+        "en": "Data Grand Lyon login",
         "fr": "Identifiant Data Grand Lyon"
       },
       "description": {
-        "en": "The email or username of your data.grandlyon.com account.",
-        "fr": "L'email ou l'identifiant de votre compte data.grandlyon.com."
+        "en": "The login of your data platform account — in general the email address of your GrandLyon Connect account.",
+        "fr": "L'identifiant de votre compte sur la plateforme de données — en général l'adresse email de votre compte GrandLyon Connect."
       },
-      "required": false
+      "required": false,
+      "placeholder": {
+        "en": "you@example.com",
+        "fr": "vous@exemple.com"
+      }
     },
     {
       "key": "grandlyon_password",
       "type": "secret",
       "label": {
-        "en": "Data Grand Lyon password",
-        "fr": "Mot de passe Data Grand Lyon"
+        "en": "Data platform password",
+        "fr": "Mot de passe de la plateforme"
+      },
+      "description": {
+        "en": "The password you defined on data.grandlyon.com/onegeo-login/fr/profile/, NOT your GrandLyon Connect password.",
+        "fr": "Le mot de passe défini sur data.grandlyon.com/onegeo-login/fr/profile/, PAS votre mot de passe GrandLyon Connect."
       },
       "required": false
     },
