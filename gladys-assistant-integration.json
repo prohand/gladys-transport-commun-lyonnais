@@ -115,7 +115,10 @@
         "fr": "Identifiants d'arrêt. Filtre de lignes optionnel après @ et nom personnalisé après : — ex. « 1234, 5678@T1:Tram en bas, 4321@C3|C13 »."
       },
       "required": false,
-      "placeholder": "1234, 5678@T1:Tram at home"
+      "placeholder": {
+        "en": "1234, 5678@T1:Tram at home",
+        "fr": "1234, 5678@T1:Tram en bas"
+      }
     },
     {
       "key": "velov_stations",
@@ -129,7 +132,10 @@
         "fr": "Identifiants ou noms de stations, avec un nom personnalisé optionnel après : — ex. « 10063, Hotel de Ville:Bureau »."
       },
       "required": false,
-      "placeholder": "10063, Hotel de Ville:Work"
+      "placeholder": {
+        "en": "10063, Hotel de Ville:Work",
+        "fr": "10063, Hotel de Ville:Bureau"
+      }
     },
     {
       "key": "park_and_ride",
@@ -143,7 +149,10 @@
         "fr": "Identifiants ou noms de parcs relais, avec un nom personnalisé optionnel après : — ex. « Gorge de Loup, Parilly:Trajet boulot »."
       },
       "required": false,
-      "placeholder": "Gorge de Loup, Parilly:Commute"
+      "placeholder": {
+        "en": "Gorge de Loup, Parilly:Commute",
+        "fr": "Gorge de Loup, Parilly:Trajet boulot"
+      }
     },
     {
       "key": "refresh",
@@ -246,7 +255,10 @@
             "en": "Stop name",
             "fr": "Nom de l'arrêt"
           },
-          "placeholder": "Bellecour",
+          "placeholder": {
+            "en": "Bellecour",
+            "fr": "Bellecour"
+          },
           "required": true
         }
       ]
@@ -266,7 +278,10 @@
             "en": "Station name",
             "fr": "Nom de la station"
           },
-          "placeholder": "Hotel de Ville",
+          "placeholder": {
+            "en": "Hotel de Ville",
+            "fr": "Hotel de Ville"
+          },
           "required": true
         }
       ]

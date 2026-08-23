@@ -100,7 +100,9 @@ test('the credentials field is a secret field', () => {
 });
 
 // The store validator rejects any other type, and only accepts `placeholder`
-// on the three free-text-ish types.
+// on the three free-text-ish types. A placeholder is displayed to the user, so
+// the validator wants it translated like every other user-visible string: a
+// bare string is rejected.
 const ALLOWED_FIELD_TYPES = [
   'string',
   'number',
@@ -129,6 +131,11 @@ test('every field type is accepted by the store validator', () => {
         PLACEHOLDER_TYPES.includes(field.type),
         `field "${field.key}" cannot declare a placeholder on a "${field.type}" field`,
       );
+      assert.equal(
+        typeof field.placeholder,
+        'object',
+        `field "${field.key}" must declare its placeholder as a { en, fr } object`,
+      );
     }
   }
 });
@@ -145,12 +152,12 @@ test('the store description stays within 10-100 characters', () => {
 test('every label and description is translated in English and French', () => {
   const texts = [];
   for (const field of manifest.config_schema) {
-    texts.push(field.label, field.description);
+    texts.push(field.label, field.description, field.placeholder);
   }
   for (const action of manifest.actions ?? []) {
     texts.push(action.label);
     for (const field of action.fields ?? []) {
-      texts.push(field.label);
+      texts.push(field.label, field.placeholder);
     }
   }
   texts.push(manifest.description);
