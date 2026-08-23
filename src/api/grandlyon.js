@@ -77,6 +77,82 @@ export function canReplayCredentials(target, origin) {
 }
 
 /**
+ * The base URLs to try for a layer, most likely first.
+ *
+ * The web service is published under two path namespaces on the download
+ * host: the historical `/ws/rdata` one and `/ws/grandlyon`. Which of them
+ * serves a given dataset has changed over time, and asking the wrong one
+ * yields a 404 that says nothing about the cause. So when the configured base
+ * answers 404 we retry the sibling namespace — on the SAME origin, never on
+ * another host, so the credentials never travel anywhere the user did not
+ * configure.
+ *
+ * @param {string} baseUrl normalized base URL from the configuration
+ * @returns {string[]}
+ */
+export function candidateBaseUrls(baseUrl) {
+  for (const [suffix, sibling] of [
+    ['/ws/rdata', '/ws/grandlyon'],
+    ['/ws/grandlyon', '/ws/rdata'],
+  ]) {
+    if (baseUrl.endsWith(suffix)) {
+      return [baseUrl, `${baseUrl.slice(0, -suffix.length)}${sibling}`];
+    }
+  }
+  return [baseUrl];
+}
+
+/**
+ * Which (base URL, layer name) pair actually answered, per candidate list.
+ *
+ * Probing costs one HTTP round trip per name that no longer exists, and the
+ * answer only changes when the platform republishes a dataset: remember it
+ * for the lifetime of the process rather than paying it on every poll. The
+ * entry is dropped as soon as the pair stops answering, so a rename is picked
+ * up without a restart.
+ *
+ * @type {Map<string, { baseUrl: string, layer: string }>}
+ */
+const resolvedLayers = new Map();
+
+/** Forget the resolved layer names (used on config change and by tests). */
+export function clearLayerResolution() {
+  resolvedLayers.clear();
+}
+
+/**
+ * What to tell the user when none of the names we know is published anymore.
+ *
+ * A 404 here is not the user's fault and no amount of retrying fixes it: the
+ * Métropole renames the TCL layers when the network changes (that is what the
+ * `_2_0_0` suffixes are), and the integration has to learn the new name. The
+ * message therefore says what was tried and where the current name is found,
+ * instead of the bare status code.
+ *
+ * @param {string[]} layers the candidate names that all answered 404
+ * @returns {{ en: string, fr: string }}
+ */
+function layerNotFoundMessage(layers) {
+  const tried = layers.join(', ');
+  return {
+    en:
+      `Data Grand Lyon answered HTTP 404: none of the datasets this integration knows is ` +
+      `published anymore (tried: ${tried}). The platform renames its TCL layers when the ` +
+      `network changes; look the current name up on https://data.grandlyon.com and report ` +
+      `it at https://github.com/prohand/gladys-transport-commun-lyonnais/issues so the ` +
+      `integration can follow. Your account is fine — this is not a credentials problem.`,
+    fr:
+      `Data Grand Lyon a répondu HTTP 404 : aucun des jeux de données connus de ` +
+      `l’intégration n’est encore publié (essayés : ${tried}). La plateforme renomme les ` +
+      `couches TCL à chaque évolution du réseau ; retrouvez le nom actuel sur ` +
+      `https://data.grandlyon.com et signalez-le sur ` +
+      `https://github.com/prohand/gladys-transport-commun-lyonnais/issues pour que ` +
+      `l’intégration suive. Votre compte n’est pas en cause : ce n’est pas un problème ` +
+      `d’identifiants.`,
+  };
+}
+
+/**
  * What to tell the user when the platform answers 401/403.
  *
  * This is the single most common setup mistake of this integration, so the
@@ -192,20 +268,31 @@ async function getWithBasicAuth(url, credentials, layer) {
 /**
  * Call one rdata layer and return its `values` array.
  *
+ * Several spellings of the same dataset may be passed: the platform versions
+ * its layer names (`tcl_sytral.tclarret`, then `tcl_sytral.tclarret_2_0_0`)
+ * and retires the previous one, so the caller lists the names it knows,
+ * newest first, and this function keeps the one that answers. A 404 is
+ * therefore never fatal on its own — only "no candidate at all answered" is.
+ *
  * @param {ReturnType<import('../config.js').normalizeConfig>} config
- * @param {string} layer layer name, e.g. 'tcl_sytral.tclpassagearret'
+ * @param {string | string[]} layers layer name(s), e.g. 'tcl_sytral.tclarret'
  * @param {{ filter?: Record<string, unknown>, maxFeatures?: number }} [options]
  *   `filter` is sent as the JSON `filter` query parameter supported by rdata,
  *   which is what keeps a per-stop request small instead of downloading the
  *   whole network.
  * @returns {Promise<Record<string, unknown>[]>}
  */
-export async function fetchLayer(config, layer, { filter, maxFeatures = -1 } = {}) {
+export async function fetchLayer(config, layers, { filter, maxFeatures = -1 } = {}) {
+  const names = (Array.isArray(layers) ? layers : [layers]).filter(Boolean);
+  // Errors name the layer the caller actually asked for, not the fallback we
+  // happened to stop on.
+  const primary = names[0];
+
   if (!hasGrandLyonCredentials(config)) {
     throw new GrandLyonError(
       'Data Grand Lyon credentials are missing: fill them in the integration configuration.',
       {
-        layer,
+        layer: primary,
         userMessage: {
           en: 'No Data Grand Lyon credentials: fill in the username and password.',
           fr: 'Identifiants Data Grand Lyon absents : renseignez le nom d’utilisateur et le mot de passe.',
@@ -214,44 +301,98 @@ export async function fetchLayer(config, layer, { filter, maxFeatures = -1 } = {
     );
   }
 
-  const url = new URL(`${config.grandlyon_base_url}/${layer}/all.json`);
-  url.searchParams.set('maxfeatures', String(maxFeatures));
-  if (filter) {
-    url.searchParams.set('filter', JSON.stringify(filter));
-  }
-
-  logger.debug(`GET ${url.toString()}`);
-
   const credentials = Buffer.from(
     `${config.grandlyon_username}:${config.grandlyon_password}`,
   ).toString('base64');
 
-  const response = await getWithBasicAuth(url, credentials, layer);
+  const cacheKey = `${config.grandlyon_base_url}|${names.join(',')}`;
 
-  if (response.status === 401 || response.status === 403) {
-    throw new GrandLyonError(`Data Grand Lyon refused the credentials (HTTP ${response.status})`, {
-      status: response.status,
-      layer,
-      userMessage: CREDENTIALS_REFUSED,
-    });
-  }
-  if (!response.ok) {
-    throw new GrandLyonError(`Data Grand Lyon answered HTTP ${response.status}`, {
-      status: response.status,
-      layer,
-    });
+  for (const candidate of layerCandidates(config, names, cacheKey)) {
+    const { baseUrl, layer } = candidate;
+
+    const url = new URL(`${baseUrl}/${layer}/all.json`);
+    url.searchParams.set('maxfeatures', String(maxFeatures));
+    if (filter) {
+      url.searchParams.set('filter', JSON.stringify(filter));
+    }
+
+    logger.debug(`GET ${url.toString()}`);
+
+    const response = await getWithBasicAuth(url, credentials, layer);
+
+    if (response.status === 401 || response.status === 403) {
+      throw new GrandLyonError(
+        `Data Grand Lyon refused the credentials (HTTP ${response.status})`,
+        {
+          status: response.status,
+          layer,
+          userMessage: CREDENTIALS_REFUSED,
+        },
+      );
+    }
+    if (response.status === 404) {
+      // This spelling is gone (or never existed on this namespace): try the
+      // next one rather than reporting a status code the user cannot act on.
+      logger.debug(`No layer ${layer} under ${baseUrl}, trying the next candidate`);
+      resolvedLayers.delete(cacheKey);
+      continue;
+    }
+    if (!response.ok) {
+      throw new GrandLyonError(`Data Grand Lyon answered HTTP ${response.status}`, {
+        status: response.status,
+        layer,
+      });
+    }
+
+    const body = await response.json();
+    // The service is consistent on `values`, but a few layers answer a bare
+    // array: accept both rather than crashing on a shape detail.
+    const values = Array.isArray(body) ? body : (body.values ?? []);
+    if (!Array.isArray(values)) {
+      throw new GrandLyonError(`Unexpected payload for layer ${layer}`, { layer });
+    }
+
+    resolvedLayers.set(cacheKey, { baseUrl, layer });
+    logger.debug(`Layer ${layer} -> ${values.length} record(s)`);
+    return values;
   }
 
-  const body = await response.json();
-  // The service is consistent on `values`, but a few layers answer a bare
-  // array: accept both rather than crashing on a shape detail.
-  const values = Array.isArray(body) ? body : (body.values ?? []);
-  if (!Array.isArray(values)) {
-    throw new GrandLyonError(`Unexpected payload for layer ${layer}`, { layer });
+  throw new GrandLyonError(
+    `Data Grand Lyon answered HTTP 404 for every known name of ${primary} (${names.join(', ')})`,
+    { status: 404, layer: primary, userMessage: layerNotFoundMessage(names) },
+  );
+}
+
+/**
+ * Every (base URL, layer name) pair worth trying, most likely first.
+ *
+ * The name varies fastest because a republished dataset is far more common
+ * than a moved endpoint; a pair that answered before is hoisted to the front
+ * so the steady state costs exactly one request.
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @param {string[]} names candidate layer names, newest first
+ * @param {string} cacheKey key of the remembered resolution
+ * @returns {{ baseUrl: string, layer: string }[]}
+ */
+function layerCandidates(config, names, cacheKey) {
+  const candidates = [];
+  for (const baseUrl of candidateBaseUrls(config.grandlyon_base_url)) {
+    for (const layer of names) {
+      candidates.push({ baseUrl, layer });
+    }
   }
 
-  logger.debug(`Layer ${layer} -> ${values.length} record(s)`);
-  return values;
+  const resolved = resolvedLayers.get(cacheKey);
+  if (!resolved) {
+    return candidates;
+  }
+  return [
+    resolved,
+    ...candidates.filter(
+      (candidate) => candidate.baseUrl !== resolved.baseUrl || candidate.layer !== resolved.layer,
+    ),
+  ];
 }
 
 /**

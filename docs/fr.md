@@ -168,6 +168,14 @@ avec l'adresse email de votre compte comme identifiant. Définissez-le là-bas,
 collez-le ici, puis appuyez sur **Tester le compte Data Grand Lyon**. Si l'appel
 échoue encore, le compte n'a peut-être pas confirmé son adresse email.
 
+**« Data Grand Lyon a répondu HTTP 404 »** — votre compte n'est pas en cause :
+c'est le jeu de données qui n'est plus publié sous le nom demandé. La Métropole
+renomme ses couches TCL à chaque évolution du réseau (d'où le suffixe `_2_0_0`
+dans le message), et l'intégration essaie donc tous les noms qu'elle connaît
+avant d'abandonner. Quand elle abandonne, le message liste ce qui a été essayé :
+retrouvez le nom actuel sur [data.grandlyon.com](https://data.grandlyon.com) et
+ouvrez un ticket avec, une mise à jour de l'intégration suffira.
+
 **Un arrêt affiche toujours `999`** — `999` signifie « aucun passage annoncé ».
 Hors des heures de service, c'est normal. Si cela persiste en journée,
 l'identifiant d'arrêt est probablement faux (ou le filtre de lignes ne

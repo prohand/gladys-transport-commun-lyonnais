@@ -2,11 +2,18 @@
 // TCL data: next departures at a stop, and park & ride (P+R) occupancy.
 //
 // Both come from Data Grand Lyon layers:
-//   - tcl_sytral.tclpassagearret : next departures, refreshed every ~20 s from
-//     the operator's real-time system (ActIV). One record = one upcoming
-//     passage of one line at one stop point.
-//   - tcl_sytral.tclparcrelais   : park & ride occupancy, refreshed every
-//     minute. One record = one P+R facility.
+//   - tclpassagearret : next departures, refreshed every ~20 s from the
+//     operator's real-time system (ActIV). One record = one upcoming passage
+//     of one line at one stop point.
+//   - tclparcrelais   : park & ride occupancy, refreshed every minute. One
+//     record = one P+R facility.
+//
+// Each of them is declared below as a LIST of names rather than one: the
+// platform versions its layers (`tcl_sytral.tclarret` became
+// `tcl_sytral.tclarret_2_0_0` when the network was renumbered) and retires the
+// previous spelling, which is exactly what a bare HTTP 404 on an otherwise
+// valid account means. `fetchLayer` walks the list and keeps the name that
+// answers, so a republished dataset costs a fallback rather than an outage.
 //
 // The park & ride layer is small (~20 facilities) and has no per-facility
 // filter, so it is fetched once and cached for the duration of a poll cycle:
@@ -18,9 +25,17 @@ import { fetchLayer, pickNumber, pickString } from './grandlyon.js';
 
 const logger = createLogger({ name: 'tcl' });
 
-export const DEPARTURES_LAYER = 'tcl_sytral.tclpassagearret';
-export const PARK_AND_RIDE_LAYER = 'tcl_sytral.tclparcrelais';
-export const STOPS_LAYER = 'tcl_sytral.tclarret';
+// Candidate names for each layer, newest first: the versioned spelling the
+// platform publishes today, then the historical one, still served for some
+// datasets.
+export const DEPARTURES_LAYERS = ['tcl_sytral.tclpassagearret_2_0_0', 'tcl_sytral.tclpassagearret'];
+export const PARK_AND_RIDE_LAYERS = ['tcl_sytral.tclparcrelais_2_0_0', 'tcl_sytral.tclparcrelais'];
+export const STOPS_LAYERS = [
+  'tcl_sytral.tclarret_2_0_0',
+  'tcl_sytral.tclarret',
+  'tcl_sytral.tclpointarret_2_0_0',
+  'tcl_sytral.tclpointarret',
+];
 
 // How long a whole-layer download stays reusable. Shorter than the shortest
 // allowed poll frequency (30 s), so a cached record is never stale enough to
@@ -94,7 +109,7 @@ export function normalizePassage(record, now = new Date()) {
 export async function fetchDepartures(config, stop, now = new Date()) {
   // The rdata `filter` parameter is what keeps this request cheap: without it
   // the layer returns the upcoming passages of the WHOLE network.
-  const values = await fetchLayer(config, DEPARTURES_LAYER, { filter: { id: stop.id } });
+  const values = await fetchLayer(config, DEPARTURES_LAYERS, { filter: { id: stop.id } });
 
   const departures = values
     .map((record) => normalizePassage(record, now))
@@ -142,7 +157,7 @@ export function fetchParkAndRideFacilities(config) {
     return parkAndRideCache.promise;
   }
 
-  const promise = fetchLayer(config, PARK_AND_RIDE_LAYER)
+  const promise = fetchLayer(config, PARK_AND_RIDE_LAYERS)
     .then((values) => {
       const byKey = new Map();
       for (const record of values) {
@@ -184,7 +199,7 @@ export function findParkAndRide(facilities, idOrName) {
  * @returns {Promise<{ id: string, name: string, lines: string }[]>}
  */
 export async function searchStops(config, query, limit = 10) {
-  const values = await fetchLayer(config, STOPS_LAYER);
+  const values = await fetchLayer(config, STOPS_LAYERS);
   const needle = query.trim().toLowerCase();
 
   return values
