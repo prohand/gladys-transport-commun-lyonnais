@@ -25,7 +25,7 @@ the Configuration screen. Start there if you just want to use the integration.
 | Domain      | Source                                                                                | Account needed |
 | ----------- | ------------------------------------------------------------------------------------- | -------------- |
 | Departures  | `tcl_sytral.tclpassagearret*` on [Data Grand Lyon](https://data.grandlyon.com)        | Yes (free)     |
-| Park & ride | `tcl_sytral.tclparcrelais*` on Data Grand Lyon                                        | Yes (free)     |
+| Park & ride | `tcl_sytral.tclparcrelaistr` on Data Grand Lyon                                       | Yes (free)     |
 | Vélo'v      | [GBFS feed](https://gbfs.org/documentation/reference/) (Métropole de Lyon / JCDecaux) | No             |
 
 Data Grand Lyon is read over HTTP Basic auth with the account the user fills in

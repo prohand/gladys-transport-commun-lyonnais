@@ -294,6 +294,31 @@ test('watching several park & ride facilities costs a single request per cycle',
   assert.equal(calls.length, 1, 'the layer is downloaded once and shared');
 });
 
+test('a park & ride id is matched whatever its case', async () => {
+  // The real layer keys its facilities on upper-case codes ("SOI", "BON"): a
+  // user pasting one back in lower case means the same car park.
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclparcrelais: {
+      values: [{ id: 'SOI', nom: 'Vaulx en Velin La Soie', capacite: 460, nb_tot_place_dispo: 87 }],
+    },
+  });
+
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'soi',
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+  await findBlueprintByDevice(gladys, device, config).onPoll(gladys, config);
+
+  const states = Object.fromEntries(
+    gladys.published.map((entry) => [entry.featureExternalId, entry.state]),
+  );
+  assert.equal(states[`${device.external_id}:spaces_available`], 87);
+});
+
 test('a park & ride is also findable by its name', async () => {
   const gladys = createFakeGladys();
   stubFetch({
@@ -388,6 +413,29 @@ test('the account test reports a retired dataset without condemning the account'
   assert.match(message.en, /✖ Park & ride/);
   assert.match(message.fr, /accepté votre compte/);
   assert.match(message.fr, /✖ Parcs relais/);
+});
+
+test('a retired dataset is reported with what the platform publishes instead', async () => {
+  const gladys = createFakeGladys();
+  stubFetch({
+    // The catalogue knows the dataset under a name the integration does not:
+    // that name is the whole content of a useful bug report, so it must reach
+    // the user instead of a bare "please report it".
+    '/ws/rdata/all.json': {
+      results: [
+        { table_schema: 'tcl_sytral', table_name: 'tclarret' },
+        { table_schema: 'tcl_sytral', table_name: 'tclparcrelaisxx' },
+      ],
+    },
+    tclparcrelais: 404,
+    tclpassagearret: { values: [{ id: '1234' }] },
+    tclarret: { values: [{ id: '1234', nom: 'Bellecour' }] },
+  });
+
+  const message = await ACTIONS.test_grandlyon(gladys, { fields: {}, config: CONFIG });
+
+  assert.match(message.en, /✖ Park & ride.*tcl_sytral\.tclparcrelaisxx/);
+  assert.match(message.fr, /✖ Parcs relais.*tcl_sytral\.tclparcrelaisxx/);
 });
 
 test('the account test still names the password trap when the account is refused', async () => {

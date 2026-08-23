@@ -207,6 +207,18 @@ const RAW_ACTIONS = {
  */
 function describeFailure(error) {
   if (error instanceof GrandLyonError && error.status === 404) {
+    // The names the platform serves around the dataset are the only actionable
+    // part of a 404: they say whether the dataset was renamed (report those
+    // names) or genuinely retired (nothing to report). Showing "please report
+    // it" with nothing to report is what sent the first user who hit this
+    // looking for a dataset name on their own.
+    const closest = error.published.slice(0, 3).join(', ');
+    if (closest) {
+      return {
+        en: `not published under any name this integration knows; the platform serves ${closest} — please report it`,
+        fr: `publié sous aucun nom connu de l’intégration ; la plateforme sert ${closest} — merci de le signaler`,
+      };
+    }
     return {
       en: 'not published under any name this integration knows — please report it',
       fr: 'publié sous aucun nom connu de l’intégration — merci de le signaler',

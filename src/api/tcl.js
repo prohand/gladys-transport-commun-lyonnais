@@ -5,15 +5,17 @@
 //   - tclpassagearret : next departures, refreshed every ~20 s from the
 //     operator's real-time system (ActIV). One record = one upcoming passage
 //     of one line at one stop point.
-//   - tclparcrelais   : park & ride occupancy, refreshed every minute. One
+//   - tclparcrelaistr : park & ride occupancy, refreshed every minute. One
 //     record = one P+R facility.
 //
 // Each of them is declared below as a LIST of names rather than one: the
 // platform versions its layers (`tcl_sytral.tclarret` became
-// `tcl_sytral.tclarret_2_0_0` when the network was renumbered) and retires the
-// previous spelling, which is exactly what a bare HTTP 404 on an otherwise
-// valid account means. `fetchLayer` walks the list and keeps the name that
-// answers, so a republished dataset costs a fallback rather than an outage.
+// `tcl_sytral.tclarret_2_0_0` when the network was renumbered), splits them
+// (`tcl_sytral.tclparcrelais` became a static and a real-time layer) and
+// retires the previous spelling, which is exactly what a bare HTTP 404 on an
+// otherwise valid account means. `fetchLayer` walks the list and keeps the name
+// that answers, so a republished dataset costs a fallback rather than an
+// outage.
 //
 // The park & ride layer is small (~20 facilities) and has no per-facility
 // filter, so it is fetched once and cached for the duration of a poll cycle:
@@ -44,13 +46,30 @@ const logger = createLogger({ name: 'tcl' });
 // platform publishes today, then the historical one, still served for some
 // datasets.
 export const DEPARTURES_LAYERS = ['tcl_sytral.tclpassagearret_2_0_0', 'tcl_sytral.tclpassagearret'];
-export const PARK_AND_RIDE_LAYERS = ['tcl_sytral.tclparcrelais_2_0_0', 'tcl_sytral.tclparcrelais'];
+// The park & ride dataset was not versioned, it was SPLIT: SYTRAL now publishes
+// `tclparcrelaistr` (temps réel — the occupancy this integration wants) next to
+// `tclparcrelaisst` (statique — the facilities and their capacity, no live
+// count). `tclparcrelais`, the single layer that used to hold both, is gone,
+// which is why an otherwise valid account reported a 404 on this dataset only.
+// The static layer is kept as a last resort: capacity and opening hours with no
+// live count still beat a device that cannot be read at all.
+export const PARK_AND_RIDE_LAYERS = [
+  'tcl_sytral.tclparcrelaistr',
+  'tcl_sytral.tclparcrelais_2_0_0',
+  'tcl_sytral.tclparcrelais',
+  'tcl_sytral.tclparcrelaisst',
+];
 export const STOPS_LAYERS = [
   'tcl_sytral.tclarret_2_0_0',
   'tcl_sytral.tclarret',
   'tcl_sytral.tclpointarret_2_0_0',
   'tcl_sytral.tclpointarret',
 ];
+
+// Every column the departures layer has used to name the stop a passage
+// belongs to. The layer publishes more than one id per record, so this list is
+// used as a set of alternatives rather than as a "first one wins" fallback.
+export const STOP_ID_COLUMNS = ['id', 'idtarret', 'idarret', 'stopid', 'stop_id'];
 
 // The three TCL datasets, as the configuration screen talks about them.
 export const TCL_DATASETS = [
@@ -201,8 +220,15 @@ export async function fetchDepartures(config, stop, now = new Date()) {
  * @returns {boolean}
  */
 export function belongsToStop(record, stopId) {
-  const recorded = pickString(record, ['id', 'idtarret', 'idarret', 'stopid', 'stop_id']);
-  return recorded === undefined || recorded === String(stopId);
+  // Every spelling is compared, not just the first one that is present: the
+  // departures layer carries BOTH a passage id and a stop id, and which column
+  // holds which has moved across revisions. Reading only `id` therefore
+  // discarded every departure of a stop whose records name it `idtarret` — the
+  // device existed, polled without error, and stayed empty forever.
+  const recorded = STOP_ID_COLUMNS.map((column) => pickString(record, [column])).filter(
+    (value) => value !== undefined,
+  );
+  return recorded.length === 0 || recorded.includes(String(stopId));
 }
 
 /**
@@ -217,8 +243,21 @@ export function normalizeParkAndRide(record) {
     id: pickString(record, ['id', 'idparcrelais', 'code', 'gid']) ?? '',
     name: pickString(record, ['nom', 'name', 'libelle']) ?? 'P+R',
     capacity: pickNumber(record, ['capacite', 'nb_tot', 'nbplacestotal', 'capacitevoiture']),
-    available: pickNumber(record, ['nbplacesdispo', 'nb_dispo', 'placesdispo', 'nbdispo']),
-    capacityDisabled: pickNumber(record, ['capacitepmr', 'nb_tot_pmr', 'nbplacestotalpmr']),
+    // `nb_tot_place_dispo` is what the real-time layer publishes today; the
+    // other spellings are the ones the retired layers used.
+    available: pickNumber(record, [
+      'nb_tot_place_dispo',
+      'nbplacesdispo',
+      'nb_dispo',
+      'placesdispo',
+      'nbdispo',
+    ]),
+    capacityDisabled: pickNumber(record, [
+      'place_handi',
+      'capacitepmr',
+      'nb_tot_pmr',
+      'nbplacestotalpmr',
+    ]),
     availableDisabled: pickNumber(record, ['nbplacesdispopmr', 'nb_dispo_pmr', 'placesdispopmr']),
   };
 }
@@ -244,6 +283,9 @@ export function fetchParkAndRideFacilities(config) {
         const facility = normalizeParkAndRide(record);
         if (facility.id) {
           byKey.set(facility.id, facility);
+          // The ids of this layer are upper-case codes ("SOI", "BON"): a user
+          // who typed one in lower case means the same car park.
+          byKey.set(facility.id.toLowerCase(), facility);
         }
         byKey.set(facility.name.toLowerCase(), facility);
       }
