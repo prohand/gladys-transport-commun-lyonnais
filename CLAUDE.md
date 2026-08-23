@@ -76,6 +76,12 @@ Two things cause the 401 everybody hits, and both are handled in
   follows redirects itself (`redirect: 'manual'`) and only replays the
   credentials on the same origin or on an https `grandlyon.com` host.
 
+A third trap is documentation-only, but every message about the account should
+keep pointing at the way out: the profile page offers a _change your password_
+form that asks for an old password, and an account created through GrandLyon
+Connect never had one. The password is set through the platform's own
+forgotten-password link, reachable after logging out of the portal.
+
 ## The manifest is validated by the store
 
 `gladys-assistant-integration.json` is checked by the store indexer, and a
