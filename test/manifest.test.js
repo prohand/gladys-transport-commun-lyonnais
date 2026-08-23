@@ -94,9 +94,52 @@ test('section fields are purely presentational', () => {
   }
 });
 
-test('the credentials field is a password field', () => {
+test('the credentials field is a secret field', () => {
   const password = manifest.config_schema.find((field) => field.key === 'grandlyon_password');
-  assert.equal(password.type, 'password', 'the Data Grand Lyon password must never be plain text');
+  assert.equal(password.type, 'secret', 'the Data Grand Lyon password must never be plain text');
+});
+
+// The store validator rejects any other type, and only accepts `placeholder`
+// on the three free-text-ish types.
+const ALLOWED_FIELD_TYPES = [
+  'string',
+  'number',
+  'boolean',
+  'select',
+  'multi_select',
+  'secret',
+  'oauth2',
+  'account_link',
+  'section',
+];
+const PLACEHOLDER_TYPES = ['string', 'number', 'secret'];
+
+test('every field type is accepted by the store validator', () => {
+  const fields = [
+    ...manifest.config_schema,
+    ...(manifest.actions ?? []).flatMap((action) => action.fields ?? []),
+  ];
+  for (const field of fields) {
+    assert.ok(
+      ALLOWED_FIELD_TYPES.includes(field.type),
+      `field "${field.key}" has an unsupported type "${field.type}"`,
+    );
+    if (field.placeholder !== undefined) {
+      assert.ok(
+        PLACEHOLDER_TYPES.includes(field.type),
+        `field "${field.key}" cannot declare a placeholder on a "${field.type}" field`,
+      );
+    }
+  }
+});
+
+test('the store description stays within 10-100 characters', () => {
+  for (const [lang, text] of Object.entries(manifest.description)) {
+    assert.ok(
+      typeof text === 'string' && text.length >= 10 && text.length <= 100,
+      `description.${lang} must be 10-100 characters, got ${text.length}`,
+    );
+  }
 });
 
 test('every label and description is translated in English and French', () => {

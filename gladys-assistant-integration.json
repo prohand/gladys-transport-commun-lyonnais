@@ -3,8 +3,8 @@
   "type": "device",
   "name": "Transports en Commun Lyonnais",
   "description": {
-    "en": "Track next departures at TCL stops, Vélo'v bike and dock availability, and free spaces in TCL park & ride facilities in Lyon.",
-    "fr": "Suivez les prochains passages aux arrêts TCL, les vélos et places disponibles dans les stations Vélo'v, et les places libres dans les parcs relais TCL à Lyon."
+    "en": "Next TCL departures, Vélo'v availability and park & ride occupancy in Lyon.",
+    "fr": "Prochains passages TCL, disponibilités Vélo'v et places en parcs relais à Lyon."
   },
   "version": "1.0.0",
   "docker_image": "ghcr.io/prohand/gladys-transport-commun-lyonnais:1.0.0",
@@ -16,7 +16,10 @@
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "How it works", "fr": "Comment ça marche" },
+      "label": {
+        "en": "How it works",
+        "fr": "Comment ça marche"
+      },
       "description": {
         "en": "This integration creates one read-only device per transit stop, Vélo'v station and park & ride you list below. Vélo'v works out of the box (open GBFS feed). Transit stops and park & ride read the TCL real-time datasets on Data Grand Lyon, which need a free account.",
         "fr": "Cette intégration crée un appareil en lecture seule par arrêt, station Vélo'v et parc relais listé ci-dessous. Vélo'v fonctionne sans rien configurer (flux GBFS ouvert). Les arrêts et les parcs relais lisent les jeux de données temps réel TCL sur Data Grand Lyon, qui nécessitent un compte gratuit."
@@ -31,18 +34,27 @@
         },
         {
           "url": "https://data.grandlyon.com/portail/fr/jeux-de-donnees/parcs-relais-reseau-transports-commun-lyonnais-disponibilites-temps-reel/info",
-          "label": { "en": "TCL park & ride dataset", "fr": "Jeu de données parcs relais TCL" }
+          "label": {
+            "en": "TCL park & ride dataset",
+            "fr": "Jeu de données parcs relais TCL"
+          }
         },
         {
           "url": "https://transport.data.gouv.fr/datasets/velos-libre-service-lyon-velov-disponibilite-en-temps-reel",
-          "label": { "en": "Vélo'v GBFS feed", "fr": "Flux GBFS Vélo'v" }
+          "label": {
+            "en": "Vélo'v GBFS feed",
+            "fr": "Flux GBFS Vélo'v"
+          }
         }
       ]
     },
     {
       "key": "account",
       "type": "section",
-      "label": { "en": "Data Grand Lyon account", "fr": "Compte Data Grand Lyon" },
+      "label": {
+        "en": "Data Grand Lyon account",
+        "fr": "Compte Data Grand Lyon"
+      },
       "description": {
         "en": "Create a free account on data.grandlyon.com, then enter it here. Leave both fields empty if you only watch Vélo'v stations.",
         "fr": "Créez un compte gratuit sur data.grandlyon.com, puis renseignez-le ici. Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v."
@@ -50,32 +62,42 @@
       "links": [
         {
           "url": "https://data.grandlyon.com/portail/fr/signup",
-          "label": { "en": "Create an account", "fr": "Créer un compte" }
+          "label": {
+            "en": "Create an account",
+            "fr": "Créer un compte"
+          }
         }
       ]
     },
     {
       "key": "grandlyon_username",
-      "type": "text",
-      "label": { "en": "Data Grand Lyon username", "fr": "Identifiant Data Grand Lyon" },
+      "type": "string",
+      "label": {
+        "en": "Data Grand Lyon username",
+        "fr": "Identifiant Data Grand Lyon"
+      },
       "description": {
         "en": "The email or username of your data.grandlyon.com account.",
         "fr": "L'email ou l'identifiant de votre compte data.grandlyon.com."
       },
-      "required": false,
-      "default": ""
+      "required": false
     },
     {
       "key": "grandlyon_password",
-      "type": "password",
-      "label": { "en": "Data Grand Lyon password", "fr": "Mot de passe Data Grand Lyon" },
-      "required": false,
-      "default": ""
+      "type": "secret",
+      "label": {
+        "en": "Data Grand Lyon password",
+        "fr": "Mot de passe Data Grand Lyon"
+      },
+      "required": false
     },
     {
       "key": "watch",
       "type": "section",
-      "label": { "en": "What to watch", "fr": "Ce que vous voulez surveiller" },
+      "label": {
+        "en": "What to watch",
+        "fr": "Ce que vous voulez surveiller"
+      },
       "description": {
         "en": "Separate entries with commas or newlines. Use the buttons at the bottom of this screen to look up the identifiers without leaving Gladys.",
         "fr": "Séparez les entrées par des virgules ou des retours à la ligne. Utilisez les boutons en bas de cet écran pour retrouver les identifiants sans quitter Gladys."
@@ -83,44 +105,53 @@
     },
     {
       "key": "stops",
-      "type": "text",
-      "label": { "en": "Transit stops", "fr": "Arrêts" },
+      "type": "string",
+      "label": {
+        "en": "Transit stops",
+        "fr": "Arrêts"
+      },
       "description": {
         "en": "Stop identifiers. Optional line filter after @ and custom name after : — e.g. \"1234, 5678@T1:Tram at home, 4321@C3|C13\".",
         "fr": "Identifiants d'arrêt. Filtre de lignes optionnel après @ et nom personnalisé après : — ex. « 1234, 5678@T1:Tram en bas, 4321@C3|C13 »."
       },
       "required": false,
-      "default": "",
       "placeholder": "1234, 5678@T1:Tram at home"
     },
     {
       "key": "velov_stations",
-      "type": "text",
-      "label": { "en": "Vélo'v stations", "fr": "Stations Vélo'v" },
+      "type": "string",
+      "label": {
+        "en": "Vélo'v stations",
+        "fr": "Stations Vélo'v"
+      },
       "description": {
         "en": "Station identifiers or names, with an optional custom name after : — e.g. \"10063, Hotel de Ville:Work\".",
         "fr": "Identifiants ou noms de stations, avec un nom personnalisé optionnel après : — ex. « 10063, Hotel de Ville:Bureau »."
       },
       "required": false,
-      "default": "",
       "placeholder": "10063, Hotel de Ville:Work"
     },
     {
       "key": "park_and_ride",
-      "type": "text",
-      "label": { "en": "Park & ride (P+R)", "fr": "Parcs relais (P+R)" },
+      "type": "string",
+      "label": {
+        "en": "Park & ride (P+R)",
+        "fr": "Parcs relais (P+R)"
+      },
       "description": {
         "en": "Park & ride identifiers or names, with an optional custom name after : — e.g. \"Gorge de Loup, Parilly:Commute\".",
         "fr": "Identifiants ou noms de parcs relais, avec un nom personnalisé optionnel après : — ex. « Gorge de Loup, Parilly:Trajet boulot »."
       },
       "required": false,
-      "default": "",
       "placeholder": "Gorge de Loup, Parilly:Commute"
     },
     {
       "key": "refresh",
       "type": "section",
-      "label": { "en": "Refresh intervals", "fr": "Fréquences de rafraîchissement" },
+      "label": {
+        "en": "Refresh intervals",
+        "fr": "Fréquences de rafraîchissement"
+      },
       "description": {
         "en": "Each device is refreshed by Gladys at its own interval. The upstream feeds are recomputed about once a minute, so polling faster only costs requests.",
         "fr": "Chaque appareil est rafraîchi par Gladys à son propre intervalle. Les flux sources sont recalculés environ toutes les minutes : interroger plus souvent ne fait que consommer des requêtes."
@@ -145,7 +176,10 @@
     {
       "key": "velov_poll_frequency",
       "type": "number",
-      "label": { "en": "Vélo'v refresh interval (s)", "fr": "Rafraîchissement Vélo'v (s)" },
+      "label": {
+        "en": "Vélo'v refresh interval (s)",
+        "fr": "Rafraîchissement Vélo'v (s)"
+      },
       "description": {
         "en": "How often bike and dock availability is refreshed, in seconds.",
         "fr": "Fréquence de rafraîchissement des vélos et places disponibles, en secondes."
@@ -174,7 +208,10 @@
     {
       "key": "max_departures",
       "type": "number",
-      "label": { "en": "Departures per stop", "fr": "Passages par arrêt" },
+      "label": {
+        "en": "Departures per stop",
+        "fr": "Passages par arrêt"
+      },
       "description": {
         "en": "How many upcoming departures each stop device exposes as features.",
         "fr": "Nombre de prochains passages exposés en fonctionnalités par arrêt."
@@ -196,13 +233,19 @@
     },
     {
       "key": "search_stops",
-      "label": { "en": "Find a transit stop", "fr": "Chercher un arrêt" },
+      "label": {
+        "en": "Find a transit stop",
+        "fr": "Chercher un arrêt"
+      },
       "timeout_seconds": 30,
       "fields": [
         {
           "key": "query",
-          "type": "text",
-          "label": { "en": "Stop name", "fr": "Nom de l'arrêt" },
+          "type": "string",
+          "label": {
+            "en": "Stop name",
+            "fr": "Nom de l'arrêt"
+          },
           "placeholder": "Bellecour",
           "required": true
         }
@@ -210,13 +253,19 @@
     },
     {
       "key": "search_velov_stations",
-      "label": { "en": "Find a Vélo'v station", "fr": "Chercher une station Vélo'v" },
+      "label": {
+        "en": "Find a Vélo'v station",
+        "fr": "Chercher une station Vélo'v"
+      },
       "timeout_seconds": 30,
       "fields": [
         {
           "key": "query",
-          "type": "text",
-          "label": { "en": "Station name", "fr": "Nom de la station" },
+          "type": "string",
+          "label": {
+            "en": "Station name",
+            "fr": "Nom de la station"
+          },
           "placeholder": "Hotel de Ville",
           "required": true
         }
@@ -224,7 +273,10 @@
     },
     {
       "key": "list_park_and_ride",
-      "label": { "en": "List the park & ride facilities", "fr": "Lister les parcs relais" },
+      "label": {
+        "en": "List the park & ride facilities",
+        "fr": "Lister les parcs relais"
+      },
       "timeout_seconds": 30
     }
   ]
