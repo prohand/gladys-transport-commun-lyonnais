@@ -171,10 +171,25 @@ collez-le ici, puis appuyez sur **Tester le compte Data Grand Lyon**. Si l'appel
 **« Data Grand Lyon a répondu HTTP 404 »** — votre compte n'est pas en cause :
 c'est le jeu de données qui n'est plus publié sous le nom demandé. La Métropole
 renomme ses couches TCL à chaque évolution du réseau (d'où le suffixe `_2_0_0`
-dans le message), et l'intégration essaie donc tous les noms qu'elle connaît
-avant d'abandonner. Quand elle abandonne, le message liste ce qui a été essayé :
-retrouvez le nom actuel sur [data.grandlyon.com](https://data.grandlyon.com) et
-ouvrez un ticket avec, une mise à jour de l'intégration suffira.
+dans le message). L'intégration essaie tous les noms qu'elle connaît, puis
+demande au catalogue de la plateforme comment le jeu de données s'appelle
+aujourd'hui et utilise ce nom : la plupart des renommages se réparent donc tout
+seuls, sans mise à jour. Quand le catalogue lui-même n'a rien, le message liste
+ce qui a été essayé et les noms voisins réellement publiés : ouvrez un ticket
+avec, une mise à jour de l'intégration suffira.
+
+**« Tester le compte Data Grand Lyon » signale un jeu de données illisible** —
+le bouton teste les trois jeux de données séparément, et c'est la première
+ligne qui compte : si elle dit que votre compte a été accepté, vos identifiants
+sont bons. Une seule ligne `✖` signifie que ce jeu de données a été retiré (voir
+ci-dessus) ; les fonctions basées sur les deux autres continuent de marcher.
+
+**« Data Grand Lyon n'a pas répondu en ... »** — la plateforme a mis trop de
+temps, en général pendant le téléchargement de l'annuaire complet des arrêts
+pour **Chercher un arrêt**. Relancez le bouton : le premier téléchargement
+réussi est gardé en mémoire pendant une heure, et les recherches suivantes sont
+immédiates. Saisir le nom complet de l'arrêt (`Bellecour` plutôt que `belle`)
+évite complètement ce téléchargement.
 
 **Un arrêt affiche toujours `999`** — `999` signifie « aucun passage annoncé ».
 Hors des heures de service, c'est normal. Si cela persiste en journée,

@@ -76,6 +76,26 @@ Two things cause the 401 everybody hits, and both are handled in
   follows redirects itself (`redirect: 'manual'`) and only replays the
   credentials on the same origin or on an https `grandlyon.com` host.
 
+Two more things about the web service, both fixed in `src/api/grandlyon.js`
+after they reached users as bugs:
+
+- filtering is `field=<attribute>&value=<value>` (or the Django-flavoured
+  `<attribute>__eq=`, `__gt`, `__in`...). The JSON `filter` parameter the
+  integration used to send is **not** implemented: the service ignores it and
+  answers with the whole layer, so callers send `equalityParams()` and re-check
+  the records they get back;
+- `<base>/all.json` (without a layer) is the index of everything the service
+  publishes. `fetchLayer` reads it when every known name of a dataset answers
+  404, so a rename is picked up by itself; the 404 message is only reached when
+  the catalogue has nothing either, and it then lists the closest published
+  names.
+
+Timeouts are per kind of read (`REQUEST_TIMEOUT_MS`, `BULK_TIMEOUT_MS`,
+`PROBE_TIMEOUT_MS`): the stop directory is a multi-megabyte download and does
+not fit in the budget that is generous for a filtered read. A manifest action
+that can trigger a bulk read needs a `timeout_seconds` larger than the budget,
+otherwise Gladys gives up before the client does.
+
 A third trap is documentation-only, but every message about the account should
 keep pointing at the way out: the profile page offers a _change your password_
 form that asks for an old password, and an account created through GrandLyon

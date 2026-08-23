@@ -18,10 +18,25 @@
 // The park & ride layer is small (~20 facilities) and has no per-facility
 // filter, so it is fetched once and cached for the duration of a poll cycle:
 // watching five car parks costs one HTTP request, not five.
+//
+// The stop directory (tclarret) is the opposite: thousands of records, no way
+// to search it server-side, and a network that changes twice a year. It is
+// downloaded whole, with the long timeout, and kept for an hour — downloading
+// it on every keystroke of the search action is what used to end in "Data
+// Grand Lyon is unreachable (The operation was aborted due to timeout)".
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { fetchLayer, pickNumber, pickString } from './grandlyon.js';
+import {
+  BULK_TIMEOUT_MS,
+  equalityParams,
+  fetchLayer,
+  GrandLyonError,
+  pickNumber,
+  pickString,
+  PROBE_TIMEOUT_MS,
+  resolvedLayerFor,
+} from './grandlyon.js';
 
 const logger = createLogger({ name: 'tcl' });
 
@@ -37,14 +52,58 @@ export const STOPS_LAYERS = [
   'tcl_sytral.tclpointarret',
 ];
 
+// The three TCL datasets, as the configuration screen talks about them.
+export const TCL_DATASETS = [
+  {
+    key: 'departures',
+    label: { en: 'Next departures', fr: 'Prochains passages' },
+    layers: DEPARTURES_LAYERS,
+  },
+  {
+    key: 'stops',
+    label: { en: 'Stop directory', fr: 'Annuaire des arrêts' },
+    layers: STOPS_LAYERS,
+  },
+  {
+    key: 'park_and_ride',
+    label: { en: 'Park & ride', fr: 'Parcs relais' },
+    layers: PARK_AND_RIDE_LAYERS,
+  },
+];
+
 // How long a whole-layer download stays reusable. Shorter than the shortest
 // allowed poll frequency (30 s), so a cached record is never stale enough to
 // matter, yet long enough to collapse the burst of onPoll calls Gladys fires
 // for the devices sharing a frequency.
 const CACHE_TTL_MS = 20_000;
 
+// The stop directory is the one dataset that is neither small nor real time:
+// several thousand records with their geometry, and a network that changes a
+// couple of times a year. Downloading it on every search is what made the
+// search action time out, so it is downloaded once and kept for an hour.
+const STOPS_CACHE_TTL_MS = 60 * 60_000;
+
 /** @type {{ expiresAt: number, promise: Promise<Map<string, object>> } | null} */
 let parkAndRideCache = null;
+
+/** @type {{ expiresAt: number, promise: Promise<object[]> } | null} */
+let stopsCache = null;
+
+/**
+ * Fold a name down to what a human means when they type it: no case, no
+ * accents, no leading or trailing space. Searching "venissieux" must find
+ * "Gare de Vénissieux", which a plain `includes` never does.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function normalizeText(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toLowerCase();
+}
 
 /**
  * Convert an upcoming passage into "minutes from now".
@@ -107,11 +166,21 @@ export function normalizePassage(record, now = new Date()) {
  * @returns {Promise<{ line: string, direction: string, minutes: number | null, realtime: boolean }[]>}
  */
 export async function fetchDepartures(config, stop, now = new Date()) {
-  // The rdata `filter` parameter is what keeps this request cheap: without it
-  // the layer returns the upcoming passages of the WHOLE network.
-  const values = await fetchLayer(config, DEPARTURES_LAYERS, { filter: { id: stop.id } });
+  // Filtering server-side is what keeps this request cheap: without it the
+  // layer returns the upcoming passages of the WHOLE network. The integration
+  // used to send a JSON `filter` parameter, which the web service does not
+  // implement and therefore ignored — every poll downloaded the whole network
+  // and the stop was picked out of it by luck. `equalityParams` sends the two
+  // spellings the service does document.
+  const values = await fetchLayer(config, DEPARTURES_LAYERS, {
+    params: equalityParams('id', stop.id),
+  });
 
   const departures = values
+    // A service that ignored the filter would otherwise answer about every
+    // stop of the network, so the stop is checked here too: a record with no
+    // readable stop id can only come from a filtered answer, and is kept.
+    .filter((record) => belongsToStop(record, stop.id))
     .map((record) => normalizePassage(record, now))
     .filter((departure) => departure.minutes !== null);
 
@@ -123,6 +192,17 @@ export async function fetchDepartures(config, stop, now = new Date()) {
   filtered.sort((a, b) => a.minutes - b.minutes);
   logger.debug(`Stop ${stop.id}: ${filtered.length} upcoming departure(s)`);
   return filtered;
+}
+
+/**
+ * Whether a raw passage record concerns one given stop.
+ * @param {Record<string, unknown>} record
+ * @param {string} stopId
+ * @returns {boolean}
+ */
+export function belongsToStop(record, stopId) {
+  const recorded = pickString(record, ['id', 'idtarret', 'idarret', 'stopid', 'stop_id']);
+  return recorded === undefined || recorded === String(stopId);
 }
 
 /**
@@ -190,29 +270,161 @@ export function findParkAndRide(facilities, idOrName) {
 }
 
 /**
+ * Normalize one raw stop record into what the search action displays.
+ * @param {Record<string, unknown>} record
+ * @returns {{ id: string, name: string, lines: string }}
+ */
+export function normalizeStop(record) {
+  return {
+    id: pickString(record, ['id', 'idtarret', 'idarret', 'code', 'gid']) ?? '',
+    name: pickString(record, ['nom', 'name', 'libelle']) ?? '',
+    lines: pickString(record, ['desserte', 'lignes', 'routes']) ?? '',
+  };
+}
+
+/**
+ * The whole stop directory, downloaded once and kept for an hour.
+ *
+ * This is the expensive read of the integration — the layer has no per-name
+ * filter, so a substring search has to look at every stop — and it is also the
+ * one that never changes between two network revisions. Caching it turns the
+ * second search of a configuration session into a local array scan, and the
+ * longer timeout is what makes the first one succeed at all on a slow line.
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+export function fetchStops(config) {
+  const now = Date.now();
+  if (stopsCache && stopsCache.expiresAt > now) {
+    return stopsCache.promise;
+  }
+
+  const promise = fetchLayer(config, STOPS_LAYERS, { timeoutMs: BULK_TIMEOUT_MS })
+    .then((values) => {
+      logger.debug(`${values.length} stop(s) loaded`);
+      return values;
+    })
+    .catch((err) => {
+      // Never cache a failure: a timeout must be retryable straight away.
+      stopsCache = null;
+      throw err;
+    });
+
+  stopsCache = { expiresAt: now + STOPS_CACHE_TTL_MS, promise };
+  return promise;
+}
+
+/**
  * Search the stop points of the network by name, used by the `search_stops`
  * manifest action so the user can find a stop id without leaving Gladys.
  *
+ * Two reads, cheapest first: the exact name the user typed is asked of the
+ * platform directly (a filtered request, a few records, instantaneous), and
+ * only a search that finds nothing that way falls back on the full directory.
+ * Typing "Bellecour" therefore never waits for a several-megabyte download,
+ * and typing "belle" waits for it once per hour at most.
+ *
  * @param {ReturnType<import('../config.js').normalizeConfig>} config
- * @param {string} query free text, matched case-insensitively on the stop name
+ * @param {string} query free text, matched case- and accent-insensitively on
+ *   the stop name
  * @param {number} [limit]
  * @returns {Promise<{ id: string, name: string, lines: string }[]>}
  */
 export async function searchStops(config, query, limit = 10) {
-  const values = await fetchLayer(config, STOPS_LAYERS);
-  const needle = query.trim().toLowerCase();
+  const needle = normalizeText(query);
+  if (needle.length === 0) {
+    return [];
+  }
 
+  const exact = await searchStopsByExactName(config, query, limit);
+  if (exact.length > 0) {
+    return exact;
+  }
+
+  const values = await fetchStops(config);
   return values
-    .map((record) => ({
-      id: pickString(record, ['id', 'idtarret', 'code', 'gid']) ?? '',
-      name: pickString(record, ['nom', 'name', 'libelle']) ?? '',
-      lines: pickString(record, ['desserte', 'lignes', 'routes']) ?? '',
-    }))
-    .filter((stop) => stop.id && stop.name.toLowerCase().includes(needle))
+    .map(normalizeStop)
+    .filter((stop) => stop.id && normalizeText(stop.name).includes(needle))
     .slice(0, limit);
 }
 
-/** Drop the cached park & ride payload (used on config change and by tests). */
+/**
+ * The stops whose name is exactly what the user typed, asked of the platform.
+ *
+ * The answer is re-checked locally because the web service is free to ignore
+ * a filter it does not implement on a given layer, in which case it answers
+ * with an arbitrary page of the directory instead of an error — records that
+ * would otherwise be presented as matches. A read that fails here is not
+ * fatal: the caller still has the full directory to fall back on.
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @param {string} query
+ * @param {number} limit
+ * @returns {Promise<{ id: string, name: string, lines: string }[]>}
+ */
+async function searchStopsByExactName(config, query, limit) {
+  const needle = normalizeText(query);
+  let values;
+  try {
+    values = await fetchLayer(config, STOPS_LAYERS, {
+      params: equalityParams('nom', query.trim()),
+      maxFeatures: 50,
+    });
+  } catch (err) {
+    logger.debug(`Exact-name lookup of "${query}" failed, falling back: ${err.message}`);
+    return [];
+  }
+
+  return values
+    .map(normalizeStop)
+    .filter((stop) => stop.id && normalizeText(stop.name) === needle)
+    .slice(0, limit);
+}
+
+/**
+ * Probe the TCL datasets this integration reads, one small request each.
+ *
+ * The configuration screen used to test the account by listing the park &
+ * ride facilities, which reports a retired dataset as a total failure — the
+ * user is told to go hunting for a dataset name while their account, their
+ * departures and their stop searches are all perfectly fine. Probing each
+ * dataset separately says which part works, and a refused account still
+ * surfaces as such because that error is the one worth propagating.
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @returns {Promise<{ key: string, label: { en: string, fr: string }, ok: boolean,
+ *   layer: string | undefined, error: Error | undefined }[]>}
+ */
+export function checkDatasets(config) {
+  return Promise.all(
+    TCL_DATASETS.map(async (dataset) => {
+      try {
+        await fetchLayer(config, dataset.layers, {
+          maxFeatures: 1,
+          timeoutMs: PROBE_TIMEOUT_MS,
+        });
+        return {
+          ...dataset,
+          ok: true,
+          layer: resolvedLayerFor(config, dataset.layers)?.layer,
+          error: undefined,
+        };
+      } catch (err) {
+        // A refused account is not a property of one dataset: it makes every
+        // probe fail, and the user must read about the password rather than
+        // about three missing datasets.
+        if (err instanceof GrandLyonError && (err.status === 401 || err.status === 403)) {
+          throw err;
+        }
+        return { ...dataset, ok: false, layer: undefined, error: err };
+      }
+    }),
+  );
+}
+
+/** Drop the cached TCL payloads (used on config change and by tests). */
 export function clearTclCache() {
   parkAndRideCache = null;
+  stopsCache = null;
 }

@@ -5,8 +5,24 @@
 // the Métropole de Lyon on https://data.grandlyon.com. The "rdata" web service
 // exposes one JSON endpoint per layer:
 //
-//   GET <base>/<layer>/all.json?maxfeatures=-1[&filter=<json>]
+//   GET <base>/<layer>/all.json?maxfeatures=-1[&field=<attr>&value=<v>]
 //   -> { "nb_results": 12, "values": [ { ... }, ... ] }
+//
+// and one index of everything it serves:
+//
+//   GET <base>/all.json
+//   -> { "results": [ { "table_schema": "tcl_sytral", "table_name": "tclarret" }, ... ] }
+//
+// That index is what saves the integration when a dataset is renamed: rather
+// than failing until someone ships a new hard-coded name, the client looks the
+// current name up and keeps using it (see `discoverCandidates`).
+//
+// Filtering is documented as `field=<attribute>&value=<value>`, or as the
+// Django-flavoured `<attribute>__eq=<value>` (also `__gt`, `__gte`, `__lt`,
+// `__lte`, `__in`). A JSON `filter` parameter is NOT part of the service: the
+// platform silently ignores it, which turns what looks like a one-stop request
+// into a download of the whole layer. `equalityParams` below sends both
+// documented spellings, and the callers re-check the result client-side.
 //
 // It is free but account-protected, and the way the account works trips
 // everybody up at least once:
@@ -43,7 +59,25 @@ import { hasGrandLyonCredentials } from '../config.js';
 
 const logger = createLogger({ name: 'grandlyon' });
 
+// How long a single request may take. A filtered read answers in well under a
+// second; a whole-layer download (the stop directory is several thousand
+// records with their geometry) regularly needs more than the fifteen seconds
+// that are plenty for everything else, and timing it out at fifteen is exactly
+// the "Data Grand Lyon is unreachable (The operation was aborted due to
+// timeout)" the search action used to fail with. Hence one budget per kind of
+// read instead of one for all three.
 const REQUEST_TIMEOUT_MS = 15_000;
+export const BULK_TIMEOUT_MS = 60_000;
+// Probes exist to answer "does this account work?" quickly, and they run in
+// parallel behind a button whose own timeout is counted in seconds: they get
+// the shortest budget of the three.
+export const PROBE_TIMEOUT_MS = 10_000;
+
+// How long the list of published layers stays reusable. It only changes when
+// the platform publishes or retires a dataset, i.e. a few times a year, but it
+// is read at the worst possible moment (a poll that just failed), so it is not
+// cached forever either.
+const CATALOGUE_TTL_MS = 10 * 60_000;
 
 // How many cross-host redirects we are willing to follow ourselves. The
 // platform needs one (portal -> download host); anything beyond three is a
@@ -115,9 +149,36 @@ export function candidateBaseUrls(baseUrl) {
  */
 const resolvedLayers = new Map();
 
+/**
+ * The list of layers the platform publishes, per base URL.
+ *
+ * Read from `<base>/all.json` the first time a dataset cannot be found under
+ * any name we know, then reused: it is a catalogue of every table of the
+ * platform, so it is not something to fetch on a whim.
+ *
+ * @type {Map<string, { expiresAt: number, promise: Promise<string[]> }>}
+ */
+const publishedLayers = new Map();
+
 /** Forget the resolved layer names (used on config change and by tests). */
 export function clearLayerResolution() {
   resolvedLayers.clear();
+  publishedLayers.clear();
+}
+
+/**
+ * The (base URL, layer name) pair a previous call settled on, if any.
+ *
+ * Exposed so the configuration screen can tell the user which dataset it is
+ * actually reading — after a rename, that is the answer to "is it working?".
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @param {string | string[]} layers the same candidate list passed to `fetchLayer`
+ * @returns {{ baseUrl: string, layer: string } | undefined}
+ */
+export function resolvedLayerFor(config, layers) {
+  const names = (Array.isArray(layers) ? layers : [layers]).filter(Boolean);
+  return resolvedLayers.get(cacheKeyFor(config, names));
 }
 
 /**
@@ -125,30 +186,42 @@ export function clearLayerResolution() {
  *
  * A 404 here is not the user's fault and no amount of retrying fixes it: the
  * Métropole renames the TCL layers when the network changes (that is what the
- * `_2_0_0` suffixes are), and the integration has to learn the new name. The
- * message therefore says what was tried and where the current name is found,
- * instead of the bare status code.
+ * `_2_0_0` suffixes are), and the integration has to learn the new name. Since
+ * the client now reads the platform's own index before giving up, reaching
+ * this message means the dataset is not merely renamed but gone (or renamed
+ * beyond recognition), so the message also lists the closest names the
+ * platform does publish: that is the one piece of information a bug report
+ * needs and nobody can guess from the outside.
  *
  * @param {string[]} layers the candidate names that all answered 404
+ * @param {string[]} [published] the closest names the platform actually serves
  * @returns {{ en: string, fr: string }}
  */
-function layerNotFoundMessage(layers) {
+function layerNotFoundMessage(layers, published = []) {
   const tried = layers.join(', ');
+  const closest = published.slice(0, 5).join(', ');
+  const hint = closest
+    ? {
+        en: ` The platform publishes these look-alikes: ${closest}.`,
+        fr: ` La plateforme publie ces noms voisins : ${closest}.`,
+      }
+    : { en: '', fr: '' };
   return {
     en:
       `Data Grand Lyon answered HTTP 404: none of the datasets this integration knows is ` +
       `published anymore (tried: ${tried}). The platform renames its TCL layers when the ` +
       `network changes; look the current name up on https://data.grandlyon.com and report ` +
       `it at https://github.com/prohand/gladys-transport-commun-lyonnais/issues so the ` +
-      `integration can follow. Your account is fine — this is not a credentials problem.`,
+      `integration can follow.${hint.en} Your account is fine — this is not a credentials ` +
+      `problem.`,
     fr:
       `Data Grand Lyon a répondu HTTP 404 : aucun des jeux de données connus de ` +
       `l’intégration n’est encore publié (essayés : ${tried}). La plateforme renomme les ` +
       `couches TCL à chaque évolution du réseau ; retrouvez le nom actuel sur ` +
       `https://data.grandlyon.com et signalez-le sur ` +
       `https://github.com/prohand/gladys-transport-commun-lyonnais/issues pour que ` +
-      `l’intégration suive. Votre compte n’est pas en cause : ce n’est pas un problème ` +
-      `d’identifiants.`,
+      `l’intégration suive.${hint.fr} Votre compte n’est pas en cause : ce n’est pas un ` +
+      `problème d’identifiants.`,
   };
 }
 
@@ -176,6 +249,55 @@ const CREDENTIALS_REFUSED = {
     'cette page réclame un ancien mot de passe que vous n’avez jamais défini, ' +
     'déconnectez-vous du portail et utilisez le lien « Mot de passe oublié ? ».',
 };
+
+/**
+ * What to tell the user when the request ran out of time.
+ *
+ * The bare cause ("The operation was aborted due to timeout") reads like a
+ * bug in the integration, while it usually means the platform took longer
+ * than the budget to serve a whole dataset. Say which read timed out, and say
+ * that trying again is worth it — the answer is then cached.
+ *
+ * @param {string} layer the layer being read
+ * @param {number} timeoutMs the budget that expired
+ * @returns {{ en: string, fr: string }}
+ */
+function timedOutMessage(layer, timeoutMs) {
+  const seconds = Math.round(timeoutMs / 1000);
+  return {
+    en:
+      `Data Grand Lyon did not answer within ${seconds} s while reading ${layer}. The ` +
+      `platform is slow at peak time and this read downloads a whole dataset: try again in ` +
+      `a moment — once it succeeds, the answer is kept in memory and the next searches are ` +
+      `instant.`,
+    fr:
+      `Data Grand Lyon n’a pas répondu en ${seconds} s pendant la lecture de ${layer}. La ` +
+      `plateforme est lente aux heures de pointe et cette lecture télécharge un jeu de ` +
+      `données entier : réessayez dans un instant — une fois la réponse obtenue, elle est ` +
+      `gardée en mémoire et les recherches suivantes sont immédiates.`,
+  };
+}
+
+/**
+ * What to tell the user when the request never reached the platform.
+ *
+ * @param {string} layer the layer being read
+ * @param {string} reason the underlying cause, worth keeping: DNS, TLS and
+ *   proxy failures all look the same from here otherwise
+ * @returns {{ en: string, fr: string }}
+ */
+function unreachableMessage(layer, reason) {
+  return {
+    en:
+      `Data Grand Lyon could not be reached while reading ${layer} (${reason}). Check that ` +
+      `the container has internet access and that the base URL of the web service is ` +
+      `correct.`,
+    fr:
+      `Data Grand Lyon n’a pas pu être contacté pendant la lecture de ${layer} (${reason}). ` +
+      `Vérifiez que le conteneur a accès à internet et que l’URL de base du service web est ` +
+      `correcte.`,
+  };
+}
 
 /**
  * Raised when the platform answers something we cannot use. It carries the
@@ -210,9 +332,10 @@ export class GrandLyonError extends Error {
  * @param {URL} url
  * @param {string} credentials base64 "user:password"
  * @param {string} layer only used to describe errors
+ * @param {number} [timeoutMs] budget for each hop of the chain
  * @returns {Promise<Response>} the first non-redirect response
  */
-async function getWithBasicAuth(url, credentials, layer) {
+async function getWithBasicAuth(url, credentials, layer, timeoutMs = REQUEST_TIMEOUT_MS) {
   const origin = url.origin;
   let current = url;
 
@@ -222,15 +345,26 @@ async function getWithBasicAuth(url, credentials, layer) {
       response = await fetch(current, {
         headers: { Authorization: `Basic ${credentials}`, Accept: 'application/json' },
         redirect: 'manual',
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
       // Network error or timeout: never let the raw AbortError bubble up, the
-      // caller only needs to know the layer could not be read.
-      throw new GrandLyonError(`Data Grand Lyon is unreachable (${err.message})`, {
-        layer,
-        cause: err,
-      });
+      // caller only needs to know the layer could not be read — and the user
+      // needs to know whether waiting helps (timeout) or not (no route to the
+      // platform at all).
+      const timedOut = err?.name === 'TimeoutError' || err?.cause?.name === 'TimeoutError';
+      throw new GrandLyonError(
+        timedOut
+          ? `Data Grand Lyon timed out after ${timeoutMs} ms (${layer})`
+          : `Data Grand Lyon is unreachable (${err.message})`,
+        {
+          layer,
+          cause: err,
+          userMessage: timedOut
+            ? timedOutMessage(layer, timeoutMs)
+            : unreachableMessage(layer, err.message),
+        },
+      );
     }
 
     const location = response.headers.get('location');
@@ -266,23 +400,48 @@ async function getWithBasicAuth(url, credentials, layer) {
 }
 
 /**
+ * Query parameters expressing "this attribute equals this value".
+ *
+ * The service documents two spellings of the same predicate and says nothing
+ * about which layers implement which, so both are sent: they cannot disagree
+ * (same attribute, same value), and one of them being ignored is the
+ * difference between a one-record answer and a download of the whole network.
+ * Callers still re-check the records they get back, because a service that
+ * ignores BOTH would otherwise silently answer about the wrong stop.
+ *
+ * @param {string} field attribute name, e.g. 'id'
+ * @param {string | number} value value it must equal
+ * @returns {Record<string, string>}
+ */
+export function equalityParams(field, value) {
+  return { field, value: String(value), [`${field}__eq`]: String(value) };
+}
+
+/**
  * Call one rdata layer and return its `values` array.
  *
  * Several spellings of the same dataset may be passed: the platform versions
  * its layer names (`tcl_sytral.tclarret`, then `tcl_sytral.tclarret_2_0_0`)
  * and retires the previous one, so the caller lists the names it knows,
  * newest first, and this function keeps the one that answers. A 404 is
- * therefore never fatal on its own — only "no candidate at all answered" is.
+ * therefore never fatal on its own — and when every known name 404s, the
+ * platform's own index is read to find what the dataset is called today,
+ * which is the difference between a rename costing one extra request and a
+ * rename breaking the integration until someone ships a new name.
  *
  * @param {ReturnType<import('../config.js').normalizeConfig>} config
  * @param {string | string[]} layers layer name(s), e.g. 'tcl_sytral.tclarret'
- * @param {{ filter?: Record<string, unknown>, maxFeatures?: number }} [options]
- *   `filter` is sent as the JSON `filter` query parameter supported by rdata,
- *   which is what keeps a per-stop request small instead of downloading the
- *   whole network.
+ * @param {{ params?: Record<string, string | number>, maxFeatures?: number, timeoutMs?: number }} [options]
+ *   `params` are extra query parameters, typically from `equalityParams`:
+ *   filtering server-side is what keeps a per-stop request small instead of
+ *   downloading the whole network.
  * @returns {Promise<Record<string, unknown>[]>}
  */
-export async function fetchLayer(config, layers, { filter, maxFeatures = -1 } = {}) {
+export async function fetchLayer(
+  config,
+  layers,
+  { params, maxFeatures = -1, timeoutMs = REQUEST_TIMEOUT_MS } = {},
+) {
   const names = (Array.isArray(layers) ? layers : [layers]).filter(Boolean);
   // Errors name the layer the caller actually asked for, not the fallback we
   // happened to stop on.
@@ -301,24 +460,52 @@ export async function fetchLayer(config, layers, { filter, maxFeatures = -1 } = 
     );
   }
 
-  const credentials = Buffer.from(
-    `${config.grandlyon_username}:${config.grandlyon_password}`,
-  ).toString('base64');
+  const credentials = basicCredentials(config);
+  const cacheKey = cacheKeyFor(config, names);
 
-  const cacheKey = `${config.grandlyon_base_url}|${names.join(',')}`;
+  const queue = layerCandidates(config, names, cacheKey);
+  const attempted = new Set();
+  // Names the platform publishes for this dataset family, read from its index
+  // once every name we know has 404ed. `null` means "not looked up yet", which
+  // is also what tells the loop it still has something left to try.
+  let published = null;
 
-  for (const candidate of layerCandidates(config, names, cacheKey)) {
+  while (true) {
+    const candidate = queue.shift();
+
+    if (!candidate) {
+      if (published !== null) {
+        break;
+      }
+      const discovery = await discoverCandidates(config, names, credentials);
+      published = discovery.published;
+      const extra = discovery.candidates.filter((entry) => !attempted.has(candidateKey(entry)));
+      if (extra.length > 0) {
+        logger.warn(
+          `Every known name of ${primary} answered 404; the platform now publishes ` +
+            `${extra.map((entry) => entry.layer).join(', ')}`,
+        );
+        queue.push(...extra);
+      }
+      continue;
+    }
+
+    if (attempted.has(candidateKey(candidate))) {
+      continue;
+    }
+    attempted.add(candidateKey(candidate));
+
     const { baseUrl, layer } = candidate;
 
     const url = new URL(`${baseUrl}/${layer}/all.json`);
     url.searchParams.set('maxfeatures', String(maxFeatures));
-    if (filter) {
-      url.searchParams.set('filter', JSON.stringify(filter));
+    for (const [key, value] of Object.entries(params ?? {})) {
+      url.searchParams.set(key, String(value));
     }
 
     logger.debug(`GET ${url.toString()}`);
 
-    const response = await getWithBasicAuth(url, credentials, layer);
+    const response = await getWithBasicAuth(url, credentials, layer, timeoutMs);
 
     if (response.status === 401 || response.status === 403) {
       throw new GrandLyonError(
@@ -359,7 +546,11 @@ export async function fetchLayer(config, layers, { filter, maxFeatures = -1 } = 
 
   throw new GrandLyonError(
     `Data Grand Lyon answered HTTP 404 for every known name of ${primary} (${names.join(', ')})`,
-    { status: 404, layer: primary, userMessage: layerNotFoundMessage(names) },
+    {
+      status: 404,
+      layer: primary,
+      userMessage: layerNotFoundMessage(names, published ?? []),
+    },
   );
 }
 
@@ -393,6 +584,188 @@ function layerCandidates(config, names, cacheKey) {
       (candidate) => candidate.baseUrl !== resolved.baseUrl || candidate.layer !== resolved.layer,
     ),
   ];
+}
+
+/** Key under which a candidate list remembers the pair that answered. */
+function cacheKeyFor(config, names) {
+  return `${config.grandlyon_base_url}|${names.join(',')}`;
+}
+
+/** Identity of one (base URL, layer) pair, so a candidate is tried once. */
+function candidateKey({ baseUrl, layer }) {
+  return `${baseUrl}|${layer}`;
+}
+
+/** The HTTP Basic value for the configured account. */
+function basicCredentials(config) {
+  return Buffer.from(`${config.grandlyon_username}:${config.grandlyon_password}`).toString(
+    'base64',
+  );
+}
+
+/**
+ * The dataset family a layer name belongs to.
+ *
+ * The platform expresses a new version of a dataset as a suffix on the table
+ * name (`tclarret` -> `tclarret_2_0_0`), so dropping that suffix is what makes
+ * "the same dataset, republished" recognizable. The schema is dropped too: it
+ * has moved in the past (a layer served under `tcl_sytral` reappearing under
+ * `sytral`), and the table name alone is specific enough here.
+ *
+ * @param {string} name a layer name, with or without its schema
+ * @returns {string}
+ */
+export function layerStem(name) {
+  const dot = String(name).indexOf('.');
+  const table = dot === -1 ? String(name) : String(name).slice(dot + 1);
+  return table.replace(/_\d+(?:_\d+)*$/, '').toLowerCase();
+}
+
+/**
+ * The published names that are the same dataset as one of `names`, best first.
+ *
+ * "Best" is the freshest plausible spelling: same schema before another one
+ * (the platform keeps its schemas for years), then the highest version suffix,
+ * which sorts naturally in reverse lexicographic order (`_2_0_0` before
+ * `_1_0_0` before no suffix at all).
+ *
+ * @param {string[]} names the candidate names the integration knows
+ * @param {string[]} published every layer name the platform serves
+ * @returns {string[]}
+ */
+export function matchPublishedLayers(names, published) {
+  const stems = new Set(names.map(layerStem));
+  const schemas = new Set(
+    names.filter((name) => name.includes('.')).map((name) => name.slice(0, name.indexOf('.'))),
+  );
+  const known = new Set(names);
+
+  return published
+    .filter((name) => !known.has(name) && stems.has(layerStem(name)))
+    .sort((a, b) => {
+      const schemaRank =
+        Number(schemas.has(b.slice(0, b.indexOf('.')))) -
+        Number(schemas.has(a.slice(0, a.indexOf('.'))));
+      return schemaRank !== 0 ? schemaRank : b.localeCompare(a);
+    });
+}
+
+/**
+ * The published names that merely look related, for the error message.
+ *
+ * When a dataset is retired for good, the useful thing to show is what the
+ * platform serves around it — `tclparcrelais` gone but `tclparcrelaispmr`
+ * present says something a bare 404 does not. A four-character prefix of the
+ * table name is loose enough to catch a renamed dataset and tight enough not
+ * to list the whole catalogue.
+ *
+ * @param {string[]} names the candidate names the integration knows
+ * @param {string[]} published every layer name the platform serves
+ * @returns {string[]}
+ */
+export function similarPublishedLayers(names, published) {
+  const prefixes = names.map((name) => layerStem(name).slice(0, 4)).filter(Boolean);
+  return published
+    .filter((name) => prefixes.some((prefix) => layerStem(name).startsWith(prefix)))
+    .sort();
+}
+
+/**
+ * Every layer name published under one base URL.
+ *
+ * `<base>/all.json` is the index of the web service: one entry per table, with
+ * its schema and its name. It is the same endpoint the portal's own dataset
+ * pages are built from, so it always knows the current spelling.
+ *
+ * @param {string} baseUrl
+ * @param {string} credentials base64 "user:password"
+ * @returns {Promise<string[]>}
+ */
+function listPublishedLayers(baseUrl, credentials) {
+  const cached = publishedLayers.get(baseUrl);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.promise;
+  }
+
+  const promise = (async () => {
+    const response = await getWithBasicAuth(
+      new URL(`${baseUrl}/all.json`),
+      credentials,
+      'catalogue',
+      BULK_TIMEOUT_MS,
+    );
+    if (!response.ok) {
+      throw new GrandLyonError(`Data Grand Lyon catalogue answered HTTP ${response.status}`, {
+        status: response.status,
+        layer: 'catalogue',
+      });
+    }
+    const body = await response.json();
+    const results = Array.isArray(body) ? body : (body?.results ?? []);
+    if (!Array.isArray(results)) {
+      throw new GrandLyonError('Unexpected Data Grand Lyon catalogue payload', {
+        layer: 'catalogue',
+      });
+    }
+    return results
+      .map((entry) => {
+        const schema = pickString(entry, ['table_schema', 'schema']);
+        const table = pickString(entry, ['table_name', 'name']);
+        if (!table) {
+          return '';
+        }
+        return schema ? `${schema}.${table}` : table;
+      })
+      .filter(Boolean);
+  })().catch((err) => {
+    // Never cache a failure: the catalogue is read when something is already
+    // wrong, and the next attempt must not inherit this one.
+    publishedLayers.delete(baseUrl);
+    throw err;
+  });
+
+  publishedLayers.set(baseUrl, { expiresAt: Date.now() + CATALOGUE_TTL_MS, promise });
+  return promise;
+}
+
+/**
+ * What the platform publishes today for a dataset whose known names all 404ed.
+ *
+ * Failing to read the catalogue is not worth an error of its own: the caller
+ * is already on its way to reporting "this dataset is gone", and an
+ * unreachable index only means it will do so without the extra detail.
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @param {string[]} names the candidate names the integration knows
+ * @param {string} credentials base64 "user:password"
+ * @returns {Promise<{ candidates: { baseUrl: string, layer: string }[], published: string[] }>}
+ */
+async function discoverCandidates(config, names, credentials) {
+  const candidates = [];
+  const published = [];
+
+  for (const baseUrl of candidateBaseUrls(config.grandlyon_base_url)) {
+    let layers;
+    try {
+      layers = await listPublishedLayers(baseUrl, credentials);
+    } catch (err) {
+      logger.debug(`Catalogue unreadable under ${baseUrl}: ${err.message}`);
+      continue;
+    }
+
+    for (const layer of matchPublishedLayers(names, layers)) {
+      candidates.push({ baseUrl, layer });
+    }
+    published.push(...similarPublishedLayers(names, layers));
+
+    // The dataset is served from one namespace: once found, there is nothing
+    // to gain from downloading the other catalogue too.
+    if (candidates.length > 0) {
+      break;
+    }
+  }
+
+  return { candidates, published: [...new Set(published)] };
 }
 
 /**

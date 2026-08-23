@@ -21,42 +21,19 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import http from 'node:http';
 import {
   candidateBaseUrls,
   canReplayCredentials,
   clearLayerResolution,
+  equalityParams,
   fetchLayer,
   GrandLyonError,
+  layerStem,
+  matchPublishedLayers,
+  resolvedLayerFor,
 } from '../src/api/grandlyon.js';
 import { normalizeConfig } from '../src/config.js';
-
-/**
- * Start a one-off HTTP server and return it with its base URL.
- * @param {http.RequestListener} handler
- */
-async function startServer(handler) {
-  const server = http.createServer(handler);
-  server.listen(0, '127.0.0.1');
-  await new Promise((resolve) => server.once('listening', resolve));
-  const { port } = server.address();
-  return {
-    server,
-    baseUrl: `http://127.0.0.1:${port}`,
-    close: () => new Promise((resolve) => server.close(resolve)),
-  };
-}
-
-/** A config pointing at a local server, with credentials filled in. */
-function configFor(baseUrl) {
-  return normalizeConfig({
-    grandlyon_base_url: baseUrl,
-    grandlyon_username: 'me@example.com',
-    grandlyon_password: 'platform-password',
-  });
-}
-
-const BASIC = `Basic ${Buffer.from('me@example.com:platform-password').toString('base64')}`;
+import { BASIC, configFor, sendJson, startServer } from './helpers/localServer.js';
 
 test('credentials survive a redirect, which fetch alone would drop', async (t) => {
   const seen = [];
@@ -292,5 +269,146 @@ test('credentials are only replayed on the same origin or on the platform', () =
     canReplayCredentials(new URL('https://grandlyon.com.example.test/ws'), origin),
     false,
     'a look-alike hostname is not the platform',
+  );
+});
+
+test('a renamed dataset is found in the platform catalogue instead of failing', async (t) => {
+  clearLayerResolution();
+  const asked = [];
+  const { baseUrl, close } = await startServer((req, res) => {
+    asked.push(req.url.split('?')[0]);
+    // The index of the web service: this is where the current name lives.
+    if (req.url.startsWith('/ws/rdata/all.json')) {
+      sendJson(res, {
+        results: [
+          { table_schema: 'tcl_sytral', table_name: 'tclarret_2_0_0' },
+          { table_schema: 'tcl_sytral', table_name: 'tclparcrelais_3_0_0' },
+          { table_schema: 'abr_arbres_alignement', table_name: 'abrarbre' },
+        ],
+      });
+      return;
+    }
+    if (req.url.startsWith('/ws/rdata/tcl_sytral.tclparcrelais_3_0_0/')) {
+      sendJson(res, { values: [{ id: '1', nom: 'Gorge de Loup' }] });
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  t.after(close);
+
+  const config = configFor(`${baseUrl}/ws/rdata`);
+  const names = ['tcl_sytral.tclparcrelais_2_0_0', 'tcl_sytral.tclparcrelais'];
+
+  const values = await fetchLayer(config, names);
+
+  assert.deepEqual(values, [{ id: '1', nom: 'Gorge de Loup' }]);
+  assert.ok(
+    asked.includes('/ws/rdata/all.json'),
+    'the catalogue is what tells the integration the dataset was renamed',
+  );
+  assert.equal(resolvedLayerFor(config, names)?.layer, 'tcl_sytral.tclparcrelais_3_0_0');
+
+  // And the discovery is paid once: the next poll goes straight to the name
+  // that answered.
+  asked.length = 0;
+  await fetchLayer(config, names);
+  assert.deepEqual(asked, ['/ws/rdata/tcl_sytral.tclparcrelais_3_0_0/all.json']);
+});
+
+test('a dataset gone for good names the closest ones the platform publishes', async (t) => {
+  clearLayerResolution();
+  const { baseUrl, close } = await startServer((req, res) => {
+    if (req.url.startsWith('/ws/rdata/all.json')) {
+      sendJson(res, {
+        results: [
+          { table_schema: 'tcl_sytral', table_name: 'tclpassagearret_2_0_0' },
+          { table_schema: 'tcl_sytral', table_name: 'tclpointarret' },
+        ],
+      });
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  t.after(close);
+
+  await assert.rejects(
+    fetchLayer(configFor(`${baseUrl}/ws/rdata`), [
+      'tcl_sytral.tclparcrelais_2_0_0',
+      'tcl_sytral.tclparcrelais',
+    ]),
+    (err) => {
+      assert.equal(err.status, 404);
+      // Nothing in the catalogue is that dataset, but "here is what does
+      // exist" is what a bug report needs.
+      assert.match(err.userMessage.en, /tcl_sytral\.tclpassagearret_2_0_0/);
+      assert.match(err.userMessage.fr, /tcl_sytral\.tclpointarret/);
+      return true;
+    },
+  );
+});
+
+test('a stem matches a republished dataset, whatever its version suffix', () => {
+  assert.equal(layerStem('tcl_sytral.tclarret_2_0_0'), 'tclarret');
+  assert.equal(layerStem('tcl_sytral.tclarret'), 'tclarret');
+  assert.equal(layerStem('tclarret'), 'tclarret');
+
+  const published = [
+    'tcl_sytral.tclarret_1_0_0',
+    'sytral.tclarret_9_0_0',
+    'tcl_sytral.tclarret_3_0_0',
+    'tcl_sytral.tclpointarret',
+  ];
+  assert.deepEqual(matchPublishedLayers(['tcl_sytral.tclarret_2_0_0'], published), [
+    // Same schema first, then the highest version: the freshest plausible
+    // spelling is tried first.
+    'tcl_sytral.tclarret_3_0_0',
+    'tcl_sytral.tclarret_1_0_0',
+    'sytral.tclarret_9_0_0',
+  ]);
+});
+
+test('a filtered read sends the two documented spellings of the filter', async (t) => {
+  clearLayerResolution();
+  let asked = '';
+  const { baseUrl, close } = await startServer((req, res) => {
+    asked = req.url;
+    sendJson(res, { values: [] });
+  });
+  t.after(close);
+
+  await fetchLayer(configFor(`${baseUrl}/ws/rdata`), 'tcl_sytral.tclpassagearret', {
+    params: equalityParams('id', 1234),
+  });
+
+  const params = new URL(asked, 'http://localhost').searchParams;
+  assert.equal(params.get('field'), 'id');
+  assert.equal(params.get('value'), '1234');
+  assert.equal(params.get('id__eq'), '1234');
+  assert.equal(params.get('maxfeatures'), '-1');
+});
+
+test('a request that runs out of time says so, and says retrying is worth it', async (t) => {
+  clearLayerResolution();
+  const { baseUrl, close } = await startServer(() => {
+    // Never answer: this is the platform under load, which is what the search
+    // action used to hit.
+  });
+  t.after(async () => {
+    await close();
+  });
+
+  await assert.rejects(
+    fetchLayer(configFor(`${baseUrl}/ws/rdata`), 'tcl_sytral.tclarret', { timeoutMs: 100 }),
+    (err) => {
+      assert.ok(err instanceof GrandLyonError);
+      assert.match(err.message, /timed out/);
+      // The raw cause ("The operation was aborted due to timeout") is what the
+      // user used to read, and it says nothing about what to do.
+      assert.match(err.userMessage.en, /try again/i);
+      assert.match(err.userMessage.fr, /réessayez/i);
+      return true;
+    },
   );
 });
