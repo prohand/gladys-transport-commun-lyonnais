@@ -59,6 +59,15 @@ require a free account.
    [your data platform profile](https://data.grandlyon.com/onegeo-login/fr/profile/)
    and define the password of the platform. It can — and should — be different
    from the GrandLyon Connect one.
+
+   That form is titled "Changer votre mot de passe" and asks for an **old
+   password**. If you only ever signed in through GrandLyon Connect you have
+   none — and the GrandLyon Connect password is not accepted there either. Log
+   out of the portal: the profile page then lands on the data platform's own
+   sign-in form, where the **Mot de passe oublié ?** (forgotten password) link
+   emails you a link that sets the password without knowing the previous one.
+   The password you set that way is the one to paste into the integration.
+
 3. In the integration configuration, fill in the **login** (in general the
    email address of your account) and that **platform password**.
 4. Press **Test the Data Grand Lyon account** — it reports how many park & ride
@@ -134,6 +143,14 @@ and car parks are there, ready to be added to Gladys.
 **"Transit stops and park & ride need a Data Grand Lyon account"** — the
 integration status stays red because you listed a stop or a car park without
 filling in the credentials. Add them, or remove the entries.
+
+**The profile page asks for an old password I never set** — that form
+_changes_ an existing password, and an account created through GrandLyon
+Connect has none. Log out of the portal, go back to
+[data.grandlyon.com/onegeo-login/fr/profile/](https://data.grandlyon.com/onegeo-login/fr/profile/)
+— you land on the data platform sign-in form — and use **Mot de passe oublié ?**
+with the email address of the account. The emailed link sets the platform
+password with no old password required.
 
 **"Data Grand Lyon refused the credentials"** — nine times out of ten, the
 password entered is the GrandLyon Connect one. The web service wants the

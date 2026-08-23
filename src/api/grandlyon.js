@@ -20,7 +20,11 @@
 //
 // Sending the GrandLyon Connect password here therefore yields a plain 401,
 // which is why the message raised below spells the distinction out instead of
-// just reporting the status code.
+// just reporting the status code. It also names the way out of the trap the
+// profile page sets: it only offers a "change your password" form, which asks
+// for an old password an account created through the single sign-on never
+// had. The password is set through the platform's own forgotten-password
+// link, reachable once logged out of the portal.
 //
 // Redirects need care too: the platform moved the web service from
 // data.grandlyon.com/fr/datapusher/ws/rdata to download.data.grandlyon.com/ws
@@ -85,12 +89,16 @@ const CREDENTIALS_REFUSED = {
     'Data Grand Lyon refused the credentials. The web service does not accept your ' +
     'GrandLyon Connect password: sign in on the portal, then set a password specific to ' +
     'the data platform on https://data.grandlyon.com/onegeo-login/fr/profile/ and enter ' +
-    'it here, with the email address of your account as the username.',
+    'it here, with the email address of your account as the username. If that page asks ' +
+    'for an old password you never set, log out of the portal first and use its ' +
+    '"Mot de passe oublié ?" link.',
   fr:
     'Data Grand Lyon a refusé les identifiants. Le service web n’accepte pas le mot de ' +
     'passe GrandLyon Connect : connectez-vous au portail, définissez un mot de passe ' +
     'propre à la plateforme de données sur https://data.grandlyon.com/onegeo-login/fr/profile/ ' +
-    'puis saisissez-le ici, avec l’adresse email de votre compte comme identifiant.',
+    'puis saisissez-le ici, avec l’adresse email de votre compte comme identifiant. Si ' +
+    'cette page réclame un ancien mot de passe que vous n’avez jamais défini, ' +
+    'déconnectez-vous du portail et utilisez le lien « Mot de passe oublié ? ».',
 };
 
 /**

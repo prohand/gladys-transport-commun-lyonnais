@@ -61,6 +61,16 @@ qui nécessitent un compte gratuit.
    [votre profil de la plateforme de données](https://data.grandlyon.com/onegeo-login/fr/profile/)
    et définissez le mot de passe de la plateforme. Il peut — et devrait — être
    différent de celui de GrandLyon Connect.
+
+   Le formulaire s'intitule « Changer votre mot de passe » et réclame un
+   **ancien mot de passe**. Si vous n'avez jamais utilisé que GrandLyon
+   Connect, vous n'en avez aucun — et le mot de passe GrandLyon Connect n'est
+   pas accepté ici non plus. Déconnectez-vous du portail : la page de profil
+   renvoie alors vers la connexion propre à la plateforme de données, où le
+   lien **Mot de passe oublié ?** envoie par email un lien de définition du
+   mot de passe, sans avoir à connaître le précédent. Le mot de passe ainsi
+   défini est celui à saisir dans l'intégration.
+
 3. Dans la configuration de l'intégration, renseignez l'**identifiant** (en
    général l'adresse email de votre compte) et ce **mot de passe de la
    plateforme**.
@@ -140,6 +150,15 @@ stations et parcs y sont, prêts à être ajoutés à Gladys.
 **« Les arrêts et parcs relais nécessitent un compte Data Grand Lyon »** — le
 statut de l'intégration reste rouge parce que vous avez listé un arrêt ou un
 parc sans renseigner les identifiants. Ajoutez-les, ou retirez les entrées.
+
+**« Ancien mot de passe » demandé alors que je n'en ai jamais défini** — le
+formulaire de la page de profil sert à _changer_ un mot de passe existant, et
+un compte créé via GrandLyon Connect n'en a pas. Déconnectez-vous du portail,
+retournez sur
+[data.grandlyon.com/onegeo-login/fr/profile/](https://data.grandlyon.com/onegeo-login/fr/profile/)
+— vous arrivez sur la connexion de la plateforme de données — et utilisez
+**Mot de passe oublié ?** avec l'adresse email du compte. Le lien reçu par
+email définit le mot de passe de la plateforme sans ancien mot de passe.
 
 **« Data Grand Lyon a refusé les identifiants »** — neuf fois sur dix, le mot
 de passe saisi est celui de GrandLyon Connect. Le service web attend le mot de

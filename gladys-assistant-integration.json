@@ -56,8 +56,8 @@
         "fr": "Compte Data Grand Lyon"
       },
       "description": {
-        "en": "You sign in on data.grandlyon.com with GrandLyon Connect, but the API needs a separate password that you set on the data platform itself. Leave both fields empty if you only watch Vélo'v stations.",
-        "fr": "Vous vous connectez à data.grandlyon.com avec GrandLyon Connect, mais l'API exige un mot de passe distinct, à définir sur la plateforme de données. Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v."
+        "en": "You sign in on data.grandlyon.com with GrandLyon Connect, but the API needs a separate password that you set on the data platform itself. If its profile page asks for an old password you never had, log out of the portal and use its forgotten-password link. Leave both fields empty if you only watch Vélo'v stations.",
+        "fr": "Vous vous connectez à data.grandlyon.com avec GrandLyon Connect, mais l'API exige un mot de passe distinct, à définir sur la plateforme de données. Si sa page de profil réclame un ancien mot de passe que vous n'avez jamais eu, déconnectez-vous du portail et utilisez son lien « Mot de passe oublié ? ». Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v."
       },
       "links": [
         {
