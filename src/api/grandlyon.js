@@ -307,13 +307,18 @@ function unreachableMessage(layer, reason) {
 export class GrandLyonError extends Error {
   /**
    * @param {string} message
-   * @param {{ status?: number, layer?: string, userMessage?: { en: string, fr: string } }} [details]
+   * @param {{ status?: number, layer?: string, published?: string[],
+   *   userMessage?: { en: string, fr: string } }} [details]
    */
-  constructor(message, { status, layer, cause, userMessage } = {}) {
+  constructor(message, { status, layer, cause, published, userMessage } = {}) {
     super(message, { cause });
     this.name = 'GrandLyonError';
     this.status = status;
     this.layer = layer;
+    // On a 404, the names the platform actually publishes around the dataset.
+    // The user cannot rename a layer, but they can paste that list into a bug
+    // report — and it is what turns "please report it" into one click.
+    this.published = published ?? [];
     // Bilingual explanation displayed as-is in the Gladys configuration screen
     // (see the `test_grandlyon` action). Only set when we have something more
     // useful to say than the raw message.
@@ -549,6 +554,7 @@ export async function fetchLayer(
     {
       status: 404,
       layer: primary,
+      published: published ?? [],
       userMessage: layerNotFoundMessage(names, published ?? []),
     },
   );
@@ -634,20 +640,55 @@ export function layerStem(name) {
  * @returns {string[]}
  */
 export function matchPublishedLayers(names, published) {
-  const stems = new Set(names.map(layerStem));
+  const stems = [...new Set(names.map(layerStem))];
   const schemas = new Set(
     names.filter((name) => name.includes('.')).map((name) => name.slice(0, name.indexOf('.'))),
   );
   const known = new Set(names);
 
   return published
-    .filter((name) => !known.has(name) && stems.has(layerStem(name)))
+    .filter((name) => !known.has(name) && stemRank(layerStem(name), stems) > 0)
     .sort((a, b) => {
+      const rank = stemRank(layerStem(b), stems) - stemRank(layerStem(a), stems);
+      if (rank !== 0) {
+        return rank;
+      }
       const schemaRank =
         Number(schemas.has(b.slice(0, b.indexOf('.')))) -
         Number(schemas.has(a.slice(0, a.indexOf('.'))));
       return schemaRank !== 0 ? schemaRank : b.localeCompare(a);
     });
+}
+
+// A rename is only followed automatically when the new table name still starts
+// with the old one; below this length that prefix rule would match half the
+// catalogue, so a short stem is required to be exact.
+const MIN_PREFIX_STEM_LENGTH = 6;
+
+/**
+ * How confidently a published stem is the same dataset as one we know: 2 for
+ * the same stem, 1 for a stem extended by a suffix, 0 for unrelated.
+ *
+ * The suffix case is not hypothetical: `tclparcrelais` was not versioned, it
+ * was split into `tclparcrelaisst` (static) and `tclparcrelaistr` (real time),
+ * and a matcher that only stripped `_2_0_0`-style versions saw the dataset as
+ * gone for good. Trying a suffixed name costs one request, and the caller
+ * re-checks the records it gets back anyway.
+ *
+ * @param {string} stem stem of a published layer name
+ * @param {string[]} stems stems of the names the integration knows
+ * @returns {0 | 1 | 2}
+ */
+function stemRank(stem, stems) {
+  if (stems.includes(stem)) {
+    return 2;
+  }
+  const related = stems.some(
+    (known) =>
+      (known.length >= MIN_PREFIX_STEM_LENGTH && stem.startsWith(known)) ||
+      (stem.length >= MIN_PREFIX_STEM_LENGTH && known.startsWith(stem)),
+  );
+  return related ? 1 : 0;
 }
 
 /**

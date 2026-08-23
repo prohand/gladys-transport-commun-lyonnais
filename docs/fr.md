@@ -109,8 +109,10 @@ station Vélo'v** pour chercher par nom.
 
 **Parcs relais** — `<identifiant ou nom>[:<nom personnalisé>]`
 
-`Gorge de Loup`, ou `Parilly:Trajet boulot`. Appuyez sur **Lister les parcs
-relais** pour voir tous les parcs avec leur identifiant et leur occupation.
+`Gorge de Loup`, `SOI`, ou `Parilly:Trajet boulot`. Les identifiants sont de
+courts codes en majuscules (`SOI`, `BON`, `GREY`…), et le nom fonctionne tout
+aussi bien. Appuyez sur **Lister les parcs relais** pour voir tous les parcs
+avec leur identifiant et leur occupation.
 
 ### 3. Fréquences de rafraîchissement
 
@@ -200,6 +202,17 @@ bus) : relancez **Chercher un arrêt**.
 **Une station Vélo'v ou un parc relais est en erreur à chaque relève** —
 l'identifiant n'existe pas dans le flux. Relancez le bouton de recherche
 correspondant et collez l'identifiant qu'il retourne.
+
+**J'ai collé un identifiant et l'écran Découverte reste vide** — l'écran
+Découverte ne liste que ce que l'intégration a publié, et elle publie à
+l'**enregistrement** de la configuration, pas à la saisie d'un champ.
+Enregistrez la configuration, puis lisez le statut de l'intégration juste
+au-dessus : il détaille désormais ce qui est surveillé (« Connecté. Surveille
+1 arrêt — ils apparaissent dans l'écran Découverte »). S'il dit autre chose, ou
+si votre entrée manque au décompte, la valeur n'est pas arrivée jusqu'à
+l'intégration : vérifiez que le champ a bien été enregistré, puis relancez la
+recherche depuis l'écran Découverte. Les logs disent la même chose à chaque
+publication : `Publishing 1 device(s): Bellecour`.
 
 L'intégration journalise tout ce qu'elle fait : consultez les logs de
 l'intégration depuis l'interface Gladys, avec `LOG_LEVEL=debug` pour le détail

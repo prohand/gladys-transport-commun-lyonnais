@@ -94,6 +94,26 @@ test('a park & ride record is read through its column aliases', () => {
   assert.equal(renamed.available, 0, 'a full car park publishes 0, not undefined');
 });
 
+test('a park & ride record is read in the shape the real-time layer publishes', () => {
+  // `tcl_sytral.tclparcrelaistr`, the layer that replaced `tclparcrelais`:
+  // the free-space count is `nb_tot_place_dispo` and the accessible spaces are
+  // a capacity (`place_handi`), not an availability. Reading the old column
+  // names against this layer is a car park whose only feature never updates.
+  const realtime = normalizeParkAndRide({
+    id: 'SOI',
+    nom: 'Vaulx en Velin La Soie',
+    capacite: 460,
+    place_handi: 10,
+    nb_tot_place_dispo: 87,
+  });
+  assert.equal(realtime.id, 'SOI');
+  assert.equal(realtime.name, 'Vaulx en Velin La Soie');
+  assert.equal(realtime.capacity, 460);
+  assert.equal(realtime.available, 87);
+  assert.equal(realtime.capacityDisabled, 10);
+  assert.equal(realtime.availableDisabled, undefined, 'the layer publishes no live PMR count');
+});
+
 test('a GBFS name is read in both the v2 and v3 shapes', () => {
   assert.equal(readGbfsName('Hotel de Ville'), 'Hotel de Ville');
   assert.equal(

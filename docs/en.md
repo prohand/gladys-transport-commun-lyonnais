@@ -103,8 +103,10 @@ search by name.
 
 **Park & ride** — `<P+R id or name>[:<custom name>]`
 
-`Gorge de Loup`, or `Parilly:Commute`. Press **List the park & ride
-facilities** to see every facility with its identifier and current occupancy.
+`Gorge de Loup`, `SOI`, or `Parilly:Commute`. Identifiers are short upper-case
+codes (`SOI`, `BON`, `GREY`…), and the name works just as well. Press **List
+the park & ride facilities** to see every facility with its identifier and
+current occupancy.
 
 ### 3. Refresh intervals
 
@@ -189,6 +191,16 @@ stop): re-run **Find a transit stop**.
 
 **A Vélo'v station or a park & ride errors on every poll** — the identifier is
 not in the feed. Re-run the matching search button and paste the id it returns.
+
+**I pasted an identifier and the Discovery screen stays empty** — the Discovery
+screen only lists what the integration published, and it publishes when the
+configuration is _saved_, not when a field is edited. Save the configuration,
+then read the integration status just above: it now spells out what is being
+watched ("Connected. Watching 1 stop — they appear in the Discovery screen").
+If it says something else, or your entry is missing from the count, the value
+did not reach the integration — check that the field was saved, then press the
+scan button of the Discovery screen. The integration logs the same thing on
+every publication: `Publishing 1 device(s): Bellecour`.
 
 The integration logs everything it does: read the integration logs from the
 Gladys UI, with `LOG_LEVEL=debug` for the full detail (every outgoing request

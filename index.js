@@ -30,7 +30,7 @@ let config = normalizeConfig();
 // --- Discovery: Gladys asks for the list of devices --------------------------
 gladys.onScanRequest(async () => {
   logger.info('onScanRequest -> publishing the configured stops, stations and car parks');
-  await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+  await publishDevices();
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
@@ -68,7 +68,7 @@ gladys.onConfigUpdated(async (newConfig) => {
   // Re-publish the devices: the watch lists and the poll frequencies live in
   // the configuration. publishDiscoveredDevices is idempotent (upsert by
   // external_id).
-  await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+  await publishDevices();
   await reportConnectionStatus();
 });
 
@@ -82,7 +82,7 @@ gladys.on('connected', async () => {
     config = normalizeConfig(await gladys.getConfig());
 
     // 2) (Re)publish all configured devices as soon as we are connected.
-    await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+    await publishDevices();
 
     // 3) Report the application-level status, shown in the Configuration
     // screen. Distinct from the container state machine: an integration can
@@ -98,6 +98,47 @@ gladys.on('connected', async () => {
       .catch(() => {});
   }
 });
+
+/**
+ * Publish the devices described by the current configuration, and log what was
+ * published by name.
+ *
+ * The log line is the point: "nothing in the Discovery screen" has exactly two
+ * causes — a watch list Gladys never saved, and a watch list the integration
+ * parsed into zero entries — and they are indistinguishable from the UI. One
+ * line naming every device (or saying there are none) tells them apart without
+ * having to reason about the mini-syntax of the fields.
+ */
+async function publishDevices() {
+  const devices = buildDiscoveredDevices(gladys, config);
+  logger.info(
+    devices.length === 0
+      ? 'No device to publish: the three watch lists of the configuration are empty'
+      : `Publishing ${devices.length} device(s): ${devices.map((device) => device.name).join(', ')}`,
+  );
+  await gladys.publishDiscoveredDevices(devices);
+}
+
+/**
+ * A short bilingual inventory of what the configuration asks for, shown next
+ * to the connection status: it is how the user checks that the entry they just
+ * typed was understood, without opening the container logs.
+ *
+ * @param {{ stops: unknown[], velovStations: unknown[], parkAndRide: unknown[] }} watched
+ * @returns {{ en: string, fr: string }}
+ */
+function describeWatchList({ stops, velovStations, parkAndRide }) {
+  const parts = [
+    { count: stops.length, en: 'stop', fr: 'arrêt' },
+    { count: velovStations.length, en: "Vélo'v station", fr: 'station Vélo’v' },
+    { count: parkAndRide.length, en: 'park & ride', fr: 'parc relais' },
+  ].filter((part) => part.count > 0);
+
+  return {
+    en: parts.map((part) => `${part.count} ${part.en}${part.count > 1 ? 's' : ''}`).join(', '),
+    fr: parts.map((part) => `${part.count} ${part.fr}${part.count > 1 ? 's' : ''}`).join(', '),
+  };
+}
 
 /**
  * Tell Gladys whether the integration is actually able to do its job.
@@ -127,7 +168,15 @@ async function reportConnectionStatus() {
     return;
   }
 
-  await gladys.setConnectionStatus(true);
+  // Connected AND explicit about what is being watched: a status reading
+  // "1 stop" right after saving is the fastest confirmation that the watch
+  // list was understood, and "0" would have been the answer to the first
+  // "I pasted a stop id and the Discovery screen stayed empty" report.
+  const watched = describeWatchList(config.watched);
+  await gladys.setConnectionStatus(true, {
+    en: `Connected. Watching ${watched.en} — they appear in the Discovery screen.`,
+    fr: `Connecté. Surveille ${watched.fr} — ils apparaissent dans l’écran Découverte.`,
+  });
 }
 
 // --- Graceful shutdown -------------------------------------------------------

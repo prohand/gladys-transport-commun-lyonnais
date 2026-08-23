@@ -90,6 +90,16 @@ after they reached users as bugs:
   the catalogue has nothing either, and it then lists the closest published
   names.
 
+A dataset that vanishes is not always a rename: `tcl_sytral.tclparcrelais` was
+**split** into `tclparcrelaistr` (temps réel, the occupancy) and
+`tclparcrelaisst` (statique, the facilities), and a matcher that only stripped
+`_2_0_0`-style version suffixes read that as "retired for good". The candidate
+lists in `src/api/tcl.js` name the current layer first, and
+`matchPublishedLayers` also follows a published name that merely _extends_ a
+known one. Column names moved with the split too (`nbplacesdispo` ->
+`nb_tot_place_dispo`): every parser reads through `pick`, add the new spelling
+rather than replacing the old one.
+
 Timeouts are per kind of read (`REQUEST_TIMEOUT_MS`, `BULK_TIMEOUT_MS`,
 `PROBE_TIMEOUT_MS`): the stop directory is a multi-megabyte download and does
 not fit in the budget that is generous for a filtered read. A manifest action

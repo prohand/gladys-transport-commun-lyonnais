@@ -369,6 +369,33 @@ test('a stem matches a republished dataset, whatever its version suffix', () => 
   ]);
 });
 
+test('a dataset split into suffixed layers is still recognized as the same dataset', () => {
+  // What actually happened to the park & ride dataset: `tclparcrelais` was not
+  // versioned, it was replaced by a real-time and a static layer. Matching on
+  // the version suffix alone saw the dataset as retired for good, and the
+  // configuration screen told a user with a perfectly valid account to go and
+  // report a missing dataset.
+  const published = [
+    'tcl_sytral.tclparcrelaisst',
+    'tcl_sytral.tclparcrelaistr',
+    'tcl_sytral.tclarret',
+  ];
+  assert.deepEqual(matchPublishedLayers(['tcl_sytral.tclparcrelais'], published), [
+    'tcl_sytral.tclparcrelaistr',
+    'tcl_sytral.tclparcrelaisst',
+  ]);
+
+  // An exact stem still beats an extended one, and an unrelated table is never
+  // tried: the prefix rule is a fallback, not a wildcard.
+  assert.deepEqual(
+    matchPublishedLayers(
+      ['sytral.tclparcrelais'],
+      ['tcl_sytral.tclparcrelaistr', 'tcl_sytral.tclparcrelais', 'tcl_sytral.tclagence'],
+    ),
+    ['tcl_sytral.tclparcrelais', 'tcl_sytral.tclparcrelaistr'],
+  );
+});
+
 test('a filtered read sends the two documented spellings of the filter', async (t) => {
   clearLayerResolution();
   let asked = '';

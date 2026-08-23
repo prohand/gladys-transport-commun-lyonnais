@@ -162,6 +162,16 @@ test('departures are kept for the stop that was asked for', async (t) => {
   assert.equal(belongsToStop({ ligne: 'T1' }, '1001'), true, 'a filtered answer carries no id');
 });
 
+test('a departure is matched on any of the columns naming its stop', () => {
+  // The departures layer carries both a passage id and a stop id. Reading only
+  // the first column that is present threw away every record of a stop whose
+  // id lives in `idtarret`, and the device polled forever without ever showing
+  // a departure.
+  assert.equal(belongsToStop({ id: '99887766', idtarret: '2080' }, '2080'), true);
+  assert.equal(belongsToStop({ id: '2080' }, '2080'), true);
+  assert.equal(belongsToStop({ id: '99887766', idtarret: '2079' }, '2080'), false);
+});
+
 test('the account test reports each dataset instead of failing on the first', async (t) => {
   clearLayerResolution();
   clearTclCache();
