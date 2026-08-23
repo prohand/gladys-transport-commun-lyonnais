@@ -15,9 +15,10 @@
 // `config_schema` of the manifest (test/manifest.test.js enforces it).
 export const DEFAULT_CONFIG = {
   // --- Data Grand Lyon credentials (TCL departures + park & ride) -----------
+  // The password is NOT the GrandLyon Connect one: see src/api/grandlyon.js.
   grandlyon_username: '',
   grandlyon_password: '',
-  grandlyon_base_url: 'https://data.grandlyon.com/fr/datapusher/ws/rdata',
+  grandlyon_base_url: 'https://download.data.grandlyon.com/ws/rdata',
 
   // --- What to watch --------------------------------------------------------
   stops: '',
@@ -59,6 +60,30 @@ export function normalizePollFrequency(value, fallback) {
     return fallback;
   }
   return Math.min(MAX_POLL_FREQUENCY, Math.max(MIN_POLL_FREQUENCY, Math.round(parsed)));
+}
+
+// The web service used to live on the portal host and now answers from the
+// download host. The portal still redirects, but a redirect across hosts costs
+// the Authorization header (see src/api/grandlyon.js), so a user whose
+// configuration still holds the old URL would keep getting 401s with correct
+// credentials. Rewriting it here upgrades those setups silently, and keeps
+// every other custom base URL untouched.
+const LEGACY_BASE_URLS = new Set([
+  'https://data.grandlyon.com/fr/datapusher/ws/rdata',
+  'https://data.grandlyon.com/en/datapusher/ws/rdata',
+  'http://data.grandlyon.com/fr/datapusher/ws/rdata',
+  'http://data.grandlyon.com/en/datapusher/ws/rdata',
+]);
+
+/**
+ * Normalize the rdata base URL: drop the trailing slashes, and move the
+ * retired portal endpoints to the current one.
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function normalizeBaseUrl(raw) {
+  const url = String(raw || DEFAULT_CONFIG.grandlyon_base_url).replace(/\/+$/, '');
+  return LEGACY_BASE_URLS.has(url) ? DEFAULT_CONFIG.grandlyon_base_url : url;
 }
 
 /**
@@ -136,10 +161,7 @@ export function normalizeConfig(raw = {}) {
     ...raw,
     grandlyon_username: String(raw.grandlyon_username ?? '').trim(),
     grandlyon_password: String(raw.grandlyon_password ?? ''),
-    grandlyon_base_url: String(raw.grandlyon_base_url || DEFAULT_CONFIG.grandlyon_base_url).replace(
-      /\/+$/,
-      '',
-    ),
+    grandlyon_base_url: normalizeBaseUrl(raw.grandlyon_base_url),
     velov_gbfs_url: String(raw.velov_gbfs_url || DEFAULT_CONFIG.velov_gbfs_url),
     departures_poll_frequency: normalizePollFrequency(
       raw.departures_poll_frequency,

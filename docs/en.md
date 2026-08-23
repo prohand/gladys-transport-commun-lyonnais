@@ -45,11 +45,23 @@ Vélo'v works out of the box: its feed is fully open.
 
 Transit departures and park & ride occupancy come from the TCL real-time
 datasets hosted on [data.grandlyon.com](https://data.grandlyon.com), which
-require a free account:
+require a free account.
 
-1. Create an account on data.grandlyon.com.
-2. Paste the username and the password in the integration configuration.
-3. Press **Test the Data Grand Lyon account** — it reports how many park & ride
+> **The password asked for here is not the one you sign in with.** You browse
+> the portal with GrandLyon Connect (the single sign-on shared by every
+> Métropole de Lyon service), but the web service this integration calls only
+> accepts a password specific to the data platform. Entering your GrandLyon
+> Connect password gives "Data Grand Lyon refused the credentials".
+
+1. Create an account, or sign in, on
+   [GrandLyon Connect](https://moncompte.grandlyon.com/login/).
+2. Go to
+   [your data platform profile](https://data.grandlyon.com/onegeo-login/fr/profile/)
+   and define the password of the platform. It can — and should — be different
+   from the GrandLyon Connect one.
+3. In the integration configuration, fill in the **login** (in general the
+   email address of your account) and that **platform password**.
+4. Press **Test the Data Grand Lyon account** — it reports how many park & ride
    facilities it could read.
 
 Leave both fields empty if you only watch Vélo'v stations.
@@ -123,9 +135,13 @@ and car parks are there, ready to be added to Gladys.
 integration status stays red because you listed a stop or a car park without
 filling in the credentials. Add them, or remove the entries.
 
-**"Data Grand Lyon refused the credentials"** — the username or the password is
-wrong, or the account has not confirmed its email yet. Check with **Test the
-Data Grand Lyon account**.
+**"Data Grand Lyon refused the credentials"** — nine times out of ten, the
+password entered is the GrandLyon Connect one. The web service wants the
+password you define on
+[data.grandlyon.com/onegeo-login/fr/profile/](https://data.grandlyon.com/onegeo-login/fr/profile/),
+with the email address of your account as the login. Set it there, paste it
+here, and press **Test the Data Grand Lyon account**. If it still fails, the
+account may not have confirmed its email address yet.
 
 **A stop always shows `999`** — `999` means "no departure announced". Outside
 service hours that is normal. If it persists during the day, the stop id is

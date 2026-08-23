@@ -29,9 +29,15 @@ the Configuration screen. Start there if you just want to use the integration.
 | Vélo'v      | [GBFS feed](https://gbfs.org/documentation/reference/) (Métropole de Lyon / JCDecaux) | No             |
 
 Data Grand Lyon is read over HTTP Basic auth with the account the user fills in
-the configuration. The Vélo'v GBFS feed is open; both GBFS v2 and v3 payload
-shapes are supported, so `velov_gbfs_url` can point at either published
-version.
+the configuration — with the password set on
+[the data platform profile](https://data.grandlyon.com/onegeo-login/fr/profile/),
+which is **not** the GrandLyon Connect password the portal is browsed with.
+The web service answers the retired portal endpoint with a cross-host redirect,
+so `src/api/grandlyon.js` follows redirects itself (`fetch` strips the
+Authorization header across origins, which turns a valid account into a 401).
+
+The Vélo'v GBFS feed is open; both GBFS v2 and v3 payload shapes are supported,
+so `velov_gbfs_url` can point at either published version.
 
 ## Architecture
 

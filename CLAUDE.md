@@ -61,6 +61,21 @@ feeds, `src/devices/` only turns a feed into features.
   `buildDiscoveredDevices` and `findBlueprintByDevice` rebuild the blueprints
   from `config.watched` on every call.
 
+## Data Grand Lyon authentication
+
+Two things cause the 401 everybody hits, and both are handled in
+`src/api/grandlyon.js` — do not "simplify" them away:
+
+- the web service does not accept the **GrandLyon Connect** password used to
+  sign in on the portal, only the platform-specific password set on
+  <https://data.grandlyon.com/onegeo-login/fr/profile/>. Every message about
+  refused credentials must say so;
+- the retired portal endpoint (`data.grandlyon.com/fr/datapusher/ws/rdata`)
+  redirects to `download.data.grandlyon.com/ws/rdata`, and `fetch` drops the
+  Authorization header on a cross-origin redirect. The client therefore
+  follows redirects itself (`redirect: 'manual'`) and only replays the
+  credentials on the same origin or on an https `grandlyon.com` host.
+
 ## The manifest is validated by the store
 
 `gladys-assistant-integration.json` is checked by the store indexer, and a

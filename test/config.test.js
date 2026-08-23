@@ -90,6 +90,29 @@ test('the Data Grand Lyon base URL loses its trailing slashes', () => {
   assert.equal(config.grandlyon_base_url, 'https://example.test/ws/rdata');
 });
 
+test('a configuration still pointing at the retired portal endpoint is upgraded', () => {
+  // The portal answers that URL with a redirect to the download host, and a
+  // cross-host redirect costs the Authorization header: left as-is, a correct
+  // account would keep being refused.
+  for (const legacy of [
+    'https://data.grandlyon.com/fr/datapusher/ws/rdata',
+    'https://data.grandlyon.com/en/datapusher/ws/rdata/',
+    'http://data.grandlyon.com/fr/datapusher/ws/rdata',
+  ]) {
+    assert.equal(
+      normalizeConfig({ grandlyon_base_url: legacy }).grandlyon_base_url,
+      DEFAULT_CONFIG.grandlyon_base_url,
+      `${legacy} must be rewritten to the current endpoint`,
+    );
+  }
+  assert.equal(DEFAULT_CONFIG.grandlyon_base_url, 'https://download.data.grandlyon.com/ws/rdata');
+});
+
+test('a base URL the user chose is never rewritten', () => {
+  const config = normalizeConfig({ grandlyon_base_url: 'https://proxy.example.test/ws/rdata' });
+  assert.equal(config.grandlyon_base_url, 'https://proxy.example.test/ws/rdata');
+});
+
 test('credentials are only considered set when both fields are filled', () => {
   assert.equal(hasGrandLyonCredentials(normalizeConfig()), false);
   assert.equal(hasGrandLyonCredentials(normalizeConfig({ grandlyon_username: 'me' })), false);
