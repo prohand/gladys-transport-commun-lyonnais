@@ -11,13 +11,24 @@
 //      web service wants the data platform password, not the GrandLyon
 //      Connect one), not a bare status code.
 //
+// The third symptom covered here is the HTTP 404 an otherwise valid account
+// gets once the platform republishes a dataset under a new name: the client
+// walks the names it knows before giving up, and gives up with an explanation
+// rather than a status code.
+//
 // The tests run against a local HTTP server: no network access needed.
 // -----------------------------------------------------------------------------
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { canReplayCredentials, fetchLayer, GrandLyonError } from '../src/api/grandlyon.js';
+import {
+  candidateBaseUrls,
+  canReplayCredentials,
+  clearLayerResolution,
+  fetchLayer,
+  GrandLyonError,
+} from '../src/api/grandlyon.js';
 import { normalizeConfig } from '../src/config.js';
 
 /**
@@ -139,6 +150,129 @@ test('missing credentials fail before any request is made', async () => {
     fetchLayer(normalizeConfig(), 'tcl_sytral.tclparcrelais'),
     /credentials are missing/,
   );
+});
+
+test('a retired layer name falls back to the current one', async (t) => {
+  clearLayerResolution();
+  const asked = [];
+  const { baseUrl, close } = await startServer((req, res) => {
+    asked.push(req.url);
+    if (!req.url.includes('_2_0_0')) {
+      // What the platform does with a dataset it has republished: the old
+      // name is simply not there anymore.
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ nb_results: 1, values: [{ id: 'P+R Gorge de Loup' }] }));
+  });
+  t.after(close);
+
+  const config = configFor(`${baseUrl}/ws/rdata`);
+  const values = await fetchLayer(config, [
+    'tcl_sytral.tclparcrelais',
+    'tcl_sytral.tclparcrelais_2_0_0',
+  ]);
+
+  assert.deepEqual(values, [{ id: 'P+R Gorge de Loup' }]);
+  assert.equal(asked.length, 2, 'the retired name is tried first, then the current one');
+
+  // The name that answered is remembered: the next poll must not pay for the
+  // dead one again.
+  asked.length = 0;
+  await fetchLayer(config, ['tcl_sytral.tclparcrelais', 'tcl_sytral.tclparcrelais_2_0_0']);
+  assert.equal(asked.length, 1, 'the resolved layer is reused');
+  assert.match(asked[0], /_2_0_0/);
+});
+
+test('a 404 on one namespace is retried on its sibling, on the same origin', async (t) => {
+  clearLayerResolution();
+  const asked = [];
+  const { baseUrl, close } = await startServer((req, res) => {
+    asked.push(req.url);
+    if (req.url.startsWith('/ws/rdata/')) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ values: [{ id: '1234' }] }));
+  });
+  t.after(close);
+
+  const values = await fetchLayer(configFor(`${baseUrl}/ws/rdata`), 'tcl_sytral.tclparcrelais');
+
+  assert.deepEqual(values, [{ id: '1234' }]);
+  assert.ok(
+    asked.some((url) => url.startsWith('/ws/grandlyon/')),
+    'the other path namespace of the same host must be tried',
+  );
+});
+
+test('the sibling namespace is only ever looked for on the configured origin', () => {
+  assert.deepEqual(candidateBaseUrls('https://download.data.grandlyon.com/ws/rdata'), [
+    'https://download.data.grandlyon.com/ws/rdata',
+    'https://download.data.grandlyon.com/ws/grandlyon',
+  ]);
+  assert.deepEqual(candidateBaseUrls('https://download.data.grandlyon.com/ws/grandlyon'), [
+    'https://download.data.grandlyon.com/ws/grandlyon',
+    'https://download.data.grandlyon.com/ws/rdata',
+  ]);
+  assert.deepEqual(
+    candidateBaseUrls('https://example.test/api'),
+    ['https://example.test/api'],
+    'an unrecognized base URL is used as-is, never guessed at',
+  );
+});
+
+test('a dataset that no longer exists explains itself instead of reporting 404', async (t) => {
+  clearLayerResolution();
+  const { baseUrl, close } = await startServer((req, res) => {
+    res.writeHead(404);
+    res.end();
+  });
+  t.after(close);
+
+  await assert.rejects(
+    fetchLayer(configFor(`${baseUrl}/ws/rdata`), [
+      'tcl_sytral.tclparcrelais_2_0_0',
+      'tcl_sytral.tclparcrelais',
+    ]),
+    (err) => {
+      assert.ok(err instanceof GrandLyonError);
+      assert.equal(err.status, 404);
+      // The names that were tried belong in the message: they are what the
+      // user (or a bug report) needs to look up on the portal.
+      assert.match(err.userMessage.en, /tcl_sytral\.tclparcrelais_2_0_0/);
+      assert.match(err.userMessage.en, /tcl_sytral\.tclparcrelais/);
+      assert.match(err.userMessage.fr, /tcl_sytral\.tclparcrelais/);
+      // And it must not send the user hunting for a password that works.
+      assert.match(err.userMessage.en, /not a credentials problem/);
+      assert.match(err.userMessage.fr, /identifiants/);
+      return true;
+    },
+  );
+});
+
+test('a refused account is reported even when other layer names remain', async (t) => {
+  clearLayerResolution();
+  let requests = 0;
+  const { baseUrl, close } = await startServer((req, res) => {
+    requests += 1;
+    res.writeHead(401, { 'www-authenticate': 'Basic realm="rdata"' });
+    res.end();
+  });
+  t.after(close);
+
+  await assert.rejects(
+    fetchLayer(configFor(`${baseUrl}/ws/rdata`), ['first.layer', 'second.layer']),
+    (err) => {
+      assert.equal(err.status, 401);
+      return true;
+    },
+  );
+  assert.equal(requests, 1, 'a wrong password is not worth probing every name for');
 });
 
 test('credentials are only replayed on the same origin or on the platform', () => {

@@ -160,6 +160,14 @@ with the email address of your account as the login. Set it there, paste it
 here, and press **Test the Data Grand Lyon account**. If it still fails, the
 account may not have confirmed its email address yet.
 
+**"Data Grand Lyon answered HTTP 404"** — your account is fine: the dataset
+itself is not published under the name the integration asked for. The Métropole
+renames its TCL layers when the network changes (that is what the `_2_0_0`
+suffix in the message means), so the integration tries every name it knows
+before giving up. When it gives up, the message lists what it tried: look the
+current name up on [data.grandlyon.com](https://data.grandlyon.com) and open an
+issue with it, and updating the integration is all it will take.
+
 **A stop always shows `999`** — `999` means "no departure announced". Outside
 service hours that is normal. If it persists during the day, the stop id is
 probably wrong (or the line filter never matches, e.g. `@T1` on a bus-only

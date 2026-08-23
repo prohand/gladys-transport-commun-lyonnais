@@ -18,6 +18,7 @@
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { hasGrandLyonCredentials, normalizeConfig } from './src/config.js';
 import { ACTIONS, buildDiscoveredDevices, findBlueprintByDevice } from './src/devices/index.js';
+import { clearLayerResolution } from './src/api/grandlyon.js';
 import { clearTclCache } from './src/api/tcl.js';
 import { clearVelovCache } from './src/api/velov.js';
 
@@ -59,7 +60,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
   config = normalizeConfig(newConfig);
   // The credentials or the feed URL may have changed: anything cached from the
-  // previous configuration is now suspect.
+  // previous configuration is now suspect, including which layer name answered
+  // under the previous base URL.
+  clearLayerResolution();
   clearTclCache();
   clearVelovCache();
   // Re-publish the devices: the watch lists and the poll frequencies live in

@@ -24,8 +24,8 @@ the Configuration screen. Start there if you just want to use the integration.
 
 | Domain      | Source                                                                                | Account needed |
 | ----------- | ------------------------------------------------------------------------------------- | -------------- |
-| Departures  | `tcl_sytral.tclpassagearret` on [Data Grand Lyon](https://data.grandlyon.com)         | Yes (free)     |
-| Park & ride | `tcl_sytral.tclparcrelais` on Data Grand Lyon                                         | Yes (free)     |
+| Departures  | `tcl_sytral.tclpassagearret*` on [Data Grand Lyon](https://data.grandlyon.com)        | Yes (free)     |
+| Park & ride | `tcl_sytral.tclparcrelais*` on Data Grand Lyon                                        | Yes (free)     |
 | Vélo'v      | [GBFS feed](https://gbfs.org/documentation/reference/) (Métropole de Lyon / JCDecaux) | No             |
 
 Data Grand Lyon is read over HTTP Basic auth with the account the user fills in
@@ -35,6 +35,12 @@ which is **not** the GrandLyon Connect password the portal is browsed with.
 The web service answers the retired portal endpoint with a cross-host redirect,
 so `src/api/grandlyon.js` follows redirects itself (`fetch` strips the
 Authorization header across origins, which turns a valid account into a 401).
+
+The `*` in the table is the layer version suffix: the platform republishes a
+dataset under a new name (`tcl_sytral.tclarret` -> `tcl_sytral.tclarret_2_0_0`)
+and retires the previous one, which reaches the user as a bare HTTP 404 on a
+working account. `src/api/tcl.js` therefore declares every name it knows,
+newest first, and `fetchLayer` keeps the one that answers.
 
 The Vélo'v GBFS feed is open; both GBFS v2 and v3 payload shapes are supported,
 so `velov_gbfs_url` can point at either published version.
