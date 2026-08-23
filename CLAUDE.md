@@ -71,7 +71,9 @@ rejected manifest blocks publication. The rules that bite most often:
 - Field `type` must be one of `string`, `number`, `boolean`, `select`,
   `multi_select`, `secret`, `oauth2`, `account_link`, `section`. There is no
   `text` and no `password` type: use `string` and `secret`.
-- `placeholder` is only allowed on `string`, `number` and `secret` fields.
+- `placeholder` is only allowed on `string`, `number` and `secret` fields, and
+  like every user-visible string it must be a `{ en, fr }` object, not a bare
+  string.
 - `section` fields are presentational: no `required`, `default` or
   `placeholder`, and their key must never appear in `DEFAULT_CONFIG`.
 - Any `default` declared in `config_schema` must equal the matching value in
