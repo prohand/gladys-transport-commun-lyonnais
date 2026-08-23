@@ -1,0 +1,159 @@
+# Transports en Commun Lyonnais
+
+Faites entrer le réseau lyonnais dans Gladys : les prochains passages aux
+arrêts que vous empruntez, les vélos et les places libres de vos stations
+Vélo'v, et les places disponibles dans les parcs relais TCL.
+
+Tous les appareils créés par cette intégration sont en **lecture seule** : ils
+publient ce que disent les flux open data, et rien n'est jamais renvoyé au
+réseau.
+
+## Ce que vous obtenez
+
+Un appareil par entrée listée dans la configuration.
+
+**Arrêt** — pour chacun des prochains passages (jusqu'à cinq, à votre choix) :
+
+| Fonctionnalité            | Contenu                                                                                |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| Prochain passage          | Minutes d'attente (`999` quand rien n'est annoncé)                                     |
+| Ligne du prochain passage | `T1 → IUT Feyssine` (le préfixe `~` signale un horaire théorique et non un temps réel) |
+| Prochains passages        | Tout le tableau sur une ligne, pratique en tuile de tableau de bord                    |
+
+**Station Vélo'v**
+
+| Fonctionnalité                | Contenu                                                 |
+| ----------------------------- | ------------------------------------------------------- |
+| Vélos disponibles             | Vélos prêts à être loués                                |
+| Vélos électriques disponibles | Part électrique, quand le flux la détaille              |
+| Places disponibles            | Bornettes libres pour reposer un vélo                   |
+| Occupation                    | Part des bornettes occupées par un vélo, en pourcentage |
+| Statut                        | `OK`, `no bike available`, `Out of service`…            |
+
+**Parc relais (P+R)**
+
+| Fonctionnalité         | Contenu                                                |
+| ---------------------- | ------------------------------------------------------ |
+| Places disponibles     | Places voitures libres                                 |
+| Places PMR disponibles | Places réservées PMR libres, quand elles sont publiées |
+| Occupation             | Part de la capacité occupée, en pourcentage            |
+
+## Configuration
+
+### 1. Compte Data Grand Lyon (arrêts et parcs relais uniquement)
+
+Vélo'v fonctionne sans rien configurer : son flux est totalement ouvert.
+
+Les passages et l'occupation des parcs relais proviennent des jeux de données
+temps réel TCL hébergés sur [data.grandlyon.com](https://data.grandlyon.com),
+qui nécessitent un compte gratuit :
+
+1. Créez un compte sur data.grandlyon.com.
+2. Renseignez l'identifiant et le mot de passe dans la configuration.
+3. Appuyez sur **Tester le compte Data Grand Lyon** : le bouton indique combien
+   de parcs relais ont pu être lus.
+
+Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v.
+
+### 2. Indiquez ce que vous voulez surveiller
+
+Les trois champs de liste acceptent des entrées séparées par des virgules, des
+points-virgules ou des retours à la ligne. Inutile de chercher les identifiants
+sur un site : les boutons en bas de l'écran de configuration les cherchent pour
+vous.
+
+**Arrêts** — `<identifiant>[@<ligne>[|<ligne>…]][:<nom personnalisé>]`
+
+| Entrée                | Signification                                 |
+| --------------------- | --------------------------------------------- |
+| `1234`                | Tous les passages à l'arrêt 1234              |
+| `1234@T1`             | Uniquement la ligne T1                        |
+| `1234@C3\|C13`        | Les lignes C3 et C13                          |
+| `1234@T1:Tram en bas` | Uniquement T1, appareil nommé « Tram en bas » |
+
+Surveiller deux fois le même arrêt avec deux filtres de lignes différents crée
+deux appareils — un par ligne, ce qui est généralement ce que l'on veut sur un
+tableau de bord.
+
+Appuyez sur **Chercher un arrêt** et tapez un nom (par exemple `Bellecour`)
+pour obtenir les identifiants à coller.
+
+**Stations Vélo'v** — `<identifiant ou nom>[:<nom personnalisé>]`
+
+`10063`, `Hotel de Ville`, ou `10063:Bureau`. Appuyez sur **Chercher une
+station Vélo'v** pour chercher par nom.
+
+**Parcs relais** — `<identifiant ou nom>[:<nom personnalisé>]`
+
+`Gorge de Loup`, ou `Parilly:Trajet boulot`. Appuyez sur **Lister les parcs
+relais** pour voir tous les parcs avec leur identifiant et leur occupation.
+
+### 3. Fréquences de rafraîchissement
+
+Chaque source a son propre intervalle, car elles ne bougent pas à la même
+vitesse :
+
+| Réglage                           | Défaut | Ce qu'il pilote                            |
+| --------------------------------- | ------ | ------------------------------------------ |
+| Rafraîchissement des passages     | 60 s   | Les décomptes de chaque arrêt surveillé    |
+| Rafraîchissement Vélo'v           | 120 s  | Les vélos et places disponibles            |
+| Rafraîchissement des parcs relais | 300 s  | Les places libres de chaque parc surveillé |
+
+Les trois acceptent de 30 s à 3600 s. Descendre sous 60 s n'apporte rien : les
+flux sources sont eux-mêmes recalculés environ toutes les minutes, donc une
+interrogation plus rapide renvoie les mêmes chiffres tout en consommant votre
+quota Data Grand Lyon.
+
+L'intégration groupe aussi ses requêtes : surveiller dix stations Vélo'v coûte
+deux requêtes HTTP par cycle, pas vingt, et surveiller cinq parcs relais en
+coûte une seule.
+
+### 4. Enregistrez
+
+Enregistrez la configuration, puis ouvrez l'onglet **Découverte** : vos arrêts,
+stations et parcs y sont, prêts à être ajoutés à Gladys.
+
+## Idées d'automatisations
+
+- Me notifier à 8h en semaine avec les prochains passages à mon arrêt.
+- Si la station Vélo'v près du bureau a moins de 3 places libres à l'heure où
+  je pars, m'envoyer une alerte.
+- Si mon parc relais habituel est rempli à plus de 90 % à 7h30, me rappeler de
+  prendre le tram à la place.
+
+## Dépannage
+
+**« Les arrêts et parcs relais nécessitent un compte Data Grand Lyon »** — le
+statut de l'intégration reste rouge parce que vous avez listé un arrêt ou un
+parc sans renseigner les identifiants. Ajoutez-les, ou retirez les entrées.
+
+**« Data Grand Lyon refused the credentials »** — l'identifiant ou le mot de
+passe est erroné, ou le compte n'a pas encore confirmé son adresse email.
+Vérifiez avec **Tester le compte Data Grand Lyon**.
+
+**Un arrêt affiche toujours `999`** — `999` signifie « aucun passage annoncé ».
+Hors des heures de service, c'est normal. Si cela persiste en journée,
+l'identifiant d'arrêt est probablement faux (ou le filtre de lignes ne
+correspond jamais, par exemple `@T1` sur un arrêt uniquement desservi par des
+bus) : relancez **Chercher un arrêt**.
+
+**Une station Vélo'v ou un parc relais est en erreur à chaque relève** —
+l'identifiant n'existe pas dans le flux. Relancez le bouton de recherche
+correspondant et collez l'identifiant qu'il retourne.
+
+L'intégration journalise tout ce qu'elle fait : consultez les logs de
+l'intégration depuis l'interface Gladys, avec `LOG_LEVEL=debug` pour le détail
+complet (chaque requête sortante y est tracée).
+
+## Sources de données et crédits
+
+- [Prochains passages TCL](https://data.grandlyon.com/portail/fr/jeux-de-donnees/prochains-passages-reseau-transports-commun-lyonnais-rhonexpress-disponibilites-temps-reel/info)
+  — Métropole de Lyon / SYTRAL, sur Data Grand Lyon.
+- [Disponibilités des parcs relais TCL](https://data.grandlyon.com/portail/fr/jeux-de-donnees/parcs-relais-reseau-transports-commun-lyonnais-disponibilites-temps-reel/info)
+  — Métropole de Lyon / SYTRAL, sur Data Grand Lyon.
+- [Disponibilités Vélo'v](https://transport.data.gouv.fr/datasets/velos-libre-service-lyon-velov-disponibilite-en-temps-reel)
+  — Métropole de Lyon / JCDecaux, publiées au format
+  [GBFS](https://gbfs.org/documentation/reference/).
+
+Intégration non officielle, sans lien avec SYTRAL Mobilités, Keolis Lyon ou
+JCDecaux.
