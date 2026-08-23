@@ -163,10 +163,24 @@ account may not have confirmed its email address yet.
 **"Data Grand Lyon answered HTTP 404"** — your account is fine: the dataset
 itself is not published under the name the integration asked for. The Métropole
 renames its TCL layers when the network changes (that is what the `_2_0_0`
-suffix in the message means), so the integration tries every name it knows
-before giving up. When it gives up, the message lists what it tried: look the
-current name up on [data.grandlyon.com](https://data.grandlyon.com) and open an
-issue with it, and updating the integration is all it will take.
+suffix in the message means). The integration tries every name it knows, then
+asks the platform's own catalogue what the dataset is called today and uses
+that name, so most renames now heal themselves without an update. When even the
+catalogue has nothing, the message lists what was tried and the closest names
+the platform does publish: open an issue with it, and updating the integration
+is all it will take.
+
+**"Test the Data Grand Lyon account" reports a dataset as unreadable** — the
+button probes the three datasets separately, and its first line is the one that
+matters: if it says your account was accepted, your credentials are right. A
+single `✖` line means that one dataset was retired (see above); the features
+built on the other two keep working.
+
+**"Data Grand Lyon did not answer within ..."** — the platform took too long,
+usually while downloading the whole stop directory for **Find a transit stop**.
+Press the button again: the first successful download is kept in memory for an
+hour, so the following searches answer instantly. Typing a stop name in full
+(`Bellecour` rather than `belle`) skips the download altogether.
 
 **A stop always shows `999`** — `999` means "no departure announced". Outside
 service hours that is normal. If it persists during the day, the stop id is

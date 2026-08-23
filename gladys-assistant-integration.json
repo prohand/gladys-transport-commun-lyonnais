@@ -253,7 +253,7 @@
         "en": "Test the Data Grand Lyon account",
         "fr": "Tester le compte Data Grand Lyon"
       },
-      "timeout_seconds": 30
+      "timeout_seconds": 90
     },
     {
       "key": "search_stops",
@@ -261,7 +261,7 @@
         "en": "Find a transit stop",
         "fr": "Chercher un arrêt"
       },
-      "timeout_seconds": 30,
+      "timeout_seconds": 90,
       "fields": [
         {
           "key": "query",
@@ -307,7 +307,7 @@
         "en": "List the park & ride facilities",
         "fr": "Lister les parcs relais"
       },
-      "timeout_seconds": 30
+      "timeout_seconds": 60
     }
   ]
 }

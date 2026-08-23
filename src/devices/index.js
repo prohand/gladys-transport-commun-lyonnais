@@ -20,7 +20,7 @@ import { createLogger } from '@gladysassistant/integration-sdk';
 import { createTransitStopBlueprint } from './transitStop.js';
 import { createVelovStationBlueprint } from './velovStation.js';
 import { createParkAndRideBlueprint } from './parkAndRide.js';
-import { fetchParkAndRideFacilities, searchStops } from '../api/tcl.js';
+import { checkDatasets, fetchParkAndRideFacilities, searchStops } from '../api/tcl.js';
 import { searchStations } from '../api/velov.js';
 import { GrandLyonError } from '../api/grandlyon.js';
 import { hasGrandLyonCredentials } from '../config.js';
@@ -80,11 +80,16 @@ export function findBlueprintByDevice(gladys, device, config) {
  */
 const RAW_ACTIONS = {
   /**
-   * Check that the Data Grand Lyon credentials work, by reading the park &
-   * ride layer (small, and covers one of the two TCL features).
+   * Check that the Data Grand Lyon credentials work, and report which of the
+   * three TCL datasets the account can actually read.
    *
-   * A rejected account is the case this button exists for, and it is reported
-   * by the wrapper below rather than here.
+   * It used to read the park & ride layer only, which conflates two very
+   * different answers: "your password is refused" and "this one dataset was
+   * retired". The second one made the button report a failure to a user whose
+   * account, departures and stop searches were all fine, and sent them looking
+   * for a dataset name instead. Each dataset is now probed on its own, and a
+   * refused account is still reported as such by the wrapper below — it is the
+   * one error `checkDatasets` propagates.
    */
   async test_grandlyon(gladys, { config }) {
     if (!hasGrandLyonCredentials(config)) {
@@ -93,12 +98,38 @@ const RAW_ACTIONS = {
         fr: 'Identifiants Data Grand Lyon absents : renseignez le nom d’utilisateur et le mot de passe ci-dessus.',
       };
     }
-    const facilities = await fetchParkAndRideFacilities(config);
-    // The map is keyed by id AND by name, hence the halving.
-    const count = Math.round(facilities.size / 2);
+
+    const datasets = await checkDatasets(config);
+    const reachable = datasets.filter((dataset) => dataset.ok);
+    // Reaching this point at all means the platform authenticated the
+    // request: it answers 401 before it answers anything else. Saying so is
+    // the point of the button, and it is what a 404 on one dataset must not
+    // hide.
+    const summary = {
+      en:
+        reachable.length === datasets.length
+          ? 'Data Grand Lyon OK: your account works and every dataset is readable.'
+          : `Data Grand Lyon accepted your account, but ${datasets.length - reachable.length} of ` +
+            `its ${datasets.length} datasets could not be read.`,
+      fr:
+        reachable.length === datasets.length
+          ? 'Data Grand Lyon OK : votre compte fonctionne et tous les jeux de données sont lisibles.'
+          : `Data Grand Lyon a accepté votre compte, mais ${datasets.length - reachable.length} ` +
+            `de ses ${datasets.length} jeux de données n’ont pas pu être lus.`,
+    };
+
+    const lines = datasets.map((dataset) => ({
+      en: dataset.ok
+        ? `✔ ${dataset.label.en} (${dataset.layer})`
+        : `✖ ${dataset.label.en}: ${describeFailure(dataset.error).en}`,
+      fr: dataset.ok
+        ? `✔ ${dataset.label.fr} (${dataset.layer})`
+        : `✖ ${dataset.label.fr} : ${describeFailure(dataset.error).fr}`,
+    }));
+
     return {
-      en: `Data Grand Lyon OK: ${count} park & ride facilities reachable.`,
-      fr: `Data Grand Lyon OK : ${count} parcs relais accessibles.`,
+      en: [summary.en, ...lines.map((line) => line.en)].join('\n'),
+      fr: [summary.fr, ...lines.map((line) => line.fr)].join('\n'),
     };
   },
 
@@ -166,6 +197,23 @@ const RAW_ACTIONS = {
     };
   },
 };
+
+/**
+ * One line explaining why a dataset probe failed, short enough to sit under a
+ * button next to two other ones.
+ *
+ * @param {Error | undefined} error
+ * @returns {{ en: string, fr: string }}
+ */
+function describeFailure(error) {
+  if (error instanceof GrandLyonError && error.status === 404) {
+    return {
+      en: 'not published under any name this integration knows — please report it',
+      fr: 'publié sous aucun nom connu de l’intégration — merci de le signaler',
+    };
+  }
+  return { en: error?.message ?? 'unreadable', fr: error?.message ?? 'illisible' };
+}
 
 /**
  * Handlers of the manifest actions, with the Data Grand Lyon failures turned

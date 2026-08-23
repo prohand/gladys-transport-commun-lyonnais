@@ -15,6 +15,8 @@ import { computeOccupancy as velovOccupancy, formatStatus } from '../src/devices
 import { computeOccupancy as parkingOccupancy } from '../src/devices/parkAndRide.js';
 import { clearTclCache } from '../src/api/tcl.js';
 import { clearVelovCache } from '../src/api/velov.js';
+import { clearLayerResolution } from '../src/api/grandlyon.js';
+import { ACTIONS } from '../src/devices/index.js';
 
 const CONFIG = normalizeConfig({
   grandlyon_username: 'user',
@@ -41,10 +43,19 @@ function stubFetch(routes) {
     if (!match) {
       throw new Error(`Unexpected request: ${href}`);
     }
+    const payload = routes[match];
+    // A bare number stands for a status code with no body: that is how a
+    // retired dataset answers.
+    const status = typeof payload === 'number' ? payload : 200;
     // `headers` is not decoration: the Data Grand Lyon client reads the
     // Location header to follow the platform's redirects itself, so a stub
     // without headers is not a Response.
-    return { ok: true, status: 200, headers: new Headers(), json: async () => routes[match] };
+    return {
+      ok: status < 400,
+      status,
+      headers: new Headers(),
+      json: async () => payload,
+    };
   };
   return calls;
 }
@@ -52,6 +63,7 @@ function stubFetch(routes) {
 beforeEach(() => {
   clearTclCache();
   clearVelovCache();
+  clearLayerResolution();
 });
 
 afterEach(() => {
@@ -355,4 +367,35 @@ test('occupancy is derived from the capacity, and skipped when unknown', () => {
   // The operator sometimes publishes more free spaces than the capacity.
   assert.equal(parkingOccupancy({ capacity: 400, available: 450 }), 0);
   assert.equal(parkingOccupancy({ available: 100 }), null);
+});
+
+test('the account test reports a retired dataset without condemning the account', async () => {
+  const gladys = createFakeGladys();
+  stubFetch({
+    // The catalogue knows nothing about a park & ride dataset anymore.
+    '/ws/rdata/all.json': { results: [{ table_schema: 'tcl_sytral', table_name: 'tclarret' }] },
+    tclparcrelais: 404,
+    tclpassagearret: { values: [{ id: '1234' }] },
+    tclarret: { values: [{ id: '1234', nom: 'Bellecour' }] },
+  });
+
+  const message = await ACTIONS.test_grandlyon(gladys, { fields: {}, config: CONFIG });
+
+  // The point of the button is the first line: the credentials are good. A
+  // dataset the Métropole retired is a separate, smaller piece of news.
+  assert.match(message.en, /accepted your account/);
+  assert.match(message.en, /✔ Next departures/);
+  assert.match(message.en, /✖ Park & ride/);
+  assert.match(message.fr, /accepté votre compte/);
+  assert.match(message.fr, /✖ Parcs relais/);
+});
+
+test('the account test still names the password trap when the account is refused', async () => {
+  const gladys = createFakeGladys();
+  stubFetch({ 'all.json': 401 });
+
+  const message = await ACTIONS.test_grandlyon(gladys, { fields: {}, config: CONFIG });
+
+  assert.match(message.en, /onegeo-login/);
+  assert.match(message.fr, /GrandLyon Connect/);
 });

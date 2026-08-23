@@ -40,7 +40,16 @@ The `*` in the table is the layer version suffix: the platform republishes a
 dataset under a new name (`tcl_sytral.tclarret` -> `tcl_sytral.tclarret_2_0_0`)
 and retires the previous one, which reaches the user as a bare HTTP 404 on a
 working account. `src/api/tcl.js` therefore declares every name it knows,
-newest first, and `fetchLayer` keeps the one that answers.
+newest first, and `fetchLayer` keeps the one that answers. When none of them
+does, `fetchLayer` reads the platform's own index (`<base>/all.json`, one entry
+per published table), finds the current spelling of the same dataset and uses
+it: a rename costs one extra request instead of an outage.
+
+Filtering is documented as `field=<attribute>&value=<value>` (or
+`<attribute>__eq=<value>`); the JSON `filter` parameter that looks like it
+should work is silently ignored, which downloads the whole layer instead of one
+stop. The stop directory has no server-side search at all, so it is downloaded
+whole, with a longer timeout, and cached for an hour.
 
 The Vélo'v GBFS feed is open; both GBFS v2 and v3 payload shapes are supported,
 so `velov_gbfs_url` can point at either published version.
