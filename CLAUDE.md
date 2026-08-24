@@ -195,3 +195,15 @@ Version bumps and tags are handled by `.github/workflows/release.yml`, which
 calls `build.yml` to publish the multi-arch image to ghcr.io. That workflow
 bumps `package.json` and rewrites the manifest `version` and `docker_image`
 tag itself — do not bump them by hand in a feature branch.
+
+`build.yml` failing with `denied: permission_denied: write_package` is not a
+missing permission in the YAML: the job already declares `packages: write`, and
+the run log confirms it under "GITHUB_TOKEN Permissions". It means the ghcr
+package exists without being attached to this repository — that is what a first
+push from a laptop, or from a repository since renamed or deleted, leaves
+behind, and an unattached package belongs to the account, not to the repository
+whose `GITHUB_TOKEN` is asking. The one-off fix is in the GitHub UI (delete the
+package and let the workflow recreate it, or add the repository under "Manage
+Actions access" with the Write role); the `org.opencontainers.image.source`
+label the build sets is what keeps it from happening again, because ghcr
+attaches the package to the repository that label names.

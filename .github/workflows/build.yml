@@ -59,6 +59,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # `permission_denied: write_package` here does NOT mean the workflow asks
+      # for too little: the job already runs with `packages: write`, and the run
+      # log prints it under "GITHUB_TOKEN Permissions". It means the ghcr package
+      # exists and is not attached to this repository — a package first pushed
+      # from a laptop, or from a repository since renamed or deleted, belongs to
+      # the account alone, and the repository's GITHUB_TOKEN is a stranger to it.
+      # Two ways out, both one-off and both in the GitHub UI:
+      #   - delete the package (its settings page, Danger Zone) and re-run this
+      #     workflow, which recreates it already attached; or
+      #   - keep it and add this repository under "Manage Actions access" with
+      #     the Write role, on
+      #     https://github.com/users/<owner>/packages/container/<package>/settings
+      # The `org.opencontainers.image.source` label below is what keeps the
+      # question from coming back: ghcr reads it on every push and attaches the
+      # package to the repository it names.
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -106,6 +121,15 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          # Standard OCI labels. `source` is the load-bearing one: ghcr uses it
+          # to attach the package to this repository, which is what grants the
+          # repository's own Actions the right to push the next version, and
+          # what puts a "Repository" link on the package page. The other two
+          # fill the package description the store readers land on.
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=Gladys Assistant integration for the Lyon public transport network (TCL)
+            org.opencontainers.image.licenses=Apache-2.0
 
       - name: Docker build summary
         env:
