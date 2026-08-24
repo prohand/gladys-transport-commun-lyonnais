@@ -106,7 +106,9 @@ search by name.
 `Gorge de Loup`, `SOI`, or `Parilly:Commute`. Identifiers are short upper-case
 codes (`SOI`, `BON`, `GREY`…), and the name works just as well. Press **List
 the park & ride facilities** to see every facility with its identifier and
-current occupancy.
+current occupancy — all 22 of them, including the ones SYTRAL does not count in
+real time, which are listed with `?` free spaces. Those still make a usable
+device: their capacity is published, their free-space count is not.
 
 ### 3. Refresh intervals
 
@@ -121,11 +123,13 @@ speed:
 
 All three accept 30 s to 3600 s. Going below 60 s buys you nothing: the
 upstream feeds are themselves recomputed about once a minute, so a faster poll
-returns the same numbers while consuming your Data Grand Lyon quota.
+returns the same numbers while consuming your Data Grand Lyon quota. Gladys
+itself never ticks slower than once a minute, so an interval above 60 s is
+honored by the integration, which simply skips the ticks in between.
 
 The integration also batches its requests: watching ten Vélo'v stations costs
 two HTTP requests per cycle, not twenty, and watching five park & ride
-facilities costs one.
+facilities costs two.
 
 ### 4. Save
 

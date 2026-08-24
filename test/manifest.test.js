@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { ACTIONS } from '../src/devices/index.js';
-import { DEFAULT_CONFIG } from '../src/config.js';
+import { DEFAULT_CONFIG, GLADYS_POLL_FREQUENCIES_MS, gladysPollFrequency } from '../src/config.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -43,6 +43,23 @@ test('config_schema defaults stay consistent with DEFAULT_CONFIG', () => {
   }
 });
 
+test('the published poll frequencies are values the Gladys scheduler accepts', () => {
+  // The core validates `poll_frequency` against DEVICE_POLL_FREQUENCIES and
+  // rejects the WHOLE discovery batch with a 400 otherwise — which is how a
+  // frequency published in seconds ended up as an empty Discovery screen.
+  for (const seconds of [30, 45, 60, 120, 300, 3600]) {
+    assert.ok(
+      GLADYS_POLL_FREQUENCIES_MS.includes(gladysPollFrequency(seconds)),
+      `${seconds}s must map to a poll frequency Gladys knows`,
+    );
+  }
+  assert.equal(gladysPollFrequency(30), 30_000);
+  assert.equal(gladysPollFrequency(60), 60_000);
+  // Above a minute, Gladys has nothing slower: the extra ticks are dropped by
+  // src/devices/pollSchedule.js instead.
+  assert.equal(gladysPollFrequency(300), 60_000);
+});
+
 test('every poll frequency is configurable and bounded', () => {
   const pollFields = manifest.config_schema.filter((field) => field.key.endsWith('poll_frequency'));
   // One per data source: departures, Vélo'v, park & ride.
@@ -54,6 +71,37 @@ test('every poll frequency is configurable and bounded', () => {
     assert.ok(
       Number.isFinite(DEFAULT_CONFIG[field.key]),
       `DEFAULT_CONFIG.${field.key} must be a number`,
+    );
+  }
+});
+
+// The controlled vocabulary of the integration catalog
+// (`INTEGRATION_CATALOG_CATEGORIES` in the Gladys core, mirrored by the store
+// indexer). It is NOT open: a key outside this list is dropped with a warning
+// when the manifest is indexed, which leaves the integration filed under
+// nothing at all. "transport" — the obvious word for this integration — is one
+// of those non-existent keys, and `environment` is the shelf that carries the
+// open-data daily-life feeds (air quality, fuel prices, water restrictions).
+const INTEGRATION_CATALOG_CATEGORIES = [
+  'climate',
+  'lighting',
+  'energy',
+  'security',
+  'multimedia',
+  'appliances',
+  'environment',
+  'protocols',
+  'network',
+  'notifications',
+  'assistants',
+  'services',
+];
+
+test('every declared category exists in the Gladys catalog vocabulary', () => {
+  for (const category of manifest.categories) {
+    assert.ok(
+      INTEGRATION_CATALOG_CATEGORIES.includes(category),
+      `category "${category}" is not part of the Gladys catalog vocabulary`,
     );
   }
 });

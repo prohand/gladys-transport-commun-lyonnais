@@ -17,9 +17,9 @@
 // that answers, so a republished dataset costs a fallback rather than an
 // outage.
 //
-// The park & ride layer is small (~20 facilities) and has no per-facility
-// filter, so it is fetched once and cached for the duration of a poll cycle:
-// watching five car parks costs one HTTP request, not five.
+// The park & ride layers are small (22 facilities) and have no per-facility
+// filter, so they are fetched once and cached for the duration of a poll
+// cycle: watching five car parks costs two HTTP requests, not ten.
 //
 // The stop directory (tclarret) is the opposite: thousands of records, no way
 // to search it server-side, and a network that changes twice a year. It is
@@ -46,18 +46,30 @@ const logger = createLogger({ name: 'tcl' });
 // platform publishes today, then the historical one, still served for some
 // datasets.
 export const DEPARTURES_LAYERS = ['tcl_sytral.tclpassagearret_2_0_0', 'tcl_sytral.tclpassagearret'];
-// The park & ride dataset was not versioned, it was SPLIT: SYTRAL now publishes
-// `tclparcrelaistr` (temps réel — the occupancy this integration wants) next to
-// `tclparcrelaisst` (statique — the facilities and their capacity, no live
+// The park & ride dataset was not versioned, it was SPLIT: SYTRAL publishes
+// `tclparcrelaistr` (temps réel — the occupancy) next to `tclparcrelaisst`
+// (statique — every facility, its capacity and its opening hours, no live
 // count). `tclparcrelais`, the single layer that used to hold both, is gone,
 // which is why an otherwise valid account reported a 404 on this dataset only.
-// The static layer is kept as a last resort: capacity and opening hours with no
-// live count still beat a device that cannot be read at all.
-export const PARK_AND_RIDE_LAYERS = [
+//
+// The two are read TOGETHER rather than one as a fallback for the other, and
+// that is the fix for "the park & ride list is incomplete": the real-time
+// layer only carries the facilities SYTRAL counts live, so listing it alone
+// silently hides the others — a user looking for a car park that exists, is
+// signposted P+R and is in the open data, simply could not find it. The static
+// layer is the inventory (22 facilities today), the real-time one adds the
+// free spaces where they are published.
+export const PARK_AND_RIDE_REALTIME_LAYERS = [
   'tcl_sytral.tclparcrelaistr',
   'tcl_sytral.tclparcrelais_2_0_0',
   'tcl_sytral.tclparcrelais',
-  'tcl_sytral.tclparcrelaisst',
+];
+export const PARK_AND_RIDE_STATIC_LAYERS = ['tcl_sytral.tclparcrelaisst'];
+// Both, for the dataset probe of the configuration screen: the account can
+// read the family as soon as one of the two answers.
+export const PARK_AND_RIDE_LAYERS = [
+  ...PARK_AND_RIDE_REALTIME_LAYERS,
+  ...PARK_AND_RIDE_STATIC_LAYERS,
 ];
 export const STOPS_LAYERS = [
   'tcl_sytral.tclarret_2_0_0',
@@ -102,7 +114,7 @@ const CACHE_TTL_MS = 20_000;
 // search action time out, so it is downloaded once and kept for an hour.
 const STOPS_CACHE_TTL_MS = 60 * 60_000;
 
-/** @type {{ expiresAt: number, promise: Promise<Map<string, object>> } | null} */
+/** @type {{ expiresAt: number, promise: Promise<object[]> } | null} */
 let parkAndRideCache = null;
 
 /** @type {{ expiresAt: number, promise: Promise<object[]> } | null} */
@@ -231,6 +243,11 @@ export function belongsToStop(record, stopId) {
   return recorded.length === 0 || recorded.includes(String(stopId));
 }
 
+// The name a facility gets when its record carries none. It is a placeholder,
+// not data: `mergeParkAndRide` must never let it overwrite the real name the
+// other layer published.
+const UNNAMED_FACILITY = 'P+R';
+
 /**
  * Normalize one raw park & ride record.
  * @param {Record<string, unknown>} record
@@ -241,7 +258,7 @@ export function belongsToStop(record, stopId) {
 export function normalizeParkAndRide(record) {
   return {
     id: pickString(record, ['id', 'idparcrelais', 'code', 'gid']) ?? '',
-    name: pickString(record, ['nom', 'name', 'libelle']) ?? 'P+R',
+    name: pickString(record, ['nom', 'name', 'libelle']) ?? UNNAMED_FACILITY,
     capacity: pickNumber(record, ['capacite', 'nb_tot', 'nbplacestotal', 'capacitevoiture']),
     // `nb_tot_place_dispo` is what the real-time layer publishes today; the
     // other spellings are the ones the retired layers used.
@@ -263,43 +280,136 @@ export function normalizeParkAndRide(record) {
 }
 
 /**
- * Fetch every park & ride facility, keyed by id (and also by lower-cased name,
- * so the user can write a readable "Gorge de Loup" in the configuration
- * instead of an opaque numeric id).
+ * Merge a facility read from one layer into what another layer already said
+ * about it: a column the second record publishes wins, a column it omits keeps
+ * the value of the first — so the inventory of the static layer and the live
+ * count of the real-time one end up on the same object.
+ *
+ * @param {ReturnType<typeof normalizeParkAndRide> | undefined} base
+ * @param {ReturnType<typeof normalizeParkAndRide>} update
+ * @returns {ReturnType<typeof normalizeParkAndRide>}
+ */
+export function mergeParkAndRide(base, update) {
+  if (!base) {
+    return update;
+  }
+  const merged = { ...base };
+  for (const [field, value] of Object.entries(update)) {
+    // `undefined` is "this layer does not publish that column", never "the
+    // value is unknown now": it must not erase what the other layer knows.
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    if (field === 'name' && value === UNNAMED_FACILITY) {
+      continue;
+    }
+    merged[field] = value;
+  }
+  return merged;
+}
+
+/**
+ * Every park & ride facility of the network, sorted by name.
+ *
+ * Both layers are read, and a failure of one of them is survivable: with the
+ * real-time layer alone the list is short (only the counted facilities), with
+ * the static one alone every facility is listed without its free spaces. Only
+ * a double failure is an error — and the one reported is the real-time one,
+ * because that is the read the devices depend on.
  *
  * @param {ReturnType<import('../config.js').normalizeConfig>} config
- * @returns {Promise<Map<string, ReturnType<typeof normalizeParkAndRide>>>}
+ * @returns {Promise<ReturnType<typeof normalizeParkAndRide>[]>}
  */
-export function fetchParkAndRideFacilities(config) {
+async function loadParkAndRideFacilities(config) {
+  const [realtime, statique] = await Promise.allSettled([
+    fetchLayer(config, PARK_AND_RIDE_REALTIME_LAYERS),
+    fetchLayer(config, PARK_AND_RIDE_STATIC_LAYERS),
+  ]);
+
+  if (realtime.status === 'rejected' && statique.status === 'rejected') {
+    throw realtime.reason;
+  }
+  if (realtime.status === 'rejected') {
+    logger.warn(
+      `Park & ride occupancy is unreadable (${realtime.reason.message}); ` +
+        'listing the facilities without their free spaces',
+    );
+  }
+  if (statique.status === 'rejected') {
+    logger.warn(
+      `The park & ride inventory is unreadable (${statique.reason.message}); ` +
+        'only the facilities counted in real time are listed',
+    );
+  }
+
+  // Static first, real-time second: the live count is the value that must win
+  // when both layers publish a column.
+  const byId = new Map();
+  for (const result of [statique, realtime]) {
+    if (result.status !== 'fulfilled') {
+      continue;
+    }
+    for (const record of result.value) {
+      const facility = normalizeParkAndRide(record);
+      // A record without an id cannot be watched (the configuration names a
+      // facility by its id or its name) nor merged: skipping it is what keeps
+      // the anonymous rows of a partially published layer out of the list.
+      const key = facility.id ? facility.id.toUpperCase() : normalizeText(facility.name);
+      if (key.length === 0) {
+        continue;
+      }
+      byId.set(key, mergeParkAndRide(byId.get(key), facility));
+    }
+  }
+
+  const facilities = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  logger.debug(`${facilities.length} park & ride facilities loaded`);
+  return facilities;
+}
+
+/**
+ * The park & ride facilities, sorted by name, cached for the duration of a
+ * poll cycle (watching five car parks costs two HTTP requests, not ten).
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @returns {Promise<ReturnType<typeof normalizeParkAndRide>[]>}
+ */
+export function listParkAndRideFacilities(config) {
   const now = Date.now();
   if (parkAndRideCache && parkAndRideCache.expiresAt > now) {
     return parkAndRideCache.promise;
   }
 
-  const promise = fetchLayer(config, PARK_AND_RIDE_LAYERS)
-    .then((values) => {
-      const byKey = new Map();
-      for (const record of values) {
-        const facility = normalizeParkAndRide(record);
-        if (facility.id) {
-          byKey.set(facility.id, facility);
-          // The ids of this layer are upper-case codes ("SOI", "BON"): a user
-          // who typed one in lower case means the same car park.
-          byKey.set(facility.id.toLowerCase(), facility);
-        }
-        byKey.set(facility.name.toLowerCase(), facility);
-      }
-      logger.debug(`${values.length} park & ride facilities loaded`);
-      return byKey;
-    })
-    .catch((err) => {
-      // Never cache a failure: the next poll must retry immediately.
-      parkAndRideCache = null;
-      throw err;
-    });
+  const promise = loadParkAndRideFacilities(config).catch((err) => {
+    // Never cache a failure: the next poll must retry immediately.
+    parkAndRideCache = null;
+    throw err;
+  });
 
   parkAndRideCache = { expiresAt: now + CACHE_TTL_MS, promise };
   return promise;
+}
+
+/**
+ * The same facilities, keyed by id (and also by lower-cased id and name, so
+ * the user can write a readable "Gorge de Loup" in the configuration instead
+ * of an opaque code).
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @returns {Promise<Map<string, ReturnType<typeof normalizeParkAndRide>>>}
+ */
+export async function fetchParkAndRideFacilities(config) {
+  const byKey = new Map();
+  for (const facility of await listParkAndRideFacilities(config)) {
+    if (facility.id) {
+      byKey.set(facility.id, facility);
+      // The ids of this layer are upper-case codes ("SOI", "BON"): a user who
+      // typed one in lower case means the same car park.
+      byKey.set(facility.id.toLowerCase(), facility);
+    }
+    byKey.set(facility.name.toLowerCase(), facility);
+  }
+  return byKey;
 }
 
 /**

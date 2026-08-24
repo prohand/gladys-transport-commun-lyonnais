@@ -15,6 +15,10 @@ import {
   checkDatasets,
   clearTclCache,
   fetchDepartures,
+  findParkAndRide,
+  fetchParkAndRideFacilities,
+  listParkAndRideFacilities,
+  mergeParkAndRide,
   searchStops,
   belongsToStop,
   normalizeText,
@@ -219,4 +223,131 @@ test('a refused account is reported as such, not as three missing datasets', asy
     assert.match(err.userMessage.fr, /onegeo-login/);
     return true;
   });
+});
+
+// The park & ride dataset as SYTRAL publishes it: an inventory of every
+// facility (static) and, next to it, the live count of the ones that are
+// actually equipped to count. "Laurent Bonnevay" is in the first and not in the
+// second, which is the whole point of the fixture.
+const PARK_AND_RIDE_STATIC = [
+  { id: 'GOR', nom: 'Gorge de Loup', capacite: 655, place_handi: 19 },
+  { id: 'BONN', nom: 'Laurent Bonnevay', capacite: 287, place_handi: 7 },
+];
+const PARK_AND_RIDE_REALTIME = [
+  { id: 'GOR', nom: 'Gorge de Loup', capacite: 655, nb_tot_place_dispo: 120 },
+];
+
+/**
+ * A platform serving the two park & ride layers, counting what is asked of it.
+ * @param {{ realtimeStatus?: number, staticStatus?: number }} [failures]
+ */
+async function startParkAndRideServer({ realtimeStatus, staticStatus } = {}) {
+  const asked = [];
+  const server = await startServer((req, res) => {
+    asked.push(req.url);
+    const isRealtime = req.url.includes('tclparcrelaistr');
+    const isStatic = req.url.includes('tclparcrelaisst');
+    const status = isRealtime ? realtimeStatus : isStatic ? staticStatus : 404;
+    if (status) {
+      res.writeHead(status);
+      res.end();
+      return;
+    }
+    if (!isRealtime && !isStatic) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    const values = isRealtime ? PARK_AND_RIDE_REALTIME : PARK_AND_RIDE_STATIC;
+    sendJson(res, { nb_results: values.length, values });
+  });
+  server.asked = asked;
+  return server;
+}
+
+test('the park & ride list holds every facility, not only the counted ones', async (t) => {
+  // The bug: the integration read the real-time layer only, so a facility
+  // SYTRAL does not count live was missing from the list the configuration
+  // screen offers — and could not be watched at all.
+  clearLayerResolution();
+  clearTclCache();
+  const { baseUrl, close, asked } = await startParkAndRideServer();
+  t.after(close);
+
+  const facilities = await listParkAndRideFacilities(configFor(`${baseUrl}/ws/rdata`));
+
+  assert.deepEqual(
+    facilities.map((facility) => facility.id),
+    ['GOR', 'BONN'],
+    'both layers are merged, sorted by name',
+  );
+  const [gorge, bonnevay] = facilities;
+  // The live count comes from the real-time layer...
+  assert.equal(gorge.available, 120);
+  assert.equal(gorge.capacity, 655);
+  // ...and the facility it does not count keeps its inventory, with no
+  // invented availability.
+  assert.equal(bonnevay.capacity, 287);
+  assert.equal(bonnevay.available, undefined);
+  assert.equal(bonnevay.capacityDisabled, 7);
+  assert.equal(asked.length, 2, 'one request per layer');
+});
+
+test('a park & ride is watchable by the id or the name of either layer', async (t) => {
+  clearLayerResolution();
+  clearTclCache();
+  const { baseUrl, close } = await startParkAndRideServer();
+  t.after(close);
+
+  const facilities = await fetchParkAndRideFacilities(configFor(`${baseUrl}/ws/rdata`));
+
+  assert.equal(findParkAndRide(facilities, 'BONN').name, 'Laurent Bonnevay');
+  assert.equal(findParkAndRide(facilities, 'bonn').name, 'Laurent Bonnevay');
+  assert.equal(findParkAndRide(facilities, 'laurent bonnevay').capacity, 287);
+});
+
+test('one unreadable park & ride layer degrades the list instead of emptying it', async (t) => {
+  // A retired or momentarily broken real-time layer must still leave the
+  // facilities listed: capacity without a live count beats nothing at all.
+  clearLayerResolution();
+  clearTclCache();
+  const { baseUrl, close } = await startParkAndRideServer({ realtimeStatus: 500 });
+  t.after(close);
+
+  const facilities = await listParkAndRideFacilities(configFor(`${baseUrl}/ws/rdata`));
+
+  assert.deepEqual(
+    facilities.map((facility) => facility.id),
+    ['GOR', 'BONN'],
+  );
+  assert.equal(facilities[0].available, undefined);
+});
+
+test('a park & ride read that fails on both layers is an error, not an empty list', async (t) => {
+  clearLayerResolution();
+  clearTclCache();
+  const { baseUrl, close } = await startParkAndRideServer({
+    realtimeStatus: 500,
+    staticStatus: 500,
+  });
+  t.after(close);
+
+  await assert.rejects(listParkAndRideFacilities(configFor(`${baseUrl}/ws/rdata`)), /HTTP 500/);
+});
+
+test('merging two records of the same facility never erases a known value', () => {
+  const statique = {
+    id: 'GOR',
+    name: 'Gorge de Loup',
+    capacity: 655,
+    capacityDisabled: 19,
+    available: undefined,
+  };
+  const realtime = { id: 'GOR', name: 'P+R', capacity: undefined, available: 120 };
+
+  const merged = mergeParkAndRide(statique, realtime);
+  assert.equal(merged.available, 120, 'the live count is what the real-time layer adds');
+  assert.equal(merged.capacity, 655, 'a column the real-time layer omits is kept');
+  assert.equal(merged.name, 'Gorge de Loup', 'the placeholder name never wins over a real one');
+  assert.deepEqual(mergeParkAndRide(undefined, realtime), realtime);
 });

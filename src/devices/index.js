@@ -20,7 +20,8 @@ import { createLogger } from '@gladysassistant/integration-sdk';
 import { createTransitStopBlueprint } from './transitStop.js';
 import { createVelovStationBlueprint } from './velovStation.js';
 import { createParkAndRideBlueprint } from './parkAndRide.js';
-import { checkDatasets, fetchParkAndRideFacilities, searchStops } from '../api/tcl.js';
+import { dueForRead } from './pollSchedule.js';
+import { checkDatasets, listParkAndRideFacilities, searchStops } from '../api/tcl.js';
 import { searchStations } from '../api/velov.js';
 import { GrandLyonError } from '../api/grandlyon.js';
 import { hasGrandLyonCredentials } from '../config.js';
@@ -69,6 +70,35 @@ export function findBlueprintByDevice(gladys, device, config) {
   return buildBlueprints(config).find(
     (blueprint) => blueprint.deviceExternalId(gladys) === device.external_id,
   );
+}
+
+/**
+ * Handle one `device.poll` from the Gladys scheduler: route it to the
+ * blueprint owning the device, and skip the ticks that arrive before the
+ * configured refresh interval has elapsed.
+ *
+ * The skipping is what keeps the "Refresh intervals" section of the
+ * configuration meaningful: the core scheduler tops out at one tick a minute
+ * (see `gladysPollFrequency`), so without it, a park & ride configured to
+ * refresh every 5 minutes would be read from the platform every minute.
+ *
+ * @param {object} gladys
+ * @param {{ external_id: string }} device
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ */
+export async function pollDevice(gladys, device, config) {
+  const blueprint = findBlueprintByDevice(gladys, device, config);
+  if (!blueprint) {
+    // The user removed the entry from the watch list but the device still
+    // exists in Gladys: nothing to read, and nothing worth erroring about.
+    logger.debug(`onPoll ignored, ${device.external_id} is no longer configured`);
+    return;
+  }
+  if (!dueForRead(blueprint.key, blueprint.pollIntervalMs(config))) {
+    logger.debug(`onPoll skipped, ${blueprint.key} was refreshed less than an interval ago`);
+    return;
+  }
+  await blueprint.onPoll(gladys, config);
 }
 
 /**
@@ -172,28 +202,44 @@ const RAW_ACTIONS = {
     };
   },
 
-  /** List every park & ride facility with its id, capacity and free spaces. */
+  /**
+   * List every park & ride facility with its id, capacity and free spaces.
+   *
+   * "The list is incomplete" is the bug this reads two layers for: the
+   * real-time layer only holds the facilities SYTRAL counts live, and it is
+   * the one the integration used to list. The inventory comes from the static
+   * layer instead (see `listParkAndRideFacilities`), so a car park with no
+   * live counting is still offered — with a "?" where its free spaces would
+   * be, which is the honest answer rather than a missing line.
+   */
   async list_park_and_ride(gladys, { config }) {
-    const facilities = await fetchParkAndRideFacilities(config);
+    const facilities = await listParkAndRideFacilities(config);
 
-    const seen = new Set();
-    const lines = [];
-    for (const facility of facilities.values()) {
-      if (seen.has(facility.id)) {
-        continue;
-      }
-      seen.add(facility.id);
-      lines.push(
-        `${facility.id} — ${facility.name} (${facility.available ?? '?'}/${facility.capacity ?? '?'} free)`,
-      );
-    }
-
-    if (lines.length === 0) {
+    if (facilities.length === 0) {
       return { en: 'No park & ride returned.', fr: 'Aucun parc relais retourné.' };
     }
+
+    const lines = facilities.map(
+      (facility) =>
+        `${facility.id} — ${facility.name} (${facility.available ?? '?'}/${facility.capacity ?? '?'} free)`,
+    );
+    const withoutLiveCount = facilities.filter(
+      (facility) => !Number.isFinite(facility.available),
+    ).length;
+    const note = {
+      en:
+        withoutLiveCount > 0
+          ? `\n(${withoutLiveCount} of them publish no live count: "?" free spaces.)`
+          : '',
+      fr:
+        withoutLiveCount > 0
+          ? `\n(${withoutLiveCount} d’entre eux ne publient pas de comptage temps réel : « ? » places libres.)`
+          : '',
+    };
+
     return {
-      en: `Paste one of these ids in "Park & ride":\n${lines.join('\n')}`,
-      fr: `Collez un de ces identifiants dans "Parcs relais" :\n${lines.join('\n')}`,
+      en: `${facilities.length} park & ride facilities. Paste one of these ids in "Park & ride":\n${lines.join('\n')}${note.en}`,
+      fr: `${facilities.length} parcs relais. Collez un de ces identifiants dans "Parcs relais" :\n${lines.join('\n')}${note.fr}`,
     };
   },
 };

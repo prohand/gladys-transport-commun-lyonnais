@@ -18,6 +18,7 @@ import {
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
+import { gladysPollFrequency } from '../config.js';
 import { fetchDepartures } from '../api/tcl.js';
 
 export const DEVICE_TYPE = 'tcl-stop';
@@ -91,6 +92,10 @@ export function createTransitStopBlueprint(stop) {
       return gladys.externalIds(DEVICE_TYPE, platformId).device;
     },
 
+    pollIntervalMs(config) {
+      return config.departures_poll_frequency * 1000;
+    },
+
     buildDevice(gladys, config) {
       const ids = gladys.externalIds(DEVICE_TYPE, platformId);
       const features = [];
@@ -134,8 +139,10 @@ export function createTransitStopBlueprint(stop) {
       return {
         name: deviceName(stop),
         external_id: ids.device,
-        // Gladys calls onPoll at this interval, in seconds.
-        poll_frequency: config.departures_poll_frequency,
+        // Gladys calls onPoll at this interval, in milliseconds, and only
+        // accepts the values its own scheduler knows: the configured refresh
+        // interval is honored by pollSchedule.js, not by this field.
+        poll_frequency: gladysPollFrequency(config.departures_poll_frequency),
         params: [
           { name: 'stop_id', value: stop.id },
           { name: 'lines', value: stop.lines.join(',') },
