@@ -17,7 +17,8 @@
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { hasGrandLyonCredentials, normalizeConfig } from './src/config.js';
-import { ACTIONS, buildDiscoveredDevices, findBlueprintByDevice } from './src/devices/index.js';
+import { ACTIONS, buildDiscoveredDevices, pollDevice } from './src/devices/index.js';
+import { clearPollSchedule } from './src/devices/pollSchedule.js';
 import { clearLayerResolution } from './src/api/grandlyon.js';
 import { clearTclCache } from './src/api/tcl.js';
 import { clearVelovCache } from './src/api/velov.js';
@@ -34,18 +35,13 @@ gladys.onScanRequest(async () => {
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
-// Every device of this integration is read-only and refreshed here, at the
-// `poll_frequency` it was published with (one per data source, see
-// src/config.js).
+// Every device of this integration is read-only and refreshed here. The core
+// scheduler ticks at the `poll_frequency` the device was published with (one
+// minute at the slowest, which is all Gladys offers); `pollDevice` routes the
+// tick to the right blueprint and drops the ones that fall inside the
+// configured refresh interval.
 gladys.onPoll(async (device) => {
-  const blueprint = findBlueprintByDevice(gladys, device, config);
-  if (!blueprint) {
-    // The user removed the entry from the watch list but the device still
-    // exists in Gladys: nothing to read, and nothing worth erroring about.
-    logger.debug(`onPoll ignored, ${device.external_id} is no longer configured`);
-    return;
-  }
-  await blueprint.onPoll(gladys, config);
+  await pollDevice(gladys, device, config);
 });
 
 // --- Manifest actions: buttons in the Configuration screen -------------------
@@ -65,6 +61,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   clearLayerResolution();
   clearTclCache();
   clearVelovCache();
+  // A refresh interval that just changed must apply on the next tick, not
+  // after the old one has elapsed.
+  clearPollSchedule();
   // Re-publish the devices: the watch lists and the poll frequencies live in
   // the configuration. publishDiscoveredDevices is idempotent (upsert by
   // external_id).

@@ -112,7 +112,9 @@ station Vélo'v** pour chercher par nom.
 `Gorge de Loup`, `SOI`, ou `Parilly:Trajet boulot`. Les identifiants sont de
 courts codes en majuscules (`SOI`, `BON`, `GREY`…), et le nom fonctionne tout
 aussi bien. Appuyez sur **Lister les parcs relais** pour voir tous les parcs
-avec leur identifiant et leur occupation.
+avec leur identifiant et leur occupation — les 22, y compris ceux que le SYTRAL
+ne compte pas en temps réel, affichés avec « ? » places libres. Ils donnent
+quand même un appareil utile : leur capacité est publiée, pas leur comptage.
 
 ### 3. Fréquences de rafraîchissement
 
@@ -128,11 +130,13 @@ vitesse :
 Les trois acceptent de 30 s à 3600 s. Descendre sous 60 s n'apporte rien : les
 flux sources sont eux-mêmes recalculés environ toutes les minutes, donc une
 interrogation plus rapide renvoie les mêmes chiffres tout en consommant votre
-quota Data Grand Lyon.
+quota Data Grand Lyon. Gladys, de son côté, ne déclenche jamais moins d'une
+fois par minute : un intervalle supérieur à 60 s est respecté par
+l'intégration, qui ignore simplement les déclenchements intermédiaires.
 
 L'intégration groupe aussi ses requêtes : surveiller dix stations Vélo'v coûte
 deux requêtes HTTP par cycle, pas vingt, et surveiller cinq parcs relais en
-coûte une seule.
+coûte deux.
 
 ### 4. Enregistrez
 

@@ -8,8 +8,9 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFakeGladys } from './helpers/fakeGladys.js';
-import { normalizeConfig } from '../src/config.js';
-import { buildDiscoveredDevices, findBlueprintByDevice } from '../src/devices/index.js';
+import { GLADYS_POLL_FREQUENCIES_MS, normalizeConfig } from '../src/config.js';
+import { buildDiscoveredDevices, findBlueprintByDevice, pollDevice } from '../src/devices/index.js';
+import { clearPollSchedule } from '../src/devices/pollSchedule.js';
 import { formatDeparture, formatSummary } from '../src/devices/transitStop.js';
 import { computeOccupancy as velovOccupancy, formatStatus } from '../src/devices/velovStation.js';
 import { computeOccupancy as parkingOccupancy } from '../src/devices/parkAndRide.js';
@@ -61,6 +62,7 @@ function stubFetch(routes) {
 }
 
 beforeEach(() => {
+  clearPollSchedule();
   clearTclCache();
   clearVelovCache();
   clearLayerResolution();
@@ -86,7 +88,11 @@ test('an empty configuration publishes no device', () => {
   assert.deepEqual(buildDiscoveredDevices(gladys, normalizeConfig()), []);
 });
 
-test('each device carries the poll frequency of its data source', () => {
+test('each device is published with a poll frequency the Gladys scheduler accepts', () => {
+  // The core validates `poll_frequency` against DEVICE_POLL_FREQUENCIES (in
+  // milliseconds, one minute at the slowest) and answers 400 for the WHOLE
+  // batch otherwise: publishing "45" here is what left the Discovery screen
+  // empty while the logs read "Publishing 3 device(s)".
   const gladys = createFakeGladys();
   const config = normalizeConfig({
     ...CONFIG,
@@ -96,9 +102,52 @@ test('each device carries the poll frequency of its data source', () => {
   });
   const [stop, velov, parking] = buildDiscoveredDevices(gladys, config);
 
-  assert.equal(stop.poll_frequency, 45);
-  assert.equal(velov.poll_frequency, 90);
-  assert.equal(parking.poll_frequency, 600);
+  assert.equal(stop.poll_frequency, 30_000);
+  assert.equal(velov.poll_frequency, 60_000);
+  assert.equal(parking.poll_frequency, 60_000);
+  for (const device of [stop, velov, parking]) {
+    assert.ok(
+      GLADYS_POLL_FREQUENCIES_MS.includes(device.poll_frequency),
+      `${device.name} publishes a frequency Gladys would reject`,
+    );
+  }
+});
+
+test('the ticks arriving inside the configured interval do not reach the feed', async () => {
+  // Gladys cannot tick slower than a minute, so a 5-minute refresh is enforced
+  // here: four ticks out of five must return without touching the network.
+  const gladys = createFakeGladys();
+  const calls = stubFetch({
+    tclparcrelaistr: {
+      values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400, nb_tot_place_dispo: 100 }],
+    },
+    tclparcrelaisst: { values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400 }] },
+  });
+
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'PR1',
+    park_and_ride_poll_frequency: 300,
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+
+  await pollDevice(gladys, device, config);
+  const afterFirstTick = calls.length;
+  assert.ok(afterFirstTick > 0, 'the first tick reads the platform');
+
+  // The next minute-tick is inside the 5-minute interval: nothing is read, and
+  // nothing is published either.
+  gladys.published.length = 0;
+  await pollDevice(gladys, device, config);
+  assert.equal(calls.length, afterFirstTick, 'a tick inside the interval reads nothing');
+  assert.equal(gladys.published.length, 0);
+});
+
+test('a device that is no longer configured is polled without erroring', async () => {
+  const gladys = createFakeGladys();
+  await pollDevice(gladys, { external_id: 'ext:test:gone' }, CONFIG);
 });
 
 test('a stop exposes max_departures countdowns plus their labels and a summary', () => {
@@ -268,13 +317,19 @@ test('polling a park & ride publishes free spaces and occupancy', async () => {
   assert.equal(states[`${prefix}:occupancy`], 75);
 });
 
-test('watching several park & ride facilities costs a single request per cycle', async () => {
+test('watching several park & ride facilities costs one request per layer, per cycle', async () => {
   const gladys = createFakeGladys();
   const calls = stubFetch({
-    tclparcrelais: {
+    tclparcrelaistr: {
       values: [
         { id: 'PR1', nom: 'Gorge de Loup', capacite: 400, nbplacesdispo: 100 },
         { id: 'PR2', nom: 'Parilly', capacite: 800, nbplacesdispo: 40 },
+      ],
+    },
+    tclparcrelaisst: {
+      values: [
+        { id: 'PR1', nom: 'Gorge de Loup', capacite: 400 },
+        { id: 'PR2', nom: 'Parilly', capacite: 800 },
       ],
     },
   });
@@ -291,7 +346,11 @@ test('watching several park & ride facilities costs a single request per cycle',
   );
 
   assert.equal(devices.length, 2);
-  assert.equal(calls.length, 1, 'the layer is downloaded once and shared');
+  assert.equal(
+    calls.length,
+    2,
+    'the two layers are downloaded once each and shared by every facility',
+  );
 });
 
 test('a park & ride id is matched whatever its case', async () => {

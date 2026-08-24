@@ -10,7 +10,7 @@
   "docker_image": "ghcr.io/prohand/gladys-transport-commun-lyonnais:1.0.0",
   "gladys_version": ">=4.86.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-transport-commun-lyonnais/main/cover.png",
-  "categories": ["transport"],
+  "categories": ["environment"],
   "transports": ["cloud"],
   "config_schema": [
     {

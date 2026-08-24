@@ -16,6 +16,7 @@ import {
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
+import { gladysPollFrequency } from '../config.js';
 import { fetchParkAndRideFacilities, findParkAndRide } from '../api/tcl.js';
 
 export const DEVICE_TYPE = 'tcl-park-and-ride';
@@ -65,6 +66,10 @@ export function createParkAndRideBlueprint(watched) {
       return gladys.externalIds(DEVICE_TYPE, watched.id).device;
     },
 
+    pollIntervalMs(config) {
+      return config.park_and_ride_poll_frequency * 1000;
+    },
+
     buildDevice(gladys, config) {
       const ids = gladys.externalIds(DEVICE_TYPE, watched.id);
       const counter = (name, key) => ({
@@ -82,7 +87,7 @@ export function createParkAndRideBlueprint(watched) {
       return {
         name: watched.name ?? `P+R ${watched.id}`,
         external_id: ids.device,
-        poll_frequency: config.park_and_ride_poll_frequency,
+        poll_frequency: gladysPollFrequency(config.park_and_ride_poll_frequency),
         params: [
           { name: 'park_and_ride_id', value: watched.id },
           { name: 'source', value: 'data.grandlyon.com' },

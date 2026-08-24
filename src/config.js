@@ -26,8 +26,10 @@ export const DEFAULT_CONFIG = {
   park_and_ride: '',
 
   // --- Poll frequencies, in seconds ----------------------------------------
-  // Gladys drives the refresh: each device is published with its own
-  // `poll_frequency`, and the core calls `onPoll(device)` at that interval.
+  // Gladys drives the refresh: each device is published with a
+  // `poll_frequency` the core scheduler understands (see gladysPollFrequency
+  // below — the core only schedules up to one tick a minute), and the ticks
+  // that fall inside the configured interval are dropped by the integration.
   // The three sources do not move at the same speed, hence three knobs:
   //   - departures change every minute (they are countdowns);
   //   - Vélo'v availability is recomputed by JCDecaux every minute;
@@ -46,6 +48,35 @@ export const DEFAULT_CONFIG = {
 // above one hour a "real-time" sensor stops being real-time.
 const MIN_POLL_FREQUENCY = 30;
 const MAX_POLL_FREQUENCY = 3600;
+
+// The intervals Gladys itself knows how to schedule (`DEVICE_POLL_FREQUENCIES`
+// in the core), in MILLISECONDS. This is not a style detail: publishing a
+// `poll_frequency` outside this list makes the core reject the WHOLE
+// `POST /discovered_device` batch with a 400, so a single device published
+// with "60" (seconds) is enough for the Discovery screen to stay empty — with
+// the integration cheerfully logging "Publishing 1 device(s)" every time.
+export const GLADYS_POLL_FREQUENCIES_MS = [1000, 2000, 10000, 15000, 30000, 60000];
+
+/**
+ * The interval Gladys is asked to poll a device at, for a configured refresh
+ * interval expressed in seconds.
+ *
+ * The core caps its scheduler at one minute, while the configuration accepts
+ * up to an hour: a park & ride watched every 5 minutes is a perfectly sane
+ * request that no `poll_frequency` can express. The device is therefore
+ * published with the fastest tick that stays under the configured interval
+ * (60 s for anything above a minute) and the extra ticks are dropped by
+ * `dueForRead` in src/devices/pollSchedule.js — the upstream feed still sees
+ * one read per configured interval.
+ *
+ * @param {number} seconds configured refresh interval
+ * @returns {number} a value of GLADYS_POLL_FREQUENCIES_MS
+ */
+export function gladysPollFrequency(seconds) {
+  const wanted = Number(seconds) * 1000;
+  const supported = GLADYS_POLL_FREQUENCIES_MS.filter((frequency) => frequency <= wanted);
+  return supported.length > 0 ? Math.max(...supported) : Math.min(...GLADYS_POLL_FREQUENCIES_MS);
+}
 
 /**
  * Clamp a poll frequency to the accepted range, falling back to the default

@@ -19,6 +19,7 @@ import {
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
+import { gladysPollFrequency } from '../config.js';
 import { fetchStationAvailability } from '../api/velov.js';
 
 export const DEVICE_TYPE = 'velov-station';
@@ -94,6 +95,10 @@ export function createVelovStationBlueprint(watched) {
       return gladys.externalIds(DEVICE_TYPE, watched.id).device;
     },
 
+    pollIntervalMs(config) {
+      return config.velov_poll_frequency * 1000;
+    },
+
     buildDevice(gladys, config) {
       const ids = gladys.externalIds(DEVICE_TYPE, watched.id);
       const counter = (name, key) => ({
@@ -111,7 +116,7 @@ export function createVelovStationBlueprint(watched) {
       return {
         name: watched.name ?? `Vélo'v ${watched.id}`,
         external_id: ids.device,
-        poll_frequency: config.velov_poll_frequency,
+        poll_frequency: gladysPollFrequency(config.velov_poll_frequency),
         params: [
           { name: 'station_id', value: watched.id },
           { name: 'source', value: 'GBFS (Métropole de Lyon / JCDecaux)' },

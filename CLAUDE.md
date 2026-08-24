@@ -35,6 +35,7 @@ src/api/grandlyon.js          HTTP Basic client for the Data Grand Lyon rdata AP
 src/api/tcl.js                departures + park & ride, per-cycle cache
 src/api/velov.js              GBFS index/information/status, per-cycle cache
 src/devices/index.js          dynamic device registry + manifest actions
+src/devices/pollSchedule.js   drops the poll ticks inside the configured interval
 src/devices/transitStop.js    one device per watched stop
 src/devices/velovStation.js   one device per watched Vélo'v station
 src/devices/parkAndRide.js    one device per watched P+R facility
@@ -100,6 +101,14 @@ known one. Column names moved with the split too (`nbplacesdispo` ->
 `nb_tot_place_dispo`): every parser reads through `pick`, add the new spelling
 rather than replacing the old one.
 
+The two halves of that split are read **together**, not one as a fallback for
+the other: the real-time layer only carries the facilities SYTRAL counts live,
+so listing it alone hides the rest of the network — the reported "the park &
+ride list is incomplete". `listParkAndRideFacilities` merges the static
+inventory (22 facilities) with the live counts, survives the loss of either
+layer, and only errors when both fail. A facility with no live count is listed
+with `?` free spaces rather than dropped.
+
 Timeouts are per kind of read (`REQUEST_TIMEOUT_MS`, `BULK_TIMEOUT_MS`,
 `PROBE_TIMEOUT_MS`): the stop directory is a multi-megabyte download and does
 not fit in the budget that is generous for a filtered read. A manifest action
@@ -129,11 +138,41 @@ rejected manifest blocks publication. The rules that bite most often:
   `placeholder`, and their key must never appear in `DEFAULT_CONFIG`.
 - Any `default` declared in `config_schema` must equal the matching value in
   `DEFAULT_CONFIG` (`src/config.js`).
-- `categories` requires `gladys_version >= 4.86.0`.
+- `categories` requires `gladys_version >= 4.86.0`, and its keys come from a
+  **closed** vocabulary (`INTEGRATION_CATALOG_CATEGORIES` in the core):
+  `climate`, `lighting`, `energy`, `security`, `multimedia`, `appliances`,
+  `environment`, `protocols`, `network`, `notifications`, `assistants`,
+  `services`. There is no `transport` — an unknown key is silently dropped at
+  indexing time and the integration ends up filed under nothing. This one lives
+  in `environment`, the shelf the spec defines as carrying the "open-data
+  daily-life feeds" (air quality, fuel prices, water restrictions).
 
 `test/manifest.test.js` enforces all of the above plus the code/manifest
 consistency (every action has a handler and vice versa). When you change the
 manifest, change that test with it.
+
+## Publishing devices
+
+`poll_frequency` is in **milliseconds** and must be one of the values the core
+scheduler knows (`DEVICE_POLL_FREQUENCIES`: 1000, 2000, 10000, 15000, 30000,
+60000). The core validates the whole `POST /discovered_device` batch and
+answers `400` on the first offender, so a single device published with `60`
+(seconds) empties the **entire** Discovery screen while the container logs a
+cheerful "Publishing 1 device(s)". That was a real bug: publish through
+`gladysPollFrequency` (src/config.js), never the raw configured interval.
+
+Gladys has nothing slower than one tick a minute, while the configuration
+accepts intervals up to an hour. The gap is closed by `dueForRead`
+(src/devices/pollSchedule.js), which drops the ticks arriving inside the
+configured interval — that is what keeps "refresh the park & ride every 5
+minutes" from reading the platform every minute. A blueprint therefore exposes
+`pollIntervalMs(config)` next to `onPoll`, and `pollDevice` is the entry point
+`index.js` wires to `gladys.onPoll`.
+
+The same validation applies to every feature: `category`, `type` and `unit`
+must come from the standard Gladys lists, and the device and feature
+`external_id`s must carry the `ext:<selector>:` prefix (`gladys.externalIds`
+builds them).
 
 ## Releasing
 

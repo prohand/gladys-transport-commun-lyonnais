@@ -76,10 +76,19 @@ Every device is read-only — no blueprint implements `onSetValue`.
 
 ### Polling
 
-Gladys drives the refresh: each device is published with its own
-`poll_frequency` (in seconds) and the core calls `onPoll(device)` at that
-interval. The three sources get three independent settings, because they do not
-move at the same speed:
+Gladys drives the refresh: each device is published with a `poll_frequency`
+and the core calls `onPoll(device)` at that interval. That field is **not** the
+configured interval — it must be one of the values the core scheduler knows
+(`DEVICE_POLL_FREQUENCIES`, in milliseconds, from 1 s to 60 s), and publishing
+anything else makes Gladys reject the whole discovery batch with a `400`, which
+looks exactly like an integration whose devices never show up in the Discovery
+screen. `gladysPollFrequency` maps a configured interval to the fastest tick
+that fits under it, and `src/devices/pollSchedule.js` drops the ticks that
+arrive before the configured interval has elapsed — so an interval slower than
+a minute still means one upstream read per interval.
+
+The three sources get three independent settings, because they do not move at
+the same speed:
 
 | Config key                     | Default | Range     | Drives                 |
 | ------------------------------ | ------- | --------- | ---------------------- |
@@ -90,8 +99,8 @@ move at the same speed:
 Values are clamped in `normalizeConfig` so a hand-edited configuration can
 never hammer the open data platforms.
 
-The whole-network feeds (Vélo'v GBFS, park & ride layer) are fetched once and
-memoized for 20 s — shorter than the shortest allowed poll frequency, which
+The whole-network feeds (Vélo'v GBFS, the two park & ride layers) are fetched
+once and memoized for 20 s — shorter than the shortest allowed poll frequency, which
 collapses the burst of `onPoll` calls Gladys fires for devices sharing an
 interval into a single HTTP request.
 
