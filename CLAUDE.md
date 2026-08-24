@@ -62,6 +62,21 @@ feeds, `src/devices/` only turns a feed into features.
   `buildDiscoveredDevices` and `findBlueprintByDevice` rebuild the blueprints
   from `config.watched` on every call.
 
+## What goes public
+
+Everything in this repository is public: the files, the commit messages, the
+branch names and the pull request titles and bodies. The repository owner's own
+stops are not — a real stop, station or park & ride picked because it is the one
+next to somebody's home says where that somebody lives, and a branch name is as
+permanent as a merge commit once the pull request is merged.
+
+So never carry a personal example into anything pushed here. Examples in the
+documentation, in tests and in fixtures use network landmarks everybody in Lyon
+shares (`Bellecour`, `Gorge de Loup`, `Part-Dieu`); the same holds for branch
+names, commit messages and pull requests, which describe the change rather than
+the stop that revealed it. When a bug report names a real stop, reproduce it
+with a landmark and write the landmark down.
+
 ## Data Grand Lyon authentication
 
 Two things cause the 401 everybody hits, and both are handled in
