@@ -189,6 +189,16 @@ must come from the standard Gladys lists, and the device and feature
 `external_id`s must carry the `ext:<selector>:` prefix (`gladys.externalIds`
 builds them).
 
+`min` and `max` are optional in the SDK types and NOT NULL in the core's
+`t_device_feature`, so a feature published without them fails the batch with
+`422 — t_device_feature.min cannot be null`, and the device never reaches the
+Discovery screen. That bit the text features, where a range means nothing: the
+user-visible symptom was "Fonctionnalité « Next departure line » — valeur
+minimum : champ obligatoire non renseigné". Every feature therefore declares a
+range — its real gauge bounds when numeric, `TEXT_FEATURE_RANGE`
+(src/devices/featureRange.js, the 0/0 the core's own UI stores) when the state
+is a string.
+
 ## Releasing
 
 Version bumps and tags are handled by `.github/workflows/release.yml`, which
