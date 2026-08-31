@@ -252,11 +252,14 @@ const RAW_ACTIONS = {
     const note = {
       en:
         withoutLiveCount > 0
-          ? `\n(${withoutLiveCount} of them publish no live count: "?" free spaces.)`
+          ? `\n(${withoutLiveCount} of them publish no live count: "?" free spaces. They can still ` +
+            'be watched — their device publishes the capacity and a "No live count" status.)'
           : '',
       fr:
         withoutLiveCount > 0
-          ? `\n(${withoutLiveCount} d’entre eux ne publient pas de comptage temps réel : « ? » places libres.)`
+          ? `\n(${withoutLiveCount} d’entre eux ne publient pas de comptage temps réel : « ? » ` +
+            'places libres. Ils restent surveillables — leur appareil publie la capacité et un ' +
+            'statut « No live count ».)'
           : '',
     };
 

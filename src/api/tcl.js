@@ -137,6 +137,21 @@ export function normalizeText(value) {
 }
 
 /**
+ * Fold a facility name down to what it identifies: `normalizeText`, plus the
+ * punctuation the two layers do not spell the same way. "Vaulx-en-Velin La
+ * Soie" and "Vaulx en Velin la Soie" are the same car park, and a user typing
+ * the second one must not be told their facility is not in the dataset.
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function foldName(value) {
+  return normalizeText(value)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
  * Convert an upcoming passage into "minutes from now".
  *
  * `heurepassage` is the authoritative field (an ISO timestamp); `delaipassage`
@@ -249,6 +264,95 @@ export function belongsToStop(record, stopId) {
 const UNNAMED_FACILITY = 'P+R';
 
 /**
+ * A column name, folded down to what it says: no case, no accent, no
+ * separator. `nb_tot_place_dispo`, `nbPlacesDispo` and `nb places dispo` all
+ * become the same string, which is what makes the hints below readable.
+ *
+ * @param {string} column
+ * @returns {string}
+ */
+function normalizeColumn(column) {
+  return normalizeText(column).replace(/[^a-z0-9]/g, '');
+}
+
+const saysFree = (column) => /dispo|libre|free|available/.test(column);
+const saysAccessible = (column) => /pmr|handi|accessible/.test(column);
+const saysCapacity = (column) => /capacit|nbtot|nbplace|nbpl|total|places/.test(column);
+// A park & ride publishes more than car spaces: the bicycle shelter and the
+// motorbike bays are counted in their own columns, and they must never be read
+// as the free spaces of the car park.
+const saysOtherVehicle = (column) => /velo|cycle|moto|bus|covoit/.test(column);
+
+// What each value looks like when the column NAME is all there is to go on.
+// The columns of this dataset have already moved once under the integration's
+// feet — the split renamed `nbplacesdispo` into `nb_tot_place_dispo` — and a
+// count published under a spelling nobody listed is not an error anybody can
+// raise: it is a device that stays empty forever, silently. So every value is
+// read twice, through the spellings we know and then through what the column
+// name says it holds.
+const COLUMN_HINTS = [
+  {
+    field: 'available',
+    matches: (column) => saysFree(column) && !saysAccessible(column) && !saysOtherVehicle(column),
+  },
+  { field: 'availableDisabled', matches: (column) => saysFree(column) && saysAccessible(column) },
+  {
+    field: 'capacity',
+    matches: (column) =>
+      saysCapacity(column) &&
+      !saysFree(column) &&
+      !saysAccessible(column) &&
+      !saysOtherVehicle(column),
+  },
+  {
+    field: 'capacityDisabled',
+    matches: (column) => saysCapacity(column) && saysAccessible(column) && !saysFree(column),
+  },
+];
+
+/**
+ * The counts of a record, read from the names of its columns.
+ *
+ * Only used as a fallback, after the known spellings: the first column whose
+ * name reads as a given value wins, so a layer that publishes both the
+ * spelling we know and another one is unaffected.
+ *
+ * @param {Record<string, unknown>} record
+ * @returns {{ capacity?: number, available?: number, capacityDisabled?: number,
+ *   availableDisabled?: number }}
+ */
+export function readCountsByColumnName(record) {
+  const found = {};
+  for (const [column, value] of Object.entries(record ?? {})) {
+    const number = Number(value);
+    if (value === null || value === '' || typeof value === 'boolean' || !Number.isFinite(number)) {
+      continue;
+    }
+    const name = normalizeColumn(column);
+    for (const hint of COLUMN_HINTS) {
+      if (found[hint.field] === undefined && hint.matches(name)) {
+        found[hint.field] = number;
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * A count as this integration is willing to publish it.
+ *
+ * A negative value is the platform saying "unknown", not a car park owing
+ * spaces to the network: it is dropped rather than published, because Gladys
+ * stores what it is given and a gauge declared from 0 has nowhere to put -1.
+ *
+ * @param {number | undefined} value
+ * @returns {number | undefined}
+ */
+function usableCount(value) {
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+/**
  * Normalize one raw park & ride record.
  * @param {Record<string, unknown>} record
  * @returns {{ id: string, name: string, capacity: number | undefined,
@@ -256,26 +360,34 @@ const UNNAMED_FACILITY = 'P+R';
  *   availableDisabled: number | undefined }}
  */
 export function normalizeParkAndRide(record) {
+  // Fallback for every count the known spellings miss: see COLUMN_HINTS.
+  const byName = readCountsByColumnName(record);
   return {
     id: pickString(record, ['id', 'idparcrelais', 'code', 'gid']) ?? '',
     name: pickString(record, ['nom', 'name', 'libelle']) ?? UNNAMED_FACILITY,
-    capacity: pickNumber(record, ['capacite', 'nb_tot', 'nbplacestotal', 'capacitevoiture']),
+    capacity: usableCount(
+      pickNumber(record, ['capacite', 'nb_tot', 'nbplacestotal', 'capacitevoiture']) ??
+        byName.capacity,
+    ),
     // `nb_tot_place_dispo` is what the real-time layer publishes today; the
     // other spellings are the ones the retired layers used.
-    available: pickNumber(record, [
-      'nb_tot_place_dispo',
-      'nbplacesdispo',
-      'nb_dispo',
-      'placesdispo',
-      'nbdispo',
-    ]),
-    capacityDisabled: pickNumber(record, [
-      'place_handi',
-      'capacitepmr',
-      'nb_tot_pmr',
-      'nbplacestotalpmr',
-    ]),
-    availableDisabled: pickNumber(record, ['nbplacesdispopmr', 'nb_dispo_pmr', 'placesdispopmr']),
+    available: usableCount(
+      pickNumber(record, [
+        'nb_tot_place_dispo',
+        'nbplacesdispo',
+        'nb_dispo',
+        'placesdispo',
+        'nbdispo',
+      ]) ?? byName.available,
+    ),
+    capacityDisabled: usableCount(
+      pickNumber(record, ['place_handi', 'capacitepmr', 'nb_tot_pmr', 'nbplacestotalpmr']) ??
+        byName.capacityDisabled,
+    ),
+    availableDisabled: usableCount(
+      pickNumber(record, ['nbplacesdispopmr', 'nb_dispo_pmr', 'placesdispopmr']) ??
+        byName.availableDisabled,
+    ),
   };
 }
 
@@ -364,7 +476,37 @@ async function loadParkAndRideFacilities(config) {
 
   const facilities = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   logger.debug(`${facilities.length} park & ride facilities loaded`);
+  warnAboutUnreadableCounts(realtime);
   return facilities;
+}
+
+/**
+ * Say it out loud when the real-time layer answers with records nothing in
+ * them can be read as a free-space count.
+ *
+ * That is the failure with no error attached: the request succeeds, the
+ * facilities are listed, and every watched car park publishes nothing at all
+ * because the column holding the count has been renamed once more. The columns
+ * the layer did send are the only thing that makes the next report actionable,
+ * so they are named here rather than left for somebody to guess.
+ *
+ * @param {PromiseSettledResult<Record<string, unknown>[]>} realtime
+ */
+function warnAboutUnreadableCounts(realtime) {
+  if (realtime.status !== 'fulfilled' || realtime.value.length === 0) {
+    return;
+  }
+  const counted = realtime.value.filter((record) =>
+    Number.isFinite(normalizeParkAndRide(record).available),
+  );
+  if (counted.length > 0) {
+    return;
+  }
+  const columns = [...new Set(realtime.value.flatMap((record) => Object.keys(record)))];
+  logger.warn(
+    `The park & ride real-time layer answered with ${realtime.value.length} record(s) and no ` +
+      `readable free-space count: its columns are ${columns.join(', ')} — please report it`,
+  );
 }
 
 /**
@@ -407,7 +549,11 @@ export async function fetchParkAndRideFacilities(config) {
       // typed one in lower case means the same car park.
       byKey.set(facility.id.toLowerCase(), facility);
     }
-    byKey.set(facility.name.toLowerCase(), facility);
+    // The name is indexed folded (no case, no accent, no punctuation): a user
+    // who typed "Vaulx en Velin la Soie" means the facility the layer spells
+    // "Vaulx-en-Velin La Soie", and answering "not in the dataset" over a
+    // hyphen is a device that never publishes anything.
+    byKey.set(foldName(facility.name), facility);
   }
   return byKey;
 }
@@ -418,7 +564,11 @@ export async function fetchParkAndRideFacilities(config) {
  * @param {string} idOrName
  */
 export function findParkAndRide(facilities, idOrName) {
-  return facilities.get(idOrName) ?? facilities.get(String(idOrName).toLowerCase());
+  return (
+    facilities.get(idOrName) ??
+    facilities.get(String(idOrName).toLowerCase()) ??
+    facilities.get(foldName(idOrName))
+  );
 }
 
 /**

@@ -32,11 +32,19 @@ Un appareil par entrée listée dans la configuration.
 
 **Parc relais (P+R)**
 
-| Fonctionnalité         | Contenu                                                |
-| ---------------------- | ------------------------------------------------------ |
-| Places disponibles     | Places voitures libres                                 |
-| Places PMR disponibles | Places réservées PMR libres, quand elles sont publiées |
-| Occupation             | Part de la capacité occupée, en pourcentage            |
+| Fonctionnalité         | Contenu                                                       |
+| ---------------------- | ------------------------------------------------------------- |
+| Places disponibles     | Places voitures libres, là où SYTRAL les compte en temps réel |
+| Places PMR disponibles | Places réservées PMR libres, quand elles sont publiées        |
+| Capacité totale        | Nombre de places du parc, d'après l'inventaire                |
+| Occupation             | Part de la capacité occupée, en pourcentage                   |
+| Statut                 | `120/655 free`, `Full`, `No live count (287 spaces)`…         |
+
+Tous les parcs relais ne sont pas comptés en temps réel : le jeu de données
+d'occupation ne couvre qu'une partie du réseau, le reste n'est publié que dans
+l'inventaire, sans comptage. Ces parcs restent surveillables — ils publient
+leur capacité et un statut `No live count`, et les places libres apparaîtront
+d'elles-mêmes le jour où SYTRAL les comptera.
 
 ## Configuration
 
@@ -231,7 +239,17 @@ bus) : relancez **Chercher un arrêt**.
 
 **Une station Vélo'v ou un parc relais est en erreur à chaque relève** —
 l'identifiant n'existe pas dans le flux. Relancez le bouton de recherche
-correspondant et collez l'identifiant qu'il retourne.
+correspondant et collez l'identifiant qu'il retourne ; l'erreur des parcs
+relais cite en plus quelques identifiants réellement publiés.
+
+**Un parc relais affiche un statut et une capacité, mais aucune place libre** —
+SYTRAL ne compte pas ce parc en temps réel, et l'intégration n'invente pas de
+chiffre : **Lister les parcs relais** affiche le même `?` en face de lui. C'est
+l'open data, pas votre configuration. Les versions précédentes ne publiaient
+alors rien du tout, ce qui donnait un appareil vide ; si le vôtre n'affiche
+toujours aucune valeur, ouvrez l'écran Découverte et appuyez sur **Mettre à
+jour** sur l'appareil — les fonctionnalités `Capacité totale` et `Statut` sont
+nouvelles, et un appareil déjà créé ne les obtient que là.
 
 **Un appareil que je viens d'ajouter n'a aucune valeur** — des fonctionnalités
 sans la moindre valeur signifient que l'appareil n'est jamais relevé. Les

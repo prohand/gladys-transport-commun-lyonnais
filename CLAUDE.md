@@ -134,6 +134,18 @@ inventory (22 facilities) with the live counts, survives the loss of either
 layer, and only errors when both fail. A facility with no live count is listed
 with `?` free spaces rather than dropped.
 
+That facility must also have something to publish once it is watched, which is
+the reported "sur les parcs relais je n'ai pas de valeurs": its device used to
+build every state out of the live count, so a car park SYTRAL does not count
+had no state at all — an empty device, forever, with no error anywhere to say
+why. The blueprint therefore publishes a `Total capacity` (the inventory knows
+it) and a `Status` text on every read, the way the Vélo'v device already did.
+The same reasoning covers the columns: they moved once with the split, so
+`normalizeParkAndRide` reads the spellings it knows and then falls back on what
+the column NAME says it holds (`readCountsByColumnName`) — a renamed column is
+otherwise another silent empty device, not an error. A negative count is the
+platform saying "unknown" and is dropped rather than published.
+
 Timeouts are per kind of read (`REQUEST_TIMEOUT_MS`, `BULK_TIMEOUT_MS`,
 `PROBE_TIMEOUT_MS`): the stop directory is a multi-megabyte download and does
 not fit in the budget that is generous for a filtered read. A manifest action
