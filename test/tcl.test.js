@@ -19,6 +19,7 @@ import {
   fetchParkAndRideFacilities,
   listParkAndRideFacilities,
   mergeParkAndRide,
+  normalizeParkAndRide,
   searchStops,
   belongsToStop,
   normalizeText,
@@ -406,6 +407,73 @@ test('a park & ride read that fails on both layers is an error, not an empty lis
   t.after(close);
 
   await assert.rejects(listParkAndRideFacilities(configFor(`${baseUrl}/ws/rdata`)), /HTTP 500/);
+});
+
+test('a count is read from the column name when its spelling is unknown', () => {
+  // `nbplacesdispo` became `nb_tot_place_dispo` once already, and the next
+  // rename would be invisible: a column nobody reads raises no error, it
+  // publishes nothing. What the column NAME says it holds is the fallback.
+  const facility = normalizeParkAndRide({
+    id: 'GOR',
+    nom: 'Gorge de Loup',
+    nb_places_voiture: 655,
+    nb_places_libres_voiture: 120,
+    nb_places_pmr: 19,
+    nb_places_libres_pmr: 4,
+    // The bicycle shelter is counted too, and it is not the car park.
+    nb_places_libres_velo: 12,
+  });
+
+  assert.equal(facility.capacity, 655);
+  assert.equal(facility.available, 120);
+  assert.equal(facility.capacityDisabled, 19);
+  assert.equal(facility.availableDisabled, 4);
+});
+
+test('a known spelling wins over what a column name suggests', () => {
+  const facility = normalizeParkAndRide({
+    id: 'GOR',
+    nom: 'Gorge de Loup',
+    capacite: 655,
+    nb_tot_place_dispo: 120,
+    nb_places_libres_estimees: 118,
+  });
+
+  assert.equal(facility.capacity, 655);
+  assert.equal(facility.available, 120);
+});
+
+test('a negative count is "unknown", not a car park owing spaces', () => {
+  // Publishing -1 would be stored as is by Gladys, under a gauge declared
+  // from 0: an unknown count is better left unpublished.
+  const facility = normalizeParkAndRide({
+    id: 'GOR',
+    nom: 'Gorge de Loup',
+    capacite: 655,
+    nb_tot_place_dispo: -1,
+  });
+
+  assert.equal(facility.available, undefined);
+  assert.equal(facility.capacity, 655);
+});
+
+test('a park & ride name is matched whatever its accents and punctuation', async (t) => {
+  // The two layers do not spell a name the same way, and a user types what
+  // they read: "not in the dataset" over a hyphen is a device that never
+  // publishes anything.
+  clearLayerResolution();
+  clearTclCache();
+  const { baseUrl, close } = await startServer((req, res) => {
+    const values = req.url.includes('tclparcrelaisst')
+      ? [{ id: 'SOI', nom: 'Vaulx-en-Velin La Soie', capacite: 460 }]
+      : [];
+    sendJson(res, { nb_results: values.length, values });
+  });
+  t.after(close);
+
+  const facilities = await fetchParkAndRideFacilities(configFor(`${baseUrl}/ws/rdata`));
+
+  assert.equal(findParkAndRide(facilities, 'Vaulx en Velin la Soie').id, 'SOI');
 });
 
 test('merging two records of the same facility never erases a known value', () => {

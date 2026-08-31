@@ -33,9 +33,17 @@ One device per entry you list in the configuration.
 
 | Feature                     | What it holds                                             |
 | --------------------------- | --------------------------------------------------------- |
-| Spaces available            | Free car spaces                                           |
+| Spaces available            | Free car spaces, where SYTRAL counts them live            |
 | Accessible spaces available | Free spaces reserved for reduced mobility, when published |
+| Total capacity              | Spaces the facility holds, from the inventory             |
 | Occupancy                   | Share of the capacity taken, in percent                   |
+| Status                      | `120/655 free`, `Full`, `No live count (287 spaces)`…     |
+
+Not every park & ride is counted in real time: the occupancy dataset covers
+part of the network only, and the rest is published as an inventory without a
+live count. Those facilities can still be watched — their capacity and a
+`No live count` status are what they publish, and the free spaces fill in by
+themselves the day SYTRAL starts counting them.
 
 ## Configuration
 
@@ -217,7 +225,17 @@ probably wrong (or the line filter never matches, e.g. `@T1` on a bus-only
 stop): re-run **Find a transit stop**.
 
 **A Vélo'v station or a park & ride errors on every poll** — the identifier is
-not in the feed. Re-run the matching search button and paste the id it returns.
+not in the feed. Re-run the matching search button and paste the id it returns;
+the park & ride error also names a few of the identifiers the dataset does hold.
+
+**A park & ride shows a status and a capacity, but no free spaces** — SYTRAL
+does not count that facility live, and the integration will not invent a
+number: **List the park & ride facilities** shows the same `?` next to it. This
+is the open data, not the configuration. Older versions published nothing at
+all in that case, which is what made the device look broken; if yours still
+shows no value anywhere, open the Discovery screen and press **Update** on the
+device — the `Total capacity` and `Status` features are new, and an existing
+device only gets them there.
 
 **A device I added stays empty** — features showing no value at all mean the
 device is never read. Older versions published their devices without the flag

@@ -15,7 +15,10 @@ import { clearStateCache } from '../src/devices/stateCache.js';
 import { refreshCreatedDevices, refreshTickMs } from '../src/devices/refreshLoop.js';
 import { formatDeparture, formatSummary } from '../src/devices/transitStop.js';
 import { computeOccupancy as velovOccupancy, formatStatus } from '../src/devices/velovStation.js';
-import { computeOccupancy as parkingOccupancy } from '../src/devices/parkAndRide.js';
+import {
+  computeOccupancy as parkingOccupancy,
+  formatStatus as parkingStatus,
+} from '../src/devices/parkAndRide.js';
 import { clearTclCache } from '../src/api/tcl.js';
 import { clearVelovCache } from '../src/api/velov.js';
 import { clearLayerResolution } from '../src/api/grandlyon.js';
@@ -479,6 +482,99 @@ test('polling a park & ride publishes free spaces and occupancy', async () => {
   assert.equal(states[`${prefix}:occupancy`], 75);
 });
 
+test('a park & ride SYTRAL does not count live still publishes something', async () => {
+  // The reported "sur les parcs relais je n'ai pas de valeurs": the live layer
+  // only covers part of the network, and a facility that is in the inventory
+  // and not in the counts had no state to publish at all — no free spaces, no
+  // occupancy, and therefore an empty device, forever, with no error to read.
+  // Its capacity is known and "no live count" is an answer.
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclparcrelaistr: {
+      values: [{ id: 'GOR', nom: 'Gorge de Loup', capacite: 655, nb_tot_place_dispo: 120 }],
+    },
+    tclparcrelaisst: {
+      values: [
+        { id: 'GOR', nom: 'Gorge de Loup', capacite: 655 },
+        { id: 'BONN', nom: 'Laurent Bonnevay', capacite: 287 },
+      ],
+    },
+  });
+
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'BONN',
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+  await findBlueprintByDevice(gladys, device, config).onPoll(gladys, config);
+
+  const states = Object.fromEntries(
+    gladys.published.map((entry) => [entry.featureExternalId, entry.text ?? entry.state]),
+  );
+  const prefix = device.external_id;
+  assert.equal(states[`${prefix}:capacity`], 287);
+  assert.equal(states[`${prefix}:status`], 'No live count (287 spaces)');
+  assert.equal(
+    states[`${prefix}:spaces_available`],
+    undefined,
+    'a free-space count nobody publishes is not invented',
+  );
+});
+
+test('a park & ride publishes its status and capacity next to its free spaces', async () => {
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclparcrelais: {
+      values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400, nb_tot_place_dispo: 100 }],
+    },
+  });
+
+  const [, , device] = buildDiscoveredDevices(gladys, CONFIG);
+  await findBlueprintByDevice(gladys, device, CONFIG).onPoll(gladys, CONFIG);
+
+  const states = Object.fromEntries(
+    gladys.published.map((entry) => [entry.featureExternalId, entry.text ?? entry.state]),
+  );
+  const prefix = device.external_id;
+  assert.equal(states[`${prefix}:capacity`], 400);
+  assert.equal(states[`${prefix}:status`], '100/400 free');
+});
+
+test('a free-space count published under an unknown column name is still read', async () => {
+  // The columns of this dataset have moved once already (`nbplacesdispo` ->
+  // `nb_tot_place_dispo`) and a count nobody can read is not an error: it is
+  // a device that publishes nothing, silently. The column NAME is the
+  // fallback, and the bicycle shelter next to it must not be read as the car
+  // park's own count.
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclparcrelais: {
+      values: [
+        {
+          id: 'PR1',
+          nom: 'Gorge de Loup',
+          nb_places_voiture: 400,
+          nb_places_libres_voiture: 100,
+          nb_places_libres_velo: 12,
+        },
+      ],
+    },
+  });
+
+  const [, , device] = buildDiscoveredDevices(gladys, CONFIG);
+  await findBlueprintByDevice(gladys, device, CONFIG).onPoll(gladys, CONFIG);
+
+  const states = Object.fromEntries(
+    gladys.published.map((entry) => [entry.featureExternalId, entry.text ?? entry.state]),
+  );
+  const prefix = device.external_id;
+  assert.equal(states[`${prefix}:spaces_available`], 100);
+  assert.equal(states[`${prefix}:capacity`], 400);
+  assert.equal(states[`${prefix}:occupancy`], 75);
+});
+
 test('watching several park & ride facilities costs one request per layer, per cycle', async () => {
   const gladys = createFakeGladys();
   const calls = stubFetch({
@@ -613,6 +709,14 @@ test('occupancy is derived from the capacity, and skipped when unknown', () => {
   // The operator sometimes publishes more free spaces than the capacity.
   assert.equal(parkingOccupancy({ capacity: 400, available: 450 }), 0);
   assert.equal(parkingOccupancy({ available: 100 }), null);
+});
+
+test('a park & ride status says what the facility has, or that nobody counts it', () => {
+  assert.equal(parkingStatus({ capacity: 655, available: 120 }), '120/655 free');
+  assert.equal(parkingStatus({ capacity: 655, available: 0 }), 'Full');
+  assert.equal(parkingStatus({ available: 120 }), '120 free');
+  assert.equal(parkingStatus({ capacity: 287 }), 'No live count (287 spaces)');
+  assert.equal(parkingStatus({}), 'No live count');
 });
 
 test('the account test reports a retired dataset without condemning the account', async () => {
