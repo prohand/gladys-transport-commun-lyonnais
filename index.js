@@ -19,6 +19,7 @@ import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { hasGrandLyonCredentials, normalizeConfig } from './src/config.js';
 import { ACTIONS, buildDiscoveredDevices, pollDevice } from './src/devices/index.js';
 import { clearPollSchedule } from './src/devices/pollSchedule.js';
+import { startRefreshLoop, stopRefreshLoop } from './src/devices/refreshLoop.js';
 import { clearLayerResolution } from './src/api/grandlyon.js';
 import { clearTclCache } from './src/api/tcl.js';
 import { clearVelovCache } from './src/api/velov.js';
@@ -39,7 +40,9 @@ gladys.onScanRequest(async () => {
 // scheduler ticks at the `poll_frequency` the device was published with (one
 // minute at the slowest, which is all Gladys offers); `pollDevice` routes the
 // tick to the right blueprint and drops the ones that fall inside the
-// configured refresh interval.
+// configured refresh interval. The container also ticks on its own (see
+// src/devices/refreshLoop.js) for the devices Gladys does not know it has to
+// poll; both paths go through the same gate, so the feed is read once.
 gladys.onPoll(async (device) => {
   await pollDevice(gladys, device, config);
 });
@@ -69,6 +72,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   // external_id).
   await publishDevices();
   await reportConnectionStatus();
+  // The internal ticker derives its period from the refresh intervals, and it
+  // is holding the previous ones: restart it on the new configuration.
+  startRefreshLoop(gladys, () => config);
 });
 
 // --- Connection lifecycle ----------------------------------------------------
@@ -80,10 +86,18 @@ gladys.on('connected', async () => {
     // 1) Fetch the config filled in by the user.
     config = normalizeConfig(await gladys.getConfig());
 
-    // 2) (Re)publish all configured devices as soon as we are connected.
+    // 2) Refresh the devices the user already created, now and at every tick.
+    // The Gladys scheduler is the nominal path; this one is what fills in a
+    // device it does not know it must poll (see src/devices/refreshLoop.js).
+    // It comes before the publication on purpose: a publication that fails
+    // must not leave the existing devices without anything refreshing them,
+    // which is the very symptom this loop exists for.
+    startRefreshLoop(gladys, () => config);
+
+    // 3) (Re)publish all configured devices as soon as we are connected.
     await publishDevices();
 
-    // 3) Report the application-level status, shown in the Configuration
+    // 4) Report the application-level status, shown in the Configuration
     // screen. Distinct from the container state machine: an integration can
     // be RUNNING and still unable to read its data source.
     await reportConnectionStatus();
@@ -96,6 +110,12 @@ gladys.on('connected', async () => {
       })
       .catch(() => {});
   }
+});
+
+// Reading the feeds while Gladys is unreachable would only throw the result
+// away: the internal ticker stops here, and the next 'connected' restarts it.
+gladys.on('disconnected', () => {
+  stopRefreshLoop();
 });
 
 /**
@@ -183,6 +203,7 @@ async function reportConnectionStatus() {
 // the container (SIGTERM/SIGINT).
 gladys.handleShutdown((signal) => {
   logger.info(`Received ${signal} -> graceful shutdown`);
+  stopRefreshLoop();
 });
 
 // --- Startup -----------------------------------------------------------------
