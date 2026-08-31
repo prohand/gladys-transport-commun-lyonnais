@@ -29,6 +29,7 @@ import {
 import { gladysPollFrequency } from '../config.js';
 import { TEXT_FEATURE_RANGE } from './featureRange.js';
 import { changedStates } from './stateCache.js';
+import { publishDeviceStates } from './publish.js';
 import { fetchParkAndRideFacilities, findParkAndRide } from '../api/tcl.js';
 
 export const DEVICE_TYPE = 'tcl-park-and-ride';
@@ -237,7 +238,7 @@ export function createParkAndRideBlueprint(watched) {
       // without adding a single point to the chart (see stateCache.js).
       const updates = changedStates(states);
       if (updates.length > 0) {
-        await gladys.publishStates(updates);
+        await publishDeviceStates(gladys, ids.device, updates);
       }
     },
   };

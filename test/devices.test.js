@@ -12,6 +12,7 @@ import { GLADYS_POLL_FREQUENCIES_MS, normalizeConfig } from '../src/config.js';
 import { buildDiscoveredDevices, findBlueprintByDevice, pollDevice } from '../src/devices/index.js';
 import { clearPollSchedule } from '../src/devices/pollSchedule.js';
 import { clearStateCache } from '../src/devices/stateCache.js';
+import { clearPublishReports } from '../src/devices/publish.js';
 import { refreshCreatedDevices, refreshTickMs } from '../src/devices/refreshLoop.js';
 import { formatDeparture, formatSummary } from '../src/devices/transitStop.js';
 import { computeOccupancy as velovOccupancy, formatStatus } from '../src/devices/velovStation.js';
@@ -74,6 +75,9 @@ beforeEach(() => {
   // The states published in the previous test are remembered as sent, and a
   // test that publishes the same values again would see nothing published.
   clearStateCache();
+  // Same for what has already been said about an incomplete device: it is said
+  // once per device, and the next test is a new device.
+  clearPublishReports();
 });
 
 afterEach(() => {
@@ -521,6 +525,163 @@ test('a park & ride SYTRAL does not count live still publishes something', async
     undefined,
     'a free-space count nobody publishes is not invented',
   );
+});
+
+/**
+ * The park & ride of the test above, as Gladys holds it: a facility in the
+ * inventory that nobody counts live, so the read produces the capacity and the
+ * status and nothing else.
+ */
+function stubUncountedParkAndRide() {
+  return stubFetch({
+    tclparcrelaistr: {
+      values: [{ id: 'GOR', nom: 'Gorge de Loup', capacite: 655, nb_tot_place_dispo: 120 }],
+    },
+    tclparcrelaisst: {
+      values: [
+        { id: 'GOR', nom: 'Gorge de Loup', capacite: 655 },
+        { id: 'BONN', nom: 'Laurent Bonnevay', capacite: 287 },
+      ],
+    },
+  });
+}
+
+/**
+ * The device as a previous version of the integration created it: Gladys keeps
+ * the features a device was born with, and re-publishing a discovery never
+ * adds one.
+ * @param {{ external_id: string }} device
+ * @param {string[]} featureKeys
+ */
+function createdInGladys(device, featureKeys) {
+  return {
+    external_id: device.external_id,
+    name: 'P+R Laurent Bonnevay',
+    features: featureKeys.map((key) => ({ external_id: `${device.external_id}:${key}` })),
+  };
+}
+
+// The feature keys the park & ride device had before it gained its capacity
+// and its status.
+const PARK_AND_RIDE_FEATURES_BEFORE = [
+  'spaces_available',
+  'spaces_available_disabled',
+  'occupancy',
+];
+
+test('a device older than the feature a value belongs to is flagged, not published to in silence', async () => {
+  // The second half of "je n'ai toujours aucune valeur": the release that gave
+  // the park & ride device a capacity and a status published, for a facility
+  // nobody counts live, exactly those two states — to two features the device
+  // created by the previous version does not have. Gladys stored nothing, the
+  // car park stayed empty, and the only line in the logs was the warning about
+  // the thin feed. The container cannot add a feature to an existing device:
+  // what it can do is publish what fits, and say what is missing.
+  const gladys = createFakeGladys();
+  stubUncountedParkAndRide();
+
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'BONN',
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+  gladys.devices = [createdInGladys(device, PARK_AND_RIDE_FEATURES_BEFORE)];
+
+  await findBlueprintByDevice(gladys, device, config).onPoll(gladys, config);
+
+  assert.deepEqual(gladys.published, [], 'nothing is sent to a feature Gladys does not hold');
+  assert.equal(gladys.transports.length, 1, 'the device itself carries the reason, in the UI');
+  const [flag] = gladys.transports;
+  assert.equal(flag.external_id, device.external_id);
+  assert.equal(flag.degraded, true);
+  assert.match(flag.message.en, /capacity/);
+  assert.match(flag.message.en, /status/);
+  assert.match(flag.message.fr, /Découverte/);
+});
+
+test('the values an outdated device could not store are published as soon as it is updated', async () => {
+  // The state cache is a belief about what Gladys holds, and a state that
+  // never reached it must not feed that belief: pressing "Update" in the
+  // Discovery screen has to fill the new features in on the very next read,
+  // not a quarter of an hour later.
+  const gladys = createFakeGladys();
+  stubUncountedParkAndRide();
+
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'BONN',
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+  const blueprint = findBlueprintByDevice(gladys, device, config);
+  gladys.devices = [createdInGladys(device, PARK_AND_RIDE_FEATURES_BEFORE)];
+  await blueprint.onPoll(gladys, config);
+
+  // The user presses "Update": the device now carries every feature.
+  gladys.devices = [
+    createdInGladys(device, [...PARK_AND_RIDE_FEATURES_BEFORE, 'capacity', 'status']),
+  ];
+  clearTclCache();
+  await blueprint.onPoll(gladys, config);
+
+  const states = Object.fromEntries(
+    gladys.published.map((entry) => [entry.featureExternalId, entry.text ?? entry.state]),
+  );
+  const prefix = device.external_id;
+  assert.equal(states[`${prefix}:capacity`], 287);
+  assert.equal(states[`${prefix}:status`], 'No live count (287 spaces)');
+  // And the badge is cleared: the device is nominal again.
+  assert.equal(gladys.transports.length, 2);
+  assert.equal(gladys.transports[1].degraded, undefined);
+});
+
+test('a device missing one feature still records the values it does have', async () => {
+  // Dropping the whole batch over one unknown feature would turn a device that
+  // is merely out of date into a device that publishes nothing at all.
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclparcrelais: {
+      values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400, nb_tot_place_dispo: 100 }],
+    },
+  });
+
+  const [, , device] = buildDiscoveredDevices(gladys, CONFIG);
+  gladys.devices = [createdInGladys(device, PARK_AND_RIDE_FEATURES_BEFORE)];
+  await findBlueprintByDevice(gladys, device, CONFIG).onPoll(gladys, CONFIG);
+
+  const states = Object.fromEntries(
+    gladys.published.map((entry) => [entry.featureExternalId, entry.text ?? entry.state]),
+  );
+  const prefix = device.external_id;
+  assert.equal(states[`${prefix}:spaces_available`], 100);
+  assert.equal(states[`${prefix}:occupancy`], 75);
+  assert.equal(states[`${prefix}:capacity`], undefined, 'the missing feature is the only casualty');
+});
+
+test('a device whose features Gladys does not detail is published to as before', async () => {
+  // The filter above is a belief about what the created device can store, and
+  // a device listed without usable feature ids says nothing at all: treating
+  // that as "stores nothing" would make this module the cause of the silence
+  // it exists to prevent.
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclparcrelais: {
+      values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400, nb_tot_place_dispo: 100 }],
+    },
+  });
+
+  const [, , device] = buildDiscoveredDevices(gladys, CONFIG);
+  gladys.devices = [{ external_id: device.external_id, name: 'Commute', features: [{}] }];
+  await findBlueprintByDevice(gladys, device, CONFIG).onPoll(gladys, CONFIG);
+
+  const states = Object.fromEntries(
+    gladys.published.map((entry) => [entry.featureExternalId, entry.text ?? entry.state]),
+  );
+  assert.equal(states[`${device.external_id}:capacity`], 400);
+  assert.deepEqual(gladys.transports, [], 'and nothing is flagged on a guess');
 });
 
 test('a park & ride publishes its status and capacity next to its free spaces', async () => {

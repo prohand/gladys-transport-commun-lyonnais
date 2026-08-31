@@ -20,6 +20,7 @@ import { hasGrandLyonCredentials, normalizeConfig } from './src/config.js';
 import { ACTIONS, buildDiscoveredDevices, pollDevice } from './src/devices/index.js';
 import { clearPollSchedule } from './src/devices/pollSchedule.js';
 import { clearStateCache } from './src/devices/stateCache.js';
+import { clearPublishReports } from './src/devices/publish.js';
 import { startRefreshLoop, stopRefreshLoop } from './src/devices/refreshLoop.js';
 import { clearLayerResolution } from './src/api/grandlyon.js';
 import { clearTclCache } from './src/api/tcl.js';
@@ -72,6 +73,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   // published" belong to devices that may no longer be the same ones, and a
   // full republication is one request.
   clearStateCache();
+  // Same for what has already been said about the devices Gladys created: the
+  // configuration that just changed is what the device list is built from.
+  clearPublishReports();
   // Re-publish the devices: the watch lists and the poll frequencies live in
   // the configuration. publishDiscoveredDevices is idempotent (upsert by
   // external_id).
@@ -96,6 +100,10 @@ gladys.on('connected', async () => {
     // when that belief can be wrong: publish everything once, then only the
     // changes (see src/devices/stateCache.js).
     clearStateCache();
+    // The SDK resynchronizes the devices Gladys holds at this exact moment: an
+    // incomplete one is worth looking at, and naming, again (see
+    // src/devices/publish.js).
+    clearPublishReports();
 
     // 2) Refresh the devices the user already created, now and at every tick.
     // The Gladys scheduler is the nominal path; this one is what fills in a

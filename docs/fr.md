@@ -245,11 +245,23 @@ relais cite en plus quelques identifiants réellement publiés.
 **Un parc relais affiche un statut et une capacité, mais aucune place libre** —
 SYTRAL ne compte pas ce parc en temps réel, et l'intégration n'invente pas de
 chiffre : **Lister les parcs relais** affiche le même `?` en face de lui. C'est
-l'open data, pas votre configuration. Les versions précédentes ne publiaient
-alors rien du tout, ce qui donnait un appareil vide ; si le vôtre n'affiche
-toujours aucune valeur, ouvrez l'écran Découverte et appuyez sur **Mettre à
-jour** sur l'appareil — les fonctionnalités `Capacité totale` et `Statut` sont
-nouvelles, et un appareil déjà créé ne les obtient que là.
+l'open data, pas votre configuration.
+
+**Un appareil n'enregistre plus rien depuis la mise à jour de l'intégration** —
+Gladys ne conserve que les fonctionnalités avec lesquelles un appareil a été
+créé, et un conteneur ne peut pas en ajouter à un appareil qui existe déjà :
+republier une découverte ne rafraîchit que ses paramètres. Une version qui
+ajoute une fonctionnalité publie donc des valeurs qui n'ont nulle part où
+aller. Un parc relais que personne ne compte en temps réel en est le cas le
+plus net : ses deux seules valeurs, `Capacité totale` et `Statut`, sont
+précisément les fonctionnalités qui manquent à un appareil plus ancien, et le
+parc reste vide alors que les logs ne parlent que du flux incomplet.
+L'intégration le dit désormais : l'appareil porte un point orange dans la liste
+des appareils, dont l'infobulle nomme ce qui manque, et les logs l'écrivent une
+fois (`… does not have the feature(s) capacity, status in Gladys …`). La
+solution est dans l'écran **Découverte** : appuyez sur **Mettre à jour** sur
+l'appareil (le supprimer puis le rajouter fonctionne aussi), et les valeurs
+arrivent à la relève suivante.
 
 **Un appareil que je viens d'ajouter n'a aucune valeur** — des fonctionnalités
 sans la moindre valeur signifient que l'appareil n'est jamais relevé. Les
