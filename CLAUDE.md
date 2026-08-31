@@ -36,6 +36,7 @@ src/api/tcl.js                departures + park & ride, per-cycle cache
 src/api/velov.js              GBFS index/information/status, per-cycle cache
 src/devices/index.js          dynamic device registry + manifest actions
 src/devices/pollSchedule.js   drops the poll ticks inside the configured interval
+src/devices/stateCache.js     drops the states that did not move since the last read
 src/devices/refreshLoop.js    the container's own ticker over the created devices
 src/devices/transitStop.js    one device per watched stop
 src/devices/velovStation.js   one device per watched Vélo'v station
@@ -116,6 +117,14 @@ lists in `src/api/tcl.js` name the current layer first, and
 known one. Column names moved with the split too (`nbplacesdispo` ->
 `nb_tot_place_dispo`): every parser reads through `pick`, add the new spelling
 rather than replacing the old one.
+
+A stop search answers with an id, a name — and the directions its lines serve.
+The name alone does not identify a stop point: the network gives the two sides
+of a street two ids under one name, so `search_stops` reads the terminus of the
+upcoming passages (`fetchStopDirections`, one small filtered request per
+displayed result, on the short probe budget) and falls back on the `desserte`
+lines when nothing is running. A direction that cannot be read is never a
+reason to lose a result — the id is what the user came for.
 
 The two halves of that split are read **together**, not one as a fallback for
 the other: the real-time layer only carries the facilities SYTRAL counts live,
@@ -206,6 +215,25 @@ the user actually created) at the fastest frequency the core itself would use,
 so those devices fill in on their own after an update. Both paths go through
 `dueForRead`, so the upstream feed is still read once per configured interval
 no matter how many tickers ask for it.
+
+Gladys writes down every state it is given — `t_device_feature.last_value`
+always, plus one `t_device_feature_state` row per publication for the features
+that `keep_history` — and this integration reads as often as every 30 seconds.
+So what is published is filtered twice, and neither filter is a micro
+optimisation the next refactor may drop:
+
+- the departure countdowns declare `keep_history: false`. They are the
+  fastest-moving values here and the ones whose past is worth the least (a
+  countdown is a sawtooth nobody reads back), while Vélo'v and park & ride keep
+  theirs, because those curves mean something;
+- `changedStates` (src/devices/stateCache.js) drops the states that did not move
+  since the last read, in every blueprint. It is a belief about what the host
+  already holds, and it is wrong exactly once: when the user deletes and
+  re-creates a device, which starts empty while the container thinks it has
+  already published. Hence the republication of an unchanged value every
+  15 minutes, and the reset on `connected` and on a configuration change — do
+  not remove those, they are what keeps this from becoming another "appareil
+  ajouté, aucune valeur enregistrée".
 
 The same validation applies to every feature: `category`, `type` and `unit`
 must come from the standard Gladys lists, and the device and feature

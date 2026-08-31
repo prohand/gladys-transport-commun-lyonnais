@@ -94,7 +94,19 @@ Watching the same stop twice with two different line filters gives you two
 devices — one per line, which is usually what you want on a dashboard.
 
 Press **Find a transit stop** and type a name (for example `Bellecour`) to get
-the identifiers to paste.
+the identifiers to paste. Each result also says where its lines go:
+
+```
+1234 — Bellecour (A → Perrache, A → Vaulx-en-Velin La Soie)
+5678 — Bellecour (C3 → Gare Saint-Paul)
+```
+
+That is the part you need to choose: the network gives the two sides of the
+same street two different identifiers under one name, so the terminus — what is
+written on the front of the tram — is what tells you which one is the platform
+going your way. The directions come from the departures announced right now, so
+a stop with nothing running is listed with its lines only; search it again
+during service hours to see them.
 
 **Vélo'v stations** — `<station id or name>[:<custom name>]`
 
@@ -130,6 +142,17 @@ honored by the integration, which simply skips the ticks in between.
 The integration also batches its requests: watching ten Vélo'v stations costs
 two HTTP requests per cycle, not twenty, and watching five park & ride
 facilities costs two.
+
+**What it stores.** A fast refresh interval is a fast-growing database if every
+reading is written down, so the integration only sends Gladys the values that
+actually changed since the last read: a car park whose free spaces do not move
+all night is recorded once, not three hundred times. Departure countdowns go
+one step further and keep no history at all — "7 minutes, then 6, then 5, then
+12 again" is the shape of every timetable and nothing reads it back, while it
+would be by far the biggest writer of the three. They are still live on your
+dashboard; it is their past that is not kept. Vélo'v availability and park &
+ride occupancy do keep theirs: those charts are worth something, and one point
+per change draws the same curve as one point per poll.
 
 ### 4. Save
 

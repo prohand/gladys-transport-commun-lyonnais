@@ -423,15 +423,106 @@ export function findParkAndRide(facilities, idOrName) {
 
 /**
  * Normalize one raw stop record into what the search action displays.
+ *
+ * `direction` is the one the DIRECTORY itself publishes, and most of the time
+ * there is none: `tclarret` describes a stop as a place, both directions
+ * lumped together, and only the per-stop-point layers (`tclpointarret`, the
+ * fallback of STOPS_LAYERS) name a direction of travel. It is read through
+ * `pick` like every other column so that a layer which does publish it is not
+ * ignored; the answer that always works comes from the departures instead, see
+ * `fetchStopDirections`.
+ *
  * @param {Record<string, unknown>} record
- * @returns {{ id: string, name: string, lines: string }}
+ * @returns {{ id: string, name: string, lines: string, direction: string }}
  */
 export function normalizeStop(record) {
   return {
     id: pickString(record, ['id', 'idtarret', 'idarret', 'code', 'gid']) ?? '',
     name: pickString(record, ['nom', 'name', 'libelle']) ?? '',
     lines: pickString(record, ['desserte', 'lignes', 'routes']) ?? '',
+    direction: pickString(record, ['sens', 'direction', 'destination', 'terminus']) ?? '',
   };
+}
+
+/**
+ * The lines calling at one stop and where they are headed, read from the
+ * departures layer.
+ *
+ * This is the missing half of a stop search: the directory answers with an id
+ * and a name, and a name is exactly what does not tell two stops apart — the
+ * network numbers each direction of a route separately, so "Bellecour" comes
+ * back several times and nothing on the line says which of them is the
+ * platform towards Part-Dieu. The departures do say it: every passage carries
+ * its terminus, which is also what is written on the pole and on the front of
+ * the tram.
+ *
+ * It is read per stop and filtered server-side, so it costs one small request
+ * per result rather than a download of anything. What it cannot do is invent a
+ * direction where no vehicle is expected: a stop searched at three in the
+ * morning has an empty board, and the caller falls back on the lines the
+ * directory advertises.
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @param {string} stopId
+ * @returns {Promise<{ line: string, direction: string }[]>} unique pairs, by line
+ */
+export async function fetchStopDirections(config, stopId) {
+  const values = await fetchLayer(config, DEPARTURES_LAYERS, {
+    params: equalityParams('id', stopId),
+    // The short budget on purpose: this is the bonus on top of a search that
+    // has already spent up to a minute downloading the directory, and the
+    // action has ninety seconds in total before Gladys gives up on it. A
+    // direction that takes too long is dropped, the id is not.
+    timeoutMs: PROBE_TIMEOUT_MS,
+  });
+
+  const byKey = new Map();
+  for (const record of values) {
+    if (!belongsToStop(record, stopId)) {
+      continue;
+    }
+    const { line, direction } = normalizePassage(record);
+    // A passage without a terminus says nothing about the direction, and the
+    // same line/terminus pair comes back once per upcoming run: both are
+    // dropped here so the search shows a route map, not a timetable.
+    if (!direction) {
+      continue;
+    }
+    const key = `${line}\u0000${direction}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, { line, direction });
+    }
+  }
+
+  return [...byKey.values()].sort(
+    (a, b) => a.line.localeCompare(b.line, 'fr') || a.direction.localeCompare(b.direction, 'fr'),
+  );
+}
+
+/**
+ * Attach the directions to a handful of search results, in parallel.
+ *
+ * A failed lookup is not a failed search: the directions are a convenience on
+ * top of the id the user came for, so a stop whose departures are unreadable
+ * is still listed — without them.
+ *
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @param {ReturnType<typeof normalizeStop>[]} stops
+ * @returns {Promise<(ReturnType<typeof normalizeStop> & { directions: { line: string, direction: string }[] })[]>}
+ */
+async function attachDirections(config, stops) {
+  const lookups = await Promise.allSettled(
+    stops.map((stop) => fetchStopDirections(config, stop.id)),
+  );
+
+  return stops.map((stop, index) => {
+    const lookup = lookups[index];
+    if (lookup.status === 'rejected') {
+      logger.debug(`No direction for stop ${stop.id}: ${lookup.reason.message}`);
+      return { ...stop, directions: [] };
+    }
+    return { ...stop, directions: lookup.value };
+  });
 }
 
 /**
@@ -477,11 +568,19 @@ export function fetchStops(config) {
  * Typing "Bellecour" therefore never waits for a several-megabyte download,
  * and typing "belle" waits for it once per hour at most.
  *
+ * Each result then gets the directions its lines serve (see
+ * `fetchStopDirections`), because an id and a name are not enough to choose:
+ * the network gives the two sides of the same street two different stop ids
+ * under the same name, and picking the wrong one is picking the tram going the
+ * other way. That enrichment runs on the handful of results being shown, after
+ * `limit` has been applied, so it costs a few small filtered requests.
+ *
  * @param {ReturnType<import('../config.js').normalizeConfig>} config
  * @param {string} query free text, matched case- and accent-insensitively on
  *   the stop name
  * @param {number} [limit]
- * @returns {Promise<{ id: string, name: string, lines: string }[]>}
+ * @returns {Promise<(ReturnType<typeof normalizeStop> & {
+ *   directions: { line: string, direction: string }[] })[]>}
  */
 export async function searchStops(config, query, limit = 10) {
   const needle = normalizeText(query);
@@ -491,14 +590,16 @@ export async function searchStops(config, query, limit = 10) {
 
   const exact = await searchStopsByExactName(config, query, limit);
   if (exact.length > 0) {
-    return exact;
+    return attachDirections(config, exact);
   }
 
   const values = await fetchStops(config);
-  return values
+  const matches = values
     .map(normalizeStop)
     .filter((stop) => stop.id && normalizeText(stop.name).includes(needle))
     .slice(0, limit);
+
+  return attachDirections(config, matches);
 }
 
 /**
@@ -513,7 +614,7 @@ export async function searchStops(config, query, limit = 10) {
  * @param {ReturnType<import('../config.js').normalizeConfig>} config
  * @param {string} query
  * @param {number} limit
- * @returns {Promise<{ id: string, name: string, lines: string }[]>}
+ * @returns {Promise<ReturnType<typeof normalizeStop>[]>}
  */
 async function searchStopsByExactName(config, query, limit) {
   const needle = normalizeText(query);

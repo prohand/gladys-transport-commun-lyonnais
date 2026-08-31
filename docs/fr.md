@@ -100,7 +100,20 @@ deux appareils — un par ligne, ce qui est généralement ce que l'on veut sur 
 tableau de bord.
 
 Appuyez sur **Chercher un arrêt** et tapez un nom (par exemple `Bellecour`)
-pour obtenir les identifiants à coller.
+pour obtenir les identifiants à coller. Chaque résultat indique aussi la
+direction de ses lignes :
+
+```
+1234 — Bellecour (A → Perrache, A → Vaulx-en-Velin La Soie)
+5678 — Bellecour (C3 → Gare Saint-Paul)
+```
+
+C'est ce qui permet de choisir : le réseau donne deux identifiants différents
+aux deux côtés d'une même rue, sous un seul nom, et c'est le terminus — celui
+qui est écrit à l'avant du tram — qui dit lequel est le quai qui va dans votre
+sens. Les directions viennent des passages annoncés à l'instant : un arrêt sans
+aucun passage à venir n'affiche que ses lignes, relancez la recherche pendant
+les heures de service pour les voir.
 
 **Stations Vélo'v** — `<identifiant ou nom>[:<nom personnalisé>]`
 
@@ -137,6 +150,19 @@ l'intégration, qui ignore simplement les déclenchements intermédiaires.
 L'intégration groupe aussi ses requêtes : surveiller dix stations Vélo'v coûte
 deux requêtes HTTP par cycle, pas vingt, et surveiller cinq parcs relais en
 coûte deux.
+
+**Ce qui est enregistré.** Un intervalle court fait grossir vite la base de
+données si chaque relève y est écrite : l'intégration n'envoie donc à Gladys
+que les valeurs qui ont réellement changé depuis la relève précédente. Un parc
+relais dont les places libres ne bougent pas de la nuit est enregistré une
+fois, pas trois cents. Les décomptes de passages vont plus loin et ne
+conservent aucun historique : « 7 minutes, puis 6, puis 5, puis de nouveau
+12 » est la forme de n'importe quel horaire, personne ne la relit, et c'est de
+loin ce qui écrirait le plus. Ils restent bien sûr affichés en direct sur le
+tableau de bord ; c'est leur passé qui n'est pas conservé. La disponibilité
+Vélo'v et l'occupation des parcs relais gardent le leur : ces courbes servent à
+quelque chose, et un point par changement dessine la même courbe qu'un point
+par relève.
 
 ### 4. Enregistrez
 

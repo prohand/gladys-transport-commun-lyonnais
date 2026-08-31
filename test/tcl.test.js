@@ -32,8 +32,19 @@ const STOPS = [
   { id: '1003', nom: 'Bellecour Le Viste', desserte: 'C3' },
 ];
 
+// The upcoming passages of that network, which is where a stop search reads
+// the direction from: the directory says "Bellecour" twice and only a terminus
+// tells the two apart. Stop 1003 has none — the night case.
+const PASSAGES = [
+  { id: '1001', ligne: 'A', direction: 'Vaulx-en-Velin La Soie', type: 'E' },
+  { id: '1001', ligne: 'A', direction: 'Vaulx-en-Velin La Soie', type: 'E' },
+  { id: '1001', ligne: 'A', direction: 'Perrache', type: 'E' },
+  { id: '1002', ligne: 'T4', direction: 'La Doua Gaston Berger', type: 'E' },
+];
+
 /**
- * A platform serving the stop directory, counting what is asked of it.
+ * A platform serving the stop directory and the departures, counting what is
+ * asked of it.
  * @param {(url: URL) => object | undefined} [override] per-test special cases
  */
 async function startStopsServer(override) {
@@ -48,21 +59,32 @@ async function startStopsServer(override) {
       return;
     }
 
+    // The web service applies `field`/`value` as an exact match.
+    const field = url.searchParams.get('field');
+    const value = url.searchParams.get('value');
+
+    if (url.pathname.startsWith('/ws/rdata/tcl_sytral.tclpassagearret_2_0_0/')) {
+      const values = field ? PASSAGES.filter((passage) => passage[field] === value) : PASSAGES;
+      sendJson(res, { nb_results: values.length, values });
+      return;
+    }
+
     if (!url.pathname.startsWith('/ws/rdata/tcl_sytral.tclarret_2_0_0/')) {
       res.writeHead(404);
       res.end();
       return;
     }
 
-    // The web service applies `field`/`value` as an exact match.
-    const field = url.searchParams.get('field');
-    const value = url.searchParams.get('value');
     const values = field ? STOPS.filter((stop) => stop[field] === value) : STOPS;
     sendJson(res, { nb_results: values.length, values });
   });
   server.asked = asked;
   return server;
 }
+
+/** The stop directory requests, i.e. the ones that are not about departures. */
+const directoryReads = (platform) =>
+  platform.asked.filter((url) => url.pathname.includes('tclarret'));
 
 test('an exact stop name is answered by the platform, without downloading the directory', async (t) => {
   clearLayerResolution();
@@ -72,11 +94,59 @@ test('an exact stop name is answered by the platform, without downloading the di
 
   const results = await searchStops(configFor(`${platform.baseUrl}/ws/rdata`), 'Bellecour');
 
-  assert.deepEqual(results, [{ id: '1001', name: 'Bellecour', lines: 'A,D,C3' }]);
+  assert.deepEqual(results, [
+    {
+      id: '1001',
+      name: 'Bellecour',
+      lines: 'A,D,C3',
+      direction: '',
+      // Sorted, and each line/terminus pair only once however many runs are
+      // upcoming: the search shows where the stop goes, not its timetable.
+      directions: [
+        { line: 'A', direction: 'Perrache' },
+        { line: 'A', direction: 'Vaulx-en-Velin La Soie' },
+      ],
+    },
+  ]);
   assert.ok(
-    platform.asked.every((url) => url.searchParams.get('field') === 'nom'),
+    directoryReads(platform).every((url) => url.searchParams.get('field') === 'nom'),
     'a name typed in full must never cost a whole-directory download',
   );
+});
+
+test('a stop with no upcoming passage is still listed, without a direction', async (t) => {
+  clearLayerResolution();
+  clearTclCache();
+  const platform = await startStopsServer();
+  t.after(platform.close);
+
+  const results = await searchStops(
+    configFor(`${platform.baseUrl}/ws/rdata`),
+    'Bellecour Le Viste',
+  );
+
+  // Nothing is running: the id the user came for must still be there, and the
+  // lines of the directory are what is left to recognize the stop by.
+  assert.deepEqual(results[0].directions, []);
+  assert.equal(results[0].lines, 'C3');
+});
+
+test('a search survives departures it cannot read', async (t) => {
+  clearLayerResolution();
+  clearTclCache();
+  // The account can read the directory but not the departures (a retired
+  // layer, a timeout): the directions are a bonus, never a reason to answer
+  // "no stop matches".
+  const platform = await startStopsServer((url) =>
+    url.pathname.includes('passagearret') ? { error: 'nope' } : undefined,
+  );
+  t.after(platform.close);
+
+  const results = await searchStops(configFor(`${platform.baseUrl}/ws/rdata`), 'Bellecour');
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, '1001');
+  assert.deepEqual(results[0].directions, []);
 });
 
 test('a partial name falls back on the directory, and pays for it once', async (t) => {
@@ -94,7 +164,7 @@ test('a partial name falls back on the directory, and pays for it once', async (
   );
 
   const downloads = () =>
-    platform.asked.filter((url) => url.searchParams.get('field') === null).length;
+    directoryReads(platform).filter((url) => url.searchParams.get('field') === null).length;
   assert.equal(downloads(), 1);
 
   // The directory changes twice a year: a second search must not download it
@@ -130,7 +200,10 @@ test('an exact-name lookup the platform refuses to filter is not mistaken for a 
 
   const results = await searchStops(configFor(`${platform.baseUrl}/ws/rdata`), 'Bellecour');
 
-  assert.deepEqual(results, [{ id: '1001', name: 'Bellecour', lines: 'A,D,C3' }]);
+  assert.deepEqual(
+    results.map((stop) => stop.id),
+    ['1001'],
+  );
 });
 
 test('departures are kept for the stop that was asked for', async (t) => {
