@@ -207,6 +207,15 @@ bus) : relancez **Chercher un arrêt**.
 l'identifiant n'existe pas dans le flux. Relancez le bouton de recherche
 correspondant et collez l'identifiant qu'il retourne.
 
+**Un appareil que je viens d'ajouter n'a aucune valeur** — des fonctionnalités
+sans la moindre valeur signifient que l'appareil n'est jamais relevé. Les
+versions précédentes publiaient leurs appareils sans le drapeau que Gladys lit
+pour les planifier : le cœur ne les interrogeait donc jamais, sans la moindre
+erreur nulle part. L'intégration rafraîchit désormais ses appareils elle-même :
+un appareil vide se remplit peu après le redémarrage du conteneur, sans avoir à
+le supprimer puis à le rajouter. S'il reste vide au-delà, c'est la relève qui
+échoue : l'intégration journalise chaque échec avec sa raison.
+
 **J'ai collé un identifiant et l'écran Découverte reste vide** — l'écran
 Découverte ne liste que ce que l'intégration a publié, et elle publie à
 l'**enregistrement** de la configuration, pas à la saisie d'un champ.

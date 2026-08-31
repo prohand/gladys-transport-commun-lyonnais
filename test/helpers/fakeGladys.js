@@ -2,6 +2,9 @@
 // Minimal in-memory stand-in for the Gladys SDK object, for unit tests.
 //
 // It reproduces the only surface the device modules rely on:
+//   - devices                        -> the devices the user created, as the
+//                                       SDK keeps them (read by the internal
+//                                       refresh loop)
 //   - externalIds(type, platformId) -> { device, feature(key) }
 //   - publishState / publishStates   -> record calls so tests can assert them
 //   - publishTransports              -> record calls so tests can assert them
@@ -19,6 +22,10 @@ export function createFakeGladys() {
     published,
     transports,
     connectionStatuses,
+    // The SDK resynchronizes this list on every connection and keeps it up to
+    // date with the device-created/updated/deleted events; tests fill it in
+    // with the devices they pretend the user created.
+    devices: [],
 
     externalIds(type, platformId) {
       const device = `${type}:${platformId}`;

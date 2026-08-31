@@ -36,6 +36,7 @@ src/api/tcl.js                departures + park & ride, per-cycle cache
 src/api/velov.js              GBFS index/information/status, per-cycle cache
 src/devices/index.js          dynamic device registry + manifest actions
 src/devices/pollSchedule.js   drops the poll ticks inside the configured interval
+src/devices/refreshLoop.js    the container's own ticker over the created devices
 src/devices/transitStop.js    one device per watched stop
 src/devices/velovStation.js   one device per watched Vélo'v station
 src/devices/parkAndRide.js    one device per watched P+R facility
@@ -183,6 +184,28 @@ configured interval — that is what keeps "refresh the park & ride every 5
 minutes" from reading the platform every minute. A blueprint therefore exposes
 `pollIntervalMs(config)` next to `onPoll`, and `pollDevice` is the entry point
 `index.js` wires to `gladys.onPoll`.
+
+`poll_frequency` alone schedules nothing. The core inserts a device in
+`devicesByPollFrequency` only when its row also carries `should_poll: true`,
+and it reads that flag once, from the discovery payload the Discovery screen
+posts to `POST /device` at creation. A device published without it is created,
+displayed, and never polled — no tick, no state, no error: the reported
+"aucune valeur enregistrée lorsque l'on ajoute un appareil", with the
+integration logging nothing at all because nothing ever asked it for anything.
+Every blueprint therefore publishes `should_poll: true` next to
+`poll_frequency`.
+
+That flag is also unfixable from the container once the device exists:
+re-publishing a discovery only upserts the `params` and the feature
+`supported_options` of an already-created device, and the Discovery screen only
+offers its "Update" button when the published FEATURES differ — a flag is not a
+feature. A device created by the broken version would have stayed empty until
+the user deleted and re-added it. That is what `src/devices/refreshLoop.js` is
+for: the container ticks over `gladys.devices` (the SDK's list of the devices
+the user actually created) at the fastest frequency the core itself would use,
+so those devices fill in on their own after an update. Both paths go through
+`dueForRead`, so the upstream feed is still read once per configured interval
+no matter how many tickers ask for it.
 
 The same validation applies to every feature: `category`, `type` and `unit`
 must come from the standard Gladys lists, and the device and feature

@@ -88,6 +88,9 @@ export function createParkAndRideBlueprint(watched) {
         name: watched.name ?? `P+R ${watched.id}`,
         external_id: ids.device,
         poll_frequency: gladysPollFrequency(config.park_and_ride_poll_frequency),
+        // Without this flag the core stores `poll_frequency` and never
+        // schedules the device: see src/devices/transitStop.js.
+        should_poll: true,
         params: [
           { name: 'park_and_ride_id', value: watched.id },
           { name: 'source', value: 'data.grandlyon.com' },

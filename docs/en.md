@@ -196,6 +196,14 @@ stop): re-run **Find a transit stop**.
 **A Vélo'v station or a park & ride errors on every poll** — the identifier is
 not in the feed. Re-run the matching search button and paste the id it returns.
 
+**A device I added stays empty** — features showing no value at all mean the
+device is never read. Older versions published their devices without the flag
+Gladys reads to schedule them, so the core never polled them and no error was
+raised anywhere. The integration now refreshes its own devices as well, so an
+empty device fills in shortly after the container restarts, without having to
+be deleted and added again. If it is still empty after that, the read itself is
+failing: the integration logs every failed read with its reason.
+
 **I pasted an identifier and the Discovery screen stays empty** — the Discovery
 screen only lists what the integration published, and it publishes when the
 configuration is _saved_, not when a field is edited. Save the configuration,

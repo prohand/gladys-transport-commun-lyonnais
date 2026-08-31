@@ -11,6 +11,7 @@ import { createFakeGladys } from './helpers/fakeGladys.js';
 import { GLADYS_POLL_FREQUENCIES_MS, normalizeConfig } from '../src/config.js';
 import { buildDiscoveredDevices, findBlueprintByDevice, pollDevice } from '../src/devices/index.js';
 import { clearPollSchedule } from '../src/devices/pollSchedule.js';
+import { refreshCreatedDevices, refreshTickMs } from '../src/devices/refreshLoop.js';
 import { formatDeparture, formatSummary } from '../src/devices/transitStop.js';
 import { computeOccupancy as velovOccupancy, formatStatus } from '../src/devices/velovStation.js';
 import { computeOccupancy as parkingOccupancy } from '../src/devices/parkAndRide.js';
@@ -111,6 +112,109 @@ test('each device is published with a poll frequency the Gladys scheduler accept
       `${device.name} publishes a frequency Gladys would reject`,
     );
   }
+});
+
+test('every device is published with should_poll, the flag that schedules it', () => {
+  // The core inserts a device in its poll scheduler when `should_poll` is
+  // true, and reads the flag from this very payload (the Discovery screen
+  // posts it as is to POST /device). Publishing `poll_frequency` alone stores
+  // a frequency nothing acts upon: that is the "device added, features stay
+  // empty forever" report — no tick, no state, and no error anywhere.
+  const gladys = createFakeGladys();
+  const devices = buildDiscoveredDevices(gladys, CONFIG);
+
+  assert.equal(devices.length, 3);
+  for (const device of devices) {
+    assert.equal(device.should_poll, true, `${device.name} would never be polled`);
+  }
+});
+
+test('the internal refresh loop reads the devices the user created', async () => {
+  // The devices created before `should_poll` was published are scheduled by
+  // nobody, and nothing in the integration can flip the flag on them: the
+  // container ticks on its own so they fill in after an update, instead of
+  // having to be deleted and added again.
+  const gladys = createFakeGladys();
+  const calls = stubFetch({
+    tclparcrelaistr: {
+      values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400, nb_tot_place_dispo: 100 }],
+    },
+    tclparcrelaisst: { values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400 }] },
+  });
+
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'PR1',
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+  gladys.devices = [{ external_id: device.external_id }];
+
+  await refreshCreatedDevices(gladys, config);
+
+  assert.ok(calls.length > 0, 'the created device is read from the platform');
+  assert.ok(gladys.published.length > 0, 'the created device gets its states');
+});
+
+test('the internal refresh loop reads nothing for a device nobody created', async () => {
+  // A watched entry the user never added in the Discovery screen has no
+  // device, and its states would be dropped by the core: reading its feed
+  // would spend a request on an account-protected platform for nothing.
+  const gladys = createFakeGladys();
+  const calls = stubFetch({
+    tclparcrelaistr: { values: [] },
+    tclparcrelaisst: { values: [] },
+  });
+
+  await refreshCreatedDevices(gladys, CONFIG);
+
+  assert.equal(calls.length, 0);
+  assert.equal(gladys.published.length, 0);
+});
+
+test('one failing device does not stop the refresh of the others', async () => {
+  // Two feeds, one down: the loop must still publish the station it can read.
+  const gladys = createFakeGladys();
+  stubFetch({
+    'gbfs.json': {
+      data: {
+        feeds: [
+          { name: 'station_information', url: 'https://feed.test/station_information.json' },
+          { name: 'station_status', url: 'https://feed.test/station_status.json' },
+        ],
+      },
+    },
+    station_information: {
+      data: { stations: [{ station_id: '10063', name: 'Bellecour', capacity: 20 }] },
+    },
+    station_status: {
+      data: {
+        stations: [
+          { station_id: '10063', num_bikes_available: 5, num_docks_available: 15, is_renting: 1 },
+        ],
+      },
+    },
+    tclparcrelais: 500,
+  });
+
+  const config = normalizeConfig({ ...CONFIG, stops: '' });
+  const devices = buildDiscoveredDevices(gladys, config);
+  gladys.devices = devices.map((device) => ({ external_id: device.external_id }));
+
+  await refreshCreatedDevices(gladys, config);
+
+  const velovStates = gladys.published.filter((state) =>
+    state.featureExternalId.startsWith('velov-station:'),
+  );
+  assert.ok(velovStates.length > 0, 'the readable station is published despite the failing P+R');
+});
+
+test('the internal ticker runs at the fastest tick Gladys itself would use', () => {
+  // Ticking faster reads nothing sooner (dueForRead gates on the configured
+  // interval) and ticking slower makes the fastest device miss its interval.
+  assert.equal(refreshTickMs(normalizeConfig({ departures_poll_frequency: 30 })), 30_000);
+  assert.equal(refreshTickMs(normalizeConfig()), 60_000);
 });
 
 test('every published feature carries the min/max the core stores as NOT NULL', () => {
