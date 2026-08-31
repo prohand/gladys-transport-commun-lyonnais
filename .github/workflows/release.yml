@@ -71,6 +71,12 @@ jobs:
             gladys-assistant-integration.json > "$tmp"
           mv "$tmp" gladys-assistant-integration.json
 
+          # jq re-prints the whole file in its own style (arrays inlined
+          # differently, no trailing newline rules), which is not the style
+          # `npm run format:check` enforces: the release commit would leave CI
+          # red on every branch cut from it. Hand the file back to Prettier.
+          npx --yes prettier@3 --write gladys-assistant-integration.json
+
           echo "version=${new_version}" >> "$GITHUB_OUTPUT"
 
       # Note: if the branch you release from is protected against direct pushes,

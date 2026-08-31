@@ -247,6 +247,23 @@ optimisation the next refactor may drop:
   not remove those, they are what keeps this from becoming another "appareil
   ajouté, aucune valeur enregistrée".
 
+A device keeps the features it was CREATED with. Re-publishing a discovery
+upserts the `params` and the feature `supported_options` of an already-created
+device and nothing else, so a release that adds a feature publishes states with
+nowhere to land until the user presses "Update" in the Discovery screen — and a
+state addressed to a feature the device does not have is stored nowhere, with
+no error to read. That is what turned the park & ride fix into "je n'ai
+toujours aucune valeur": for a facility nobody counts live, the two states the
+new version publishes (`Total capacity` and `Status`) were precisely the two
+features the existing device was missing, so the read produced nothing at all
+and the only log line was the warning about the thin feed. Every publication
+therefore goes through `publishDeviceStates` (src/devices/publish.js), which
+sends what the created device can store, flags the device in the UI (a degraded
+transport badge naming what is missing), says it once in the logs, and forgets
+the dropped states so the read after the update publishes them at once. The
+filter only applies when `gladys.devices` actually knows the device's features:
+a filter that is not sure must not drop anything.
+
 The same validation applies to every feature: `category`, `type` and `unit`
 must come from the standard Gladys lists, and the device and feature
 `external_id`s must carry the `ext:<selector>:` prefix (`gladys.externalIds`
@@ -268,6 +285,10 @@ Version bumps and tags are handled by `.github/workflows/release.yml`, which
 calls `build.yml` to publish the multi-arch image to ghcr.io. That workflow
 bumps `package.json` and rewrites the manifest `version` and `docker_image`
 tag itself — do not bump them by hand in a feature branch.
+
+The release job rewrites the manifest with `jq`, which re-prints the file in
+its own style: it hands it back to Prettier in the same step, because otherwise
+every branch cut from a release commit starts with a red `format:check`.
 
 `build.yml` failing with `denied: permission_denied: write_package` is not a
 missing permission in the YAML: the job already declares `packages: write`, and

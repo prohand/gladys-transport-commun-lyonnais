@@ -74,6 +74,25 @@ export function changedStates(states, now = Date.now()) {
 }
 
 /**
+ * Forget a few published values, so the next read publishes them again.
+ *
+ * This is what a state that never reached Gladys needs: `changedStates` has
+ * already written it down as published, and believing that would keep the
+ * value out of the next fifteen minutes of reads. The one caller is the
+ * publication path, when Gladys turns out not to hold the feature the state
+ * was meant for (see src/devices/publish.js) — the value is not published, so
+ * it is not remembered either, and the read that follows the user's fix fills
+ * the feature in immediately.
+ *
+ * @param {{ device_feature_external_id: string }[]} states
+ */
+export function forgetStates(states) {
+  for (const state of states) {
+    published.delete(state.device_feature_external_id);
+  }
+}
+
+/**
  * Forget every published value (configuration change, reconnection, tests).
  *
  * A reconnection is the moment the assumption behind this cache is the least

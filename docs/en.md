@@ -231,11 +231,21 @@ the park & ride error also names a few of the identifiers the dataset does hold.
 **A park & ride shows a status and a capacity, but no free spaces** — SYTRAL
 does not count that facility live, and the integration will not invent a
 number: **List the park & ride facilities** shows the same `?` next to it. This
-is the open data, not the configuration. Older versions published nothing at
-all in that case, which is what made the device look broken; if yours still
-shows no value anywhere, open the Discovery screen and press **Update** on the
-device — the `Total capacity` and `Status` features are new, and an existing
-device only gets them there.
+is the open data, not the configuration.
+
+**A device records nothing since the integration was updated** — Gladys keeps
+the features a device was created with, and a container cannot add one to a
+device that already exists: re-publishing a discovery only refreshes its
+parameters. So a version that adds a feature publishes values that have nowhere
+to land. A park & ride nobody counts live is the clearest case: its only two
+values, `Total capacity` and `Status`, are exactly the features an older device
+does not have, and the car park stays empty while the logs only mention the
+thin feed. The integration now says so instead: the device carries an orange
+dot in the device list, whose tooltip names what is missing, and the logs spell
+it out once (`… does not have the feature(s) capacity, status in Gladys …`).
+The fix is in the **Discovery** screen: press **Update** on the device (
+deleting it and adding it again works too), and the values arrive on the next
+read.
 
 **A device I added stays empty** — features showing no value at all mean the
 device is never read. Older versions published their devices without the flag
