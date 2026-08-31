@@ -20,6 +20,7 @@ import {
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
 import { gladysPollFrequency } from '../config.js';
+import { TEXT_FEATURE_RANGE } from './featureRange.js';
 import { fetchStationAvailability } from '../api/velov.js';
 
 export const DEVICE_TYPE = 'velov-station';
@@ -142,6 +143,7 @@ export function createVelovStationBlueprint(watched) {
             external_id: ids.feature(FEATURE.STATUS),
             category: DEVICE_FEATURE_CATEGORIES.TEXT,
             type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
+            ...TEXT_FEATURE_RANGE,
             read_only: true,
             has_feedback: false,
             keep_history: false,

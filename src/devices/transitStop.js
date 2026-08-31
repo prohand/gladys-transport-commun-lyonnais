@@ -19,6 +19,7 @@ import {
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
 import { gladysPollFrequency } from '../config.js';
+import { TEXT_FEATURE_RANGE } from './featureRange.js';
 import { fetchDepartures } from '../api/tcl.js';
 
 export const DEVICE_TYPE = 'tcl-stop';
@@ -119,6 +120,7 @@ export function createTransitStopBlueprint(stop) {
           external_id: ids.feature(departureDetailsFeatureKey(rank)),
           category: DEVICE_FEATURE_CATEGORIES.TEXT,
           type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
+          ...TEXT_FEATURE_RANGE,
           read_only: true,
           has_feedback: false,
           // A label changing every minute would only bloat the history.
@@ -131,6 +133,7 @@ export function createTransitStopBlueprint(stop) {
         external_id: ids.feature(SUMMARY_FEATURE),
         category: DEVICE_FEATURE_CATEGORIES.TEXT,
         type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
+        ...TEXT_FEATURE_RANGE,
         read_only: true,
         has_feedback: false,
         keep_history: false,

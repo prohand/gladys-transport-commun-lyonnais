@@ -113,6 +113,25 @@ test('each device is published with a poll frequency the Gladys scheduler accept
   }
 });
 
+test('every published feature carries the min/max the core stores as NOT NULL', () => {
+  // `t_device_feature.min` and `.max` cannot be null: a feature published
+  // without them makes the core answer 422 for the WHOLE batch, and the device
+  // never shows up. The text features used to omit them, because a range means
+  // nothing for a string — "Next departure line" is what the 422 named.
+  const gladys = createFakeGladys();
+  const devices = buildDiscoveredDevices(gladys, CONFIG);
+
+  const features = devices.flatMap((device) => device.features);
+  assert.ok(features.length > 0);
+  for (const feature of features) {
+    assert.ok(
+      Number.isFinite(feature.min) && Number.isFinite(feature.max),
+      `feature "${feature.name}" would be rejected: min=${feature.min}, max=${feature.max}`,
+    );
+    assert.ok(feature.min <= feature.max, `feature "${feature.name}" has an inverted range`);
+  }
+});
+
 test('the ticks arriving inside the configured interval do not reach the feed', async () => {
   // Gladys cannot tick slower than a minute, so a 5-minute refresh is enforced
   // here: four ticks out of five must return without touching the network.
