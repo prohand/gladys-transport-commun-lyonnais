@@ -163,7 +163,19 @@ const RAW_ACTIONS = {
     };
   },
 
-  /** Search a TCL stop point by name and show the ids to paste. */
+  /**
+   * Search a TCL stop point by name and show the ids to paste, each with the
+   * directions its lines serve.
+   *
+   * The direction is the whole point of the list: the network gives the two
+   * sides of a street two stop ids under one name, so "1234 — Bellecour" and
+   * "5678 — Bellecour" were two indistinguishable lines and choosing between
+   * them was a coin toss the user only lost once the device was created and
+   * counting down the tram going the wrong way. `searchStops` reads the
+   * terminus of the upcoming passages for that (src/api/tcl.js), which a stop
+   * with an empty board cannot answer — those fall back on the lines the
+   * directory advertises, and the note below says why they look poorer.
+   */
   async search_stops(gladys, { fields, config }) {
     const query = String(fields.query ?? '').trim();
     if (query.length < 2) {
@@ -173,10 +185,21 @@ const RAW_ACTIONS = {
     if (results.length === 0) {
       return { en: `No stop matches "${query}".`, fr: `Aucun arrêt ne correspond à "${query}".` };
     }
-    const list = results.map((stop) => `${stop.id} — ${stop.name}`).join('\n');
+    const list = results.map(formatStopResult).join('\n');
+    const withoutDirection = results.filter((stop) => stop.directions.length === 0).length;
+    const note = {
+      en:
+        withoutDirection > 0
+          ? `\n(${withoutDirection} of them have no departure right now: only their lines are known.)`
+          : '',
+      fr:
+        withoutDirection > 0
+          ? `\n(${withoutDirection} d’entre eux n’ont aucun passage à venir : seules leurs lignes sont connues.)`
+          : '',
+    };
     return {
-      en: `Paste one of these ids in "Transit stops":\n${list}`,
-      fr: `Collez un de ces identifiants dans "Arrêts" :\n${list}`,
+      en: `Paste one of these ids in "Transit stops":\n${list}${note.en}`,
+      fr: `Collez un de ces identifiants dans "Arrêts" :\n${list}${note.fr}`,
     };
   },
 
@@ -243,6 +266,28 @@ const RAW_ACTIONS = {
     };
   },
 };
+
+/**
+ * One search result: the id to paste, the stop name, and where its lines go.
+ *
+ * "T1 → IUT Feyssine" is what is written on the front of the tram and on the
+ * pole, so it is what tells two stops of the same name apart. Three sources,
+ * best first: the terminus of the upcoming passages, the direction the
+ * directory publishes when it is a per-stop-point layer, and failing both the
+ * bare line list — which at least says whether this is the stop of the line
+ * being looked for. No language in here: a terminus is a place name.
+ *
+ * @param {{ id: string, name: string, lines: string, direction: string,
+ *   directions: { line: string, direction: string }[] }} stop
+ * @returns {string}
+ */
+function formatStopResult(stop) {
+  const served =
+    stop.directions.length > 0
+      ? stop.directions.map(({ line, direction }) => `${line} → ${direction}`).join(', ')
+      : stop.direction || stop.lines;
+  return served ? `${stop.id} — ${stop.name} (${served})` : `${stop.id} — ${stop.name}`;
+}
 
 /**
  * One line explaining why a dataset probe failed, short enough to sit under a

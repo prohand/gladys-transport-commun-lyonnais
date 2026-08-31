@@ -19,6 +19,7 @@ import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { hasGrandLyonCredentials, normalizeConfig } from './src/config.js';
 import { ACTIONS, buildDiscoveredDevices, pollDevice } from './src/devices/index.js';
 import { clearPollSchedule } from './src/devices/pollSchedule.js';
+import { clearStateCache } from './src/devices/stateCache.js';
 import { startRefreshLoop, stopRefreshLoop } from './src/devices/refreshLoop.js';
 import { clearLayerResolution } from './src/api/grandlyon.js';
 import { clearTclCache } from './src/api/tcl.js';
@@ -67,6 +68,10 @@ gladys.onConfigUpdated(async (newConfig) => {
   // A refresh interval that just changed must apply on the next tick, not
   // after the old one has elapsed.
   clearPollSchedule();
+  // The watch lists may have changed: the values remembered as "already
+  // published" belong to devices that may no longer be the same ones, and a
+  // full republication is one request.
+  clearStateCache();
   // Re-publish the devices: the watch lists and the poll frequencies live in
   // the configuration. publishDiscoveredDevices is idempotent (upsert by
   // external_id).
@@ -85,6 +90,12 @@ gladys.on('connected', async () => {
   try {
     // 1) Fetch the config filled in by the user.
     config = normalizeConfig(await gladys.getConfig());
+
+    // The de-duplication of the published states is a belief about what the
+    // instance on the other end already holds, and a (re)connection is exactly
+    // when that belief can be wrong: publish everything once, then only the
+    // changes (see src/devices/stateCache.js).
+    clearStateCache();
 
     // 2) Refresh the devices the user already created, now and at every tick.
     // The Gladys scheduler is the nominal path; this one is what fills in a

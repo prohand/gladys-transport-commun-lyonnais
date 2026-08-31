@@ -11,6 +11,7 @@ import { createFakeGladys } from './helpers/fakeGladys.js';
 import { GLADYS_POLL_FREQUENCIES_MS, normalizeConfig } from '../src/config.js';
 import { buildDiscoveredDevices, findBlueprintByDevice, pollDevice } from '../src/devices/index.js';
 import { clearPollSchedule } from '../src/devices/pollSchedule.js';
+import { clearStateCache } from '../src/devices/stateCache.js';
 import { refreshCreatedDevices, refreshTickMs } from '../src/devices/refreshLoop.js';
 import { formatDeparture, formatSummary } from '../src/devices/transitStop.js';
 import { computeOccupancy as velovOccupancy, formatStatus } from '../src/devices/velovStation.js';
@@ -67,6 +68,9 @@ beforeEach(() => {
   clearTclCache();
   clearVelovCache();
   clearLayerResolution();
+  // The states published in the previous test are remembered as sent, and a
+  // test that publishes the same values again would see nothing published.
+  clearStateCache();
 });
 
 afterEach(() => {
@@ -336,6 +340,41 @@ test('polling a stop publishes the countdowns, the labels and the summary', asyn
   assert.equal(states[`${prefix}:departure_2`], 12);
   assert.equal(states[`${prefix}:departure_2_details`], '~T1 → IUT Feyssine');
   assert.match(states[`${prefix}:departures`], /^T1 → IUT Feyssine 4 min · /);
+});
+
+test('a second poll publishes nothing when nothing moved', async () => {
+  // Gladys writes down every state it is given, so a value republished
+  // unchanged every 30 seconds is a row in its database and nothing on the
+  // screen. Only the departures that moved are sent (see stateCache.js).
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclpassagearret: {
+      values: [{ ligne: 'T1', direction: 'IUT Feyssine', delaipassage: '7 min', type: 'E' }],
+    },
+  });
+
+  const [device] = buildDiscoveredDevices(gladys, CONFIG);
+  const blueprint = findBlueprintByDevice(gladys, device, CONFIG);
+  await blueprint.onPoll(gladys, CONFIG);
+  const firstPoll = gladys.published.length;
+  assert.ok(firstPoll > 0, 'the first poll publishes everything');
+
+  await blueprint.onPoll(gladys, CONFIG);
+  assert.equal(gladys.published.length, firstPoll, 'an unchanged board is not published again');
+
+  // A departure that moved is published, and only it: the second countdown,
+  // the labels and the summary have not changed.
+  stubFetch({
+    tclpassagearret: {
+      values: [{ ligne: 'T1', direction: 'IUT Feyssine', delaipassage: '6 min', type: 'E' }],
+    },
+  });
+  await blueprint.onPoll(gladys, CONFIG);
+  const published = gladys.published.slice(firstPoll);
+  assert.deepEqual(
+    published.map((entry) => entry.featureExternalId),
+    [`${device.external_id}:departures`, `${device.external_id}:departure_1`],
+  );
 });
 
 test('a stop with no upcoming departure publishes the sentinel, not a stale value', async () => {
@@ -618,6 +657,49 @@ test('a retired dataset is reported with what the platform publishes instead', a
 
   assert.match(message.en, /✖ Park & ride.*tcl_sytral\.tclparcrelaisxx/);
   assert.match(message.fr, /✖ Parcs relais.*tcl_sytral\.tclparcrelaisxx/);
+});
+
+test('the stop search shows where each line goes, not just the stop name', async () => {
+  // An id and a name are not a choice: the network gives the two sides of the
+  // same street two ids under one name, and the terminus is what says which of
+  // them is the platform going the right way.
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclpassagearret: {
+      values: [
+        { id: '1001', ligne: 'A', direction: 'Vaulx-en-Velin La Soie', type: 'E' },
+        { id: '1001', ligne: 'A', direction: 'Vaulx-en-Velin La Soie', type: 'E' },
+      ],
+    },
+    tclarret: { values: [{ id: '1001', nom: 'Bellecour', desserte: 'A,D' }] },
+  });
+
+  const message = await ACTIONS.search_stops(gladys, {
+    fields: { query: 'Bellecour' },
+    config: CONFIG,
+  });
+
+  assert.match(message.en, /1001 — Bellecour \(A → Vaulx-en-Velin La Soie\)/);
+  assert.match(message.fr, /1001 — Bellecour \(A → Vaulx-en-Velin La Soie\)/);
+});
+
+test('a stop the search cannot get a direction for still shows its lines', async () => {
+  const gladys = createFakeGladys();
+  stubFetch({
+    // Nothing is running at that stop: the id the user came for is still the
+    // point of the list, and the lines are what is left to recognize it by.
+    tclpassagearret: { values: [] },
+    tclarret: { values: [{ id: '1001', nom: 'Bellecour', desserte: 'A,D' }] },
+  });
+
+  const message = await ACTIONS.search_stops(gladys, {
+    fields: { query: 'Bellecour' },
+    config: CONFIG,
+  });
+
+  assert.match(message.en, /1001 — Bellecour \(A,D\)/);
+  assert.match(message.en, /no departure right now/);
+  assert.match(message.fr, /aucun passage à venir/);
 });
 
 test('the account test still names the password trap when the account is refused', async () => {

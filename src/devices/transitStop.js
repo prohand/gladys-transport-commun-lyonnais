@@ -6,10 +6,15 @@
 // while fresh).
 //
 // Features, for each of the N next departures (N = `max_departures`):
-//   - "Departure n" : minutes to wait          (duration sensor, charted)
+//   - "Departure n" : minutes to wait              (duration sensor)
 //   - "Departure n details" : "T1 -> IUT Feyssine" (text sensor)
 // plus one "Next departures" text feature summarizing the whole board, handy
 // for a dashboard tile or a chat answer.
+//
+// None of them keeps an history, and the states that did not move are not even
+// published (see stateCache.js): a countdown re-read every 30 seconds is the
+// one value of this integration whose past is worth nothing and whose storage
+// cost is the highest.
 // -----------------------------------------------------------------------------
 
 import {
@@ -20,6 +25,7 @@ import {
 } from '@gladysassistant/integration-sdk';
 import { gladysPollFrequency } from '../config.js';
 import { TEXT_FEATURE_RANGE } from './featureRange.js';
+import { changedStates } from './stateCache.js';
 import { fetchDepartures } from '../api/tcl.js';
 
 export const DEVICE_TYPE = 'tcl-stop';
@@ -112,8 +118,15 @@ export function createTransitStopBlueprint(stop) {
           max: NO_DEPARTURE_MINUTES,
           read_only: true,
           has_feedback: false,
-          // Charted: the waiting time at a stop over the day is meaningful.
-          keep_history: true,
+          // NOT charted, on purpose. This is the fastest-moving value of the
+          // integration — a countdown, re-read as often as every 30 seconds —
+          // and it is also the one whose history means the least: "7 minutes
+          // to wait, then 6, then 5, then 12 again" is the shape of every
+          // timetable, and nobody reads it back. Keeping it would write a few
+          // thousand rows a day per watched stop into t_device_feature_state
+          // for that. The value is still live on the dashboard: Gladys stores
+          // the last one either way.
+          keep_history: false,
         });
         features.push({
           name: rank === 1 ? 'Next departure line' : `Departure ${rank} line`,
@@ -190,8 +203,13 @@ export function createTransitStopBlueprint(stop) {
         });
       }
 
-      // One batched request for the whole board.
-      await gladys.publishStates(states);
+      // One batched request for the whole board — and only for what moved
+      // since the last read, so a stop with no service at night stops writing
+      // the same "no departure" down every minute (see stateCache.js).
+      const updates = changedStates(states);
+      if (updates.length > 0) {
+        await gladys.publishStates(updates);
+      }
     },
   };
 }
