@@ -43,7 +43,21 @@ Not every park & ride is counted in real time: the occupancy dataset covers
 part of the network only, and the rest is published as an inventory without a
 live count. Those facilities can still be watched — their capacity and a
 `No live count` status are what they publish, and the free spaces fill in by
-themselves the day SYTRAL starts counting them.
+themselves the day SYTRAL starts counting them. `Spaces available`,
+`Accessible spaces available` and `Occupancy` then stay empty ("no recent
+value" in Gladys), which is the honest answer: nothing is published for them
+upstream.
+
+The status says which of the two situations you are in:
+
+- `No live count (287 spaces)` — the facility is absent from the real-time
+  dataset. Nothing to fix, it is the open data as SYTRAL publishes it;
+- `Live count unreadable (287 spaces)` — the facility **is** in the real-time
+  dataset and its count could not be read (a renamed column, or a `-1` meaning
+  "unknown"). Please report it: the columns received are in the container logs.
+
+The **List the park & ride facilities** button says the same thing for the
+whole network, so you can tell without reading the logs.
 
 ## Configuration
 

@@ -353,16 +353,50 @@ function usableCount(value) {
 }
 
 /**
- * Normalize one raw park & ride record.
+ * The columns of one record, as `name=value`, for a message a user can act on.
+ *
+ * A facility with no readable count is a bug report waiting to be written, and
+ * "no live count" alone does not say whether the column was renamed again or
+ * whether the platform published -1 (its way of saying "unknown"). The values
+ * are what tells the two apart, so they are carried along with the names —
+ * the long ones (an opening-hours sentence, a geometry) are dropped, they say
+ * nothing about a count.
+ *
  * @param {Record<string, unknown>} record
+ * @returns {string[]}
+ */
+function describeColumns(record) {
+  return Object.entries(record ?? {})
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .map(([column, value]) => `${column}=${String(value)}`)
+    .filter((entry) => entry.length <= 60);
+}
+
+/**
+ * Normalize one raw park & ride record.
+ *
+ * `live` says which of the two layers the record comes from, and it is not
+ * decoration: a facility with no free-space count is either absent from the
+ * real-time layer — the platform counts nothing there, and there is nothing to
+ * fix — or present in it with a count nobody could read, which is a column
+ * rename to report. Both look exactly the same on the device, so the answer
+ * has to be carried from here.
+ *
+ * @param {Record<string, unknown>} record
+ * @param {{ live?: boolean }} [origin]
  * @returns {{ id: string, name: string, capacity: number | undefined,
  *   available: number | undefined, capacityDisabled: number | undefined,
- *   availableDisabled: number | undefined }}
+ *   availableDisabled: number | undefined, live: boolean,
+ *   liveColumns: string[] | undefined }}
  */
-export function normalizeParkAndRide(record) {
+export function normalizeParkAndRide(record, { live = false } = {}) {
   // Fallback for every count the known spellings miss: see COLUMN_HINTS.
   const byName = readCountsByColumnName(record);
   return {
+    live,
+    // Only the real-time record is worth describing: the inventory has no
+    // count to look for in the first place.
+    liveColumns: live ? describeColumns(record) : undefined,
     id: pickString(record, ['id', 'idparcrelais', 'code', 'gid']) ?? '',
     name: pickString(record, ['nom', 'name', 'libelle']) ?? UNNAMED_FACILITY,
     capacity: usableCount(
@@ -407,6 +441,13 @@ export function mergeParkAndRide(base, update) {
   }
   const merged = { ...base };
   for (const [field, value] of Object.entries(update)) {
+    // `live` is a fact about the layers a facility was seen in, so it is a
+    // logical or, never an overwrite: the static record of a counted facility
+    // must not un-count it.
+    if (field === 'live') {
+      merged.live = base.live || value;
+      continue;
+    }
     // `undefined` is "this layer does not publish that column", never "the
     // value is unknown now": it must not erase what the other layer knows.
     if (value === undefined || value === null || value === '') {
@@ -457,12 +498,15 @@ async function loadParkAndRideFacilities(config) {
   // Static first, real-time second: the live count is the value that must win
   // when both layers publish a column.
   const byId = new Map();
-  for (const result of [statique, realtime]) {
+  for (const [result, origin] of [
+    [statique, { live: false }],
+    [realtime, { live: true }],
+  ]) {
     if (result.status !== 'fulfilled') {
       continue;
     }
     for (const record of result.value) {
-      const facility = normalizeParkAndRide(record);
+      const facility = normalizeParkAndRide(record, origin);
       // A record without an id cannot be watched (the configuration names a
       // facility by its id or its name) nor merged: skipping it is what keeps
       // the anonymous rows of a partially published layer out of the list.
@@ -474,7 +518,12 @@ async function loadParkAndRideFacilities(config) {
     }
   }
 
-  const facilities = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  let facilities = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  if (realtime.status === 'rejected') {
+    // A layer nobody could read says nothing about the facilities it holds:
+    // "not counted in real time" would be a diagnosis made out of an outage.
+    facilities = facilities.map((facility) => ({ ...facility, live: undefined }));
+  }
   logger.debug(`${facilities.length} park & ride facilities loaded`);
   warnAboutUnreadableCounts(realtime);
   return facilities;

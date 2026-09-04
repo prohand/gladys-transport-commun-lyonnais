@@ -80,6 +80,10 @@ test('a park & ride record is read through its column aliases', () => {
     available: 120,
     capacityDisabled: 10,
     availableDisabled: 4,
+    // Read outside of the two-layer merge: nothing said this record came from
+    // the real-time layer, so nothing claims it did.
+    live: false,
+    liveColumns: undefined,
   });
 
   const renamed = normalizeParkAndRide({

@@ -44,7 +44,23 @@ Tous les parcs relais ne sont pas comptés en temps réel : le jeu de données
 d'occupation ne couvre qu'une partie du réseau, le reste n'est publié que dans
 l'inventaire, sans comptage. Ces parcs restent surveillables — ils publient
 leur capacité et un statut `No live count`, et les places libres apparaîtront
-d'elles-mêmes le jour où SYTRAL les comptera.
+d'elles-mêmes le jour où SYTRAL les comptera. `Places disponibles`,
+`Places PMR disponibles` et `Occupation` restent alors vides (« pas de valeur
+récente » dans Gladys) : c'est la réponse honnête, rien n'est publié pour eux
+en amont.
+
+Le statut dit dans laquelle des deux situations vous êtes :
+
+- `No live count (287 spaces)` — le parc est absent du jeu de données temps
+  réel. Il n'y a rien à corriger, c'est la donnée ouverte telle que SYTRAL la
+  publie ;
+- `Live count unreadable (287 spaces)` — le parc **est** dans le jeu de données
+  temps réel et son comptage n'a pas pu être lu (colonne renommée, ou `-1` qui
+  signifie « inconnu »). Merci de le signaler : les colonnes reçues sont dans
+  les journaux du conteneur.
+
+Le bouton **Lister les parcs relais** donne la même information pour tout le
+réseau, sans avoir à lire les journaux.
 
 ## Configuration
 

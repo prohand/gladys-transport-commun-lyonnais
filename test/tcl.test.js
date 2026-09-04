@@ -364,6 +364,11 @@ test('the park & ride list holds every facility, not only the counted ones', asy
   assert.equal(bonnevay.capacity, 287);
   assert.equal(bonnevay.available, undefined);
   assert.equal(bonnevay.capacityDisabled, 7);
+  // Which layer a facility came from is carried along: it is the difference
+  // between "the platform counts nothing here" and "the count moved to a
+  // column nobody reads", and both look like an empty gauge on the device.
+  assert.equal(gorge.live, true);
+  assert.equal(bonnevay.live, false);
   assert.equal(asked.length, 2, 'one request per layer');
 });
 
@@ -395,6 +400,34 @@ test('one unreadable park & ride layer degrades the list instead of emptying it'
     ['GOR', 'BONN'],
   );
   assert.equal(facilities[0].available, undefined);
+  // A layer nobody could read says nothing about the facilities it holds:
+  // claiming "not counted in real time" here would be a diagnosis made out of
+  // an outage.
+  assert.equal(facilities[0].live, undefined);
+});
+
+test('a facility the real-time layer holds without a readable count is told apart', async (t) => {
+  // The reported "je n'ai pas de valeurs" has two causes wearing the same
+  // empty gauges. This is the second one: the layer DOES publish the facility,
+  // and -1 is its way of saying "unknown" — which is not the same news as a
+  // car park nobody counts, and not the same fix either.
+  clearLayerResolution();
+  clearTclCache();
+  const { baseUrl, close } = await startServer((req, res) => {
+    const values = req.url.includes('tclparcrelaisst')
+      ? [{ id: 'GOR', nom: 'Gorge de Loup', capacite: 655 }]
+      : [{ id: 'GOR', nom: 'Gorge de Loup', capacite: 655, nb_tot_place_dispo: -1 }];
+    sendJson(res, { nb_results: values.length, values });
+  });
+  t.after(close);
+
+  const [gorge] = await listParkAndRideFacilities(configFor(`${baseUrl}/ws/rdata`));
+
+  assert.equal(gorge.available, undefined);
+  assert.equal(gorge.live, true, 'the facility is in the real-time layer, its count is not usable');
+  // The record itself is what makes the report actionable: a rename and a -1
+  // are both invisible from "no value".
+  assert.ok(gorge.liveColumns.includes('nb_tot_place_dispo=-1'));
 });
 
 test('a park & ride read that fails on both layers is an error, not an empty list', async (t) => {

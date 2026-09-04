@@ -146,6 +146,16 @@ the column NAME says it holds (`readCountsByColumnName`) — a renamed column is
 otherwise another silent empty device, not an error. A negative count is the
 platform saying "unknown" and is dropped rather than published.
 
+An empty gauge then has two causes that look identical and are not the same
+news: the facility is absent from the real-time layer (the open data, nothing
+to fix), or it is IN that layer with a count nobody could read (a rename, or
+the `-1` above — a bug to report). `normalizeParkAndRide` therefore takes the
+layer a record came from (`live`, a logical OR through `mergeParkAndRide`, and
+`liveColumns`, the record as `name=value` for the report), the device says
+which one it is in its `Status` and in the logs, and `list_park_and_ride`
+names both groups. When the real-time layer itself could not be read, `live`
+is left `undefined`: a diagnosis made out of an outage is worse than none.
+
 Timeouts are per kind of read (`REQUEST_TIMEOUT_MS`, `BULK_TIMEOUT_MS`,
 `PROBE_TIMEOUT_MS`): the stop directory is a multi-megabyte download and does
 not fit in the budget that is generous for a filtered read. A manifest action
