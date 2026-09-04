@@ -50,9 +50,9 @@ upstream.
 
 The status says which of the two situations you are in:
 
-- `No live count (753 spaces)` — the facility is absent from the real-time
+- `No live count (287 spaces)` — the facility is absent from the real-time
   dataset. Nothing to fix, it is the open data as SYTRAL publishes it;
-- `Live count unreadable (753 spaces)` — the facility **is** in the real-time
+- `Live count unreadable (287 spaces)` — the facility **is** in the real-time
   dataset and its count could not be read (a renamed column, or a `-1` meaning
   "unknown"). Please report it: the columns received are in the container logs.
 
