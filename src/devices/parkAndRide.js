@@ -56,14 +56,18 @@ export const FEATURE = {
  * user reads "no live count published" on their dashboard instead of staring
  * at an empty device wondering whether the integration is broken.
  *
- * @param {{ available?: number, capacity?: number }} facility
+ * @param {{ available?: number, capacity?: number, live?: boolean }} facility
  * @returns {string}
  */
 export function formatStatus(facility) {
   if (!Number.isFinite(facility.available)) {
-    return Number.isFinite(facility.capacity)
-      ? `No live count (${facility.capacity} spaces)`
-      : 'No live count';
+    const spaces = Number.isFinite(facility.capacity) ? ` (${facility.capacity} spaces)` : '';
+    // Two different answers wear the same empty gauges: a facility the
+    // platform does not count at all, and a facility it counts under a column
+    // this integration failed to read. The first is the open data, the second
+    // is a bug — saying which one it is here is what turns "no value" into
+    // something the user can report.
+    return facility.live === true ? `Live count unreadable${spaces}` : `No live count${spaces}`;
   }
   if (facility.available === 0) {
     return 'Full';
@@ -191,13 +195,28 @@ export function createParkAndRideBlueprint(watched) {
         logger.info(
           `P+R ${facility.name}: ${facility.available}/${facility.capacity ?? '?'} space(s) free`,
         );
-      } else {
+      } else if (facility.live === true) {
+        // The other reason for an empty gauge, and the only one that is a bug:
+        // the facility IS in the real-time layer, and nothing in its record
+        // could be read as a free-space count. The record itself is the report.
+        logger.warn(
+          `P+R ${facility.name}: the real-time layer holds this facility and no readable ` +
+            `free-space count for it (${facility.liveColumns?.join(', ') || 'no usable column'}) ` +
+            '— please report it',
+        );
+      } else if (facility.live === false) {
         // Not an error, and not silence either: this facility is in the
         // inventory and outside the live counts, which is a property of the
         // open data rather than of the configuration.
         logger.warn(
-          `P+R ${facility.name}: the platform publishes no live count for this facility, ` +
-            'only its capacity',
+          `P+R ${facility.name}: this facility is not in the real-time layer, so the platform ` +
+            'publishes no live count for it, only its capacity',
+        );
+      } else {
+        // `live` is unknown: the real-time layer itself could not be read this
+        // cycle, and `listParkAndRideFacilities` has already said why.
+        logger.warn(
+          `P+R ${facility.name}: no live count this cycle, the real-time layer was unreadable`,
         );
       }
 

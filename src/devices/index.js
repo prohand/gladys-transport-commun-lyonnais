@@ -246,21 +246,43 @@ const RAW_ACTIONS = {
       (facility) =>
         `${facility.id} — ${facility.name} (${facility.available ?? '?'}/${facility.capacity ?? '?'} free)`,
     );
-    const withoutLiveCount = facilities.filter(
-      (facility) => !Number.isFinite(facility.available),
-    ).length;
+    // The two reasons a car park shows "?" are not the same answer, and this
+    // list is where the user reads them: absent from the real-time layer is
+    // the open data (nothing to fix), while a facility the layer DOES hold
+    // with no readable count is a column rename to report. Answering "no live
+    // count" to both is what leaves somebody staring at three empty gauges
+    // wondering which one they are looking at.
+    const uncounted = facilities.filter((facility) => !Number.isFinite(facility.available));
+    const notInLiveLayer = uncounted.filter((facility) => facility.live === false);
+    const unreadable = uncounted.filter((facility) => facility.live === true);
+    const named = (list) => list.map((facility) => facility.id || facility.name).join(', ');
+    const notes = { en: [], fr: [] };
+    if (notInLiveLayer.length > 0) {
+      notes.en.push(
+        `${notInLiveLayer.length} of them are absent from the real-time layer, so the platform ` +
+          `publishes no free-space count for them: ${named(notInLiveLayer)}. They can still be ` +
+          'watched — their device publishes the capacity and a "No live count" status.',
+      );
+      notes.fr.push(
+        `${notInLiveLayer.length} d’entre eux sont absents de la couche temps réel : la ` +
+          `plateforme ne publie aucun comptage pour eux (${named(notInLiveLayer)}). Ils restent ` +
+          'surveillables — leur appareil publie la capacité et un statut « No live count ».',
+      );
+    }
+    if (unreadable.length > 0) {
+      notes.en.push(
+        `${unreadable.length} of them ARE in the real-time layer with a count this integration ` +
+          `could not read: ${named(unreadable)} — please report it, the columns are in the logs.`,
+      );
+      notes.fr.push(
+        `${unreadable.length} d’entre eux SONT dans la couche temps réel avec un comptage que ` +
+          `l’intégration n’a pas su lire : ${named(unreadable)} — merci de le signaler, les ` +
+          'colonnes reçues sont dans les journaux.',
+      );
+    }
     const note = {
-      en:
-        withoutLiveCount > 0
-          ? `\n(${withoutLiveCount} of them publish no live count: "?" free spaces. They can still ` +
-            'be watched — their device publishes the capacity and a "No live count" status.)'
-          : '',
-      fr:
-        withoutLiveCount > 0
-          ? `\n(${withoutLiveCount} d’entre eux ne publient pas de comptage temps réel : « ? » ` +
-            'places libres. Ils restent surveillables — leur appareil publie la capacité et un ' +
-            'statut « No live count ».)'
-          : '',
+      en: notes.en.length > 0 ? `\n(${notes.en.join('\n')})` : '',
+      fr: notes.fr.length > 0 ? `\n(${notes.fr.join('\n')})` : '',
     };
 
     return {

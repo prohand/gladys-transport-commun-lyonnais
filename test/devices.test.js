@@ -876,8 +876,68 @@ test('a park & ride status says what the facility has, or that nobody counts it'
   assert.equal(parkingStatus({ capacity: 655, available: 120 }), '120/655 free');
   assert.equal(parkingStatus({ capacity: 655, available: 0 }), 'Full');
   assert.equal(parkingStatus({ available: 120 }), '120 free');
-  assert.equal(parkingStatus({ capacity: 287 }), 'No live count (287 spaces)');
+  assert.equal(parkingStatus({ capacity: 287, live: false }), 'No live count (287 spaces)');
   assert.equal(parkingStatus({}), 'No live count');
+  // The facility IS counted by the platform and the count could not be read:
+  // that is a bug to report, not the open data being what it is, and the two
+  // are indistinguishable from three empty gauges.
+  assert.equal(parkingStatus({ capacity: 287, live: true }), 'Live count unreadable (287 spaces)');
+});
+
+test('a park & ride the live layer holds without a usable count says so on the device', async () => {
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclparcrelaistr: {
+      // -1 is the platform saying "unknown": the facility is counted, the
+      // count is not publishable.
+      values: [{ id: 'BONN', nom: 'Laurent Bonnevay', capacite: 287, nb_tot_place_dispo: -1 }],
+    },
+    tclparcrelaisst: { values: [{ id: 'BONN', nom: 'Laurent Bonnevay', capacite: 287 }] },
+  });
+
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'BONN',
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+  await findBlueprintByDevice(gladys, device, config).onPoll(gladys, config);
+
+  const states = Object.fromEntries(
+    gladys.published.map((entry) => [entry.featureExternalId, entry.text ?? entry.state]),
+  );
+  assert.equal(states[`${device.external_id}:status`], 'Live count unreadable (287 spaces)');
+  assert.equal(states[`${device.external_id}:capacity`], 287);
+});
+
+test('the park & ride list tells the two kinds of missing count apart', async () => {
+  // Answering "no live count" to both is what leaves somebody staring at three
+  // empty gauges with no way of knowing whether there is anything to fix.
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclparcrelaistr: {
+      values: [
+        { id: 'GOR', nom: 'Gorge de Loup', capacite: 655, nb_tot_place_dispo: 120 },
+        { id: 'BONN', nom: 'Laurent Bonnevay', capacite: 287, nb_tot_place_dispo: -1 },
+      ],
+    },
+    tclparcrelaisst: {
+      values: [
+        { id: 'GOR', nom: 'Gorge de Loup', capacite: 655 },
+        { id: 'BONN', nom: 'Laurent Bonnevay', capacite: 287 },
+        { id: 'IRYV', nom: 'Irigny-Yvours', capacite: 287 },
+      ],
+    },
+  });
+
+  const message = await ACTIONS.list_park_and_ride(gladys, { fields: {}, config: CONFIG });
+
+  assert.match(message.en, /GOR — Gorge de Loup \(120\/655 free\)/);
+  assert.match(message.en, /absent from the real-time layer[\s\S]*IRYV/);
+  assert.match(message.en, /could not read: BONN/);
+  assert.match(message.fr, /absents de la couche temps réel[\s\S]*IRYV/);
+  assert.match(message.fr, /n’a pas su lire : BONN/);
 });
 
 test('the account test reports a retired dataset without condemning the account', async () => {
