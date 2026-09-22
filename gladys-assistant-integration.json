@@ -8,7 +8,7 @@
   },
   "version": "1.0.4",
   "docker_image": "ghcr.io/prohand/gladys-transport-commun-lyonnais:1.0.4",
-  "gladys_version": ">=4.86.0",
+  "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-transport-commun-lyonnais/main/cover.png",
   "categories": ["environment"],
   "transports": ["cloud"],
@@ -308,6 +308,661 @@
         "fr": "Lister les parcs relais"
       },
       "timeout_seconds": 60
+    }
+  ],
+  "scene_triggers": [
+    {
+      "key": "departure_approaching",
+      "label": {
+        "en": "TCL departure approaching",
+        "fr": "Passage TCL imminent"
+      },
+      "fields": [
+        {
+          "key": "stop",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Transit stop",
+            "fr": "Arrêt"
+          },
+          "required": true
+        },
+        {
+          "key": "threshold",
+          "type": "select",
+          "label": {
+            "en": "Minutes before departure",
+            "fr": "Minutes avant le passage"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "1",
+              "label": {
+                "en": "1 minute",
+                "fr": "1 minute"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "en": "2 minutes",
+                "fr": "2 minutes"
+              }
+            },
+            {
+              "value": "3",
+              "label": {
+                "en": "3 minutes",
+                "fr": "3 minutes"
+              }
+            },
+            {
+              "value": "5",
+              "label": {
+                "en": "5 minutes",
+                "fr": "5 minutes"
+              }
+            },
+            {
+              "value": "10",
+              "label": {
+                "en": "10 minutes",
+                "fr": "10 minutes"
+              }
+            },
+            {
+              "value": "15",
+              "label": {
+                "en": "15 minutes",
+                "fr": "15 minutes"
+              }
+            }
+          ]
+        },
+        {
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Line (empty: any)",
+            "fr": "Ligne (vide : toutes)"
+          },
+          "description": {
+            "en": "As written on the vehicle, e.g. T1 or C3 — upper case included.",
+            "fr": "Telle qu’affichée sur le véhicule, ex. T1 ou C3 — majuscules comprises."
+          },
+          "placeholder": {
+            "en": "T1",
+            "fr": "T1"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "stop_name",
+          "type": "string",
+          "label": {
+            "en": "Stop",
+            "fr": "Arrêt"
+          }
+        },
+        {
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Line",
+            "fr": "Ligne"
+          }
+        },
+        {
+          "key": "direction",
+          "type": "string",
+          "label": {
+            "en": "Direction",
+            "fr": "Direction"
+          }
+        },
+        {
+          "key": "minutes",
+          "type": "number",
+          "label": {
+            "en": "Minutes to wait",
+            "fr": "Minutes d’attente"
+          }
+        },
+        {
+          "key": "realtime",
+          "type": "boolean",
+          "label": {
+            "en": "Real-time tracked",
+            "fr": "Suivi en temps réel"
+          }
+        }
+      ]
+    },
+    {
+      "key": "velov_station_changed",
+      "label": {
+        "en": "Vélo'v availability changed",
+        "fr": "Disponibilité Vélo'v"
+      },
+      "fields": [
+        {
+          "key": "station",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Vélo'v station",
+            "fr": "Station Vélo'v"
+          },
+          "required": true
+        },
+        {
+          "key": "event",
+          "type": "multi_select",
+          "label": {
+            "en": "Events (empty: any)",
+            "fr": "Événements (vide : tous)"
+          },
+          "options": [
+            {
+              "value": "no_bike",
+              "label": {
+                "en": "Last bike taken",
+                "fr": "Plus aucun vélo"
+              }
+            },
+            {
+              "value": "bikes_back",
+              "label": {
+                "en": "Bikes available again",
+                "fr": "Vélos de nouveau disponibles"
+              }
+            },
+            {
+              "value": "no_dock",
+              "label": {
+                "en": "No free dock left",
+                "fr": "Plus aucune place libre"
+              }
+            },
+            {
+              "value": "docks_back",
+              "label": {
+                "en": "Docks free again",
+                "fr": "Places de nouveau libres"
+              }
+            },
+            {
+              "value": "out_of_service",
+              "label": {
+                "en": "Station out of service",
+                "fr": "Station hors service"
+              }
+            },
+            {
+              "value": "back_in_service",
+              "label": {
+                "en": "Station back in service",
+                "fr": "Station remise en service"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "station_name",
+          "type": "string",
+          "label": {
+            "en": "Station",
+            "fr": "Station"
+          }
+        },
+        {
+          "key": "event",
+          "type": "string",
+          "label": {
+            "en": "Event",
+            "fr": "Événement"
+          }
+        },
+        {
+          "key": "bikes",
+          "type": "number",
+          "label": {
+            "en": "Bikes available",
+            "fr": "Vélos disponibles"
+          }
+        },
+        {
+          "key": "electric_bikes",
+          "type": "number",
+          "label": {
+            "en": "Electric bikes available",
+            "fr": "Vélos électriques disponibles"
+          }
+        },
+        {
+          "key": "docks",
+          "type": "number",
+          "label": {
+            "en": "Docks available",
+            "fr": "Places disponibles"
+          }
+        }
+      ]
+    },
+    {
+      "key": "park_and_ride_changed",
+      "label": {
+        "en": "Park & ride availability",
+        "fr": "Disponibilité parc relais"
+      },
+      "fields": [
+        {
+          "key": "facility",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Park & ride",
+            "fr": "Parc relais"
+          },
+          "required": true
+        },
+        {
+          "key": "event",
+          "type": "multi_select",
+          "label": {
+            "en": "Events (empty: any)",
+            "fr": "Événements (vide : tous)"
+          },
+          "options": [
+            {
+              "value": "almost_full",
+              "label": {
+                "en": "Almost full (90 %)",
+                "fr": "Presque complet (90 %)"
+              }
+            },
+            {
+              "value": "full",
+              "label": {
+                "en": "Full",
+                "fr": "Complet"
+              }
+            },
+            {
+              "value": "spaces_back",
+              "label": {
+                "en": "Spaces available again",
+                "fr": "Places de nouveau disponibles"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "facility_name",
+          "type": "string",
+          "label": {
+            "en": "Park & ride",
+            "fr": "Parc relais"
+          }
+        },
+        {
+          "key": "event",
+          "type": "string",
+          "label": {
+            "en": "Event",
+            "fr": "Événement"
+          }
+        },
+        {
+          "key": "available",
+          "type": "number",
+          "label": {
+            "en": "Free spaces",
+            "fr": "Places libres"
+          }
+        },
+        {
+          "key": "capacity",
+          "type": "number",
+          "label": {
+            "en": "Capacity",
+            "fr": "Capacité"
+          }
+        },
+        {
+          "key": "occupancy",
+          "type": "number",
+          "label": {
+            "en": "Occupancy (%)",
+            "fr": "Remplissage (%)"
+          }
+        }
+      ]
+    }
+  ],
+  "scene_actions": [
+    {
+      "key": "get_next_departures",
+      "label": {
+        "en": "Read the next departures",
+        "fr": "Lire les prochains passages"
+      },
+      "timeout_seconds": 60,
+      "fields": [
+        {
+          "key": "stop",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Transit stop",
+            "fr": "Arrêt"
+          },
+          "required": true
+        },
+        {
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Line (empty: any)",
+            "fr": "Ligne (vide : toutes)"
+          },
+          "description": {
+            "en": "Only this line, e.g. T1 or C3.",
+            "fr": "Seulement cette ligne, ex. T1 ou C3."
+          },
+          "placeholder": {
+            "en": "T1",
+            "fr": "T1"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "stop_name",
+          "type": "string",
+          "label": {
+            "en": "Stop",
+            "fr": "Arrêt"
+          }
+        },
+        {
+          "key": "line",
+          "type": "string",
+          "label": {
+            "en": "Line",
+            "fr": "Ligne"
+          }
+        },
+        {
+          "key": "direction",
+          "type": "string",
+          "label": {
+            "en": "Direction",
+            "fr": "Direction"
+          }
+        },
+        {
+          "key": "minutes",
+          "type": "number",
+          "label": {
+            "en": "Minutes to wait",
+            "fr": "Minutes d’attente"
+          }
+        },
+        {
+          "key": "realtime",
+          "type": "boolean",
+          "label": {
+            "en": "Real-time tracked",
+            "fr": "Suivi en temps réel"
+          }
+        },
+        {
+          "key": "departure",
+          "type": "string",
+          "label": {
+            "en": "Next departure",
+            "fr": "Prochain passage"
+          }
+        },
+        {
+          "key": "following_minutes",
+          "type": "number",
+          "label": {
+            "en": "Minutes to the following one",
+            "fr": "Minutes jusqu’au suivant"
+          }
+        },
+        {
+          "key": "summary",
+          "type": "string",
+          "label": {
+            "en": "Departure board",
+            "fr": "Tableau des passages"
+          }
+        },
+        {
+          "key": "count",
+          "type": "number",
+          "label": {
+            "en": "Upcoming departures",
+            "fr": "Passages à venir"
+          }
+        }
+      ]
+    },
+    {
+      "key": "get_velov_station",
+      "label": {
+        "en": "Read a Vélo'v station",
+        "fr": "Lire une station Vélo'v"
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "station",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Vélo'v station",
+            "fr": "Station Vélo'v"
+          },
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "station_name",
+          "type": "string",
+          "label": {
+            "en": "Station",
+            "fr": "Station"
+          }
+        },
+        {
+          "key": "bikes",
+          "type": "number",
+          "label": {
+            "en": "Bikes available",
+            "fr": "Vélos disponibles"
+          }
+        },
+        {
+          "key": "electric_bikes",
+          "type": "number",
+          "label": {
+            "en": "Electric bikes available",
+            "fr": "Vélos électriques disponibles"
+          }
+        },
+        {
+          "key": "docks",
+          "type": "number",
+          "label": {
+            "en": "Docks available",
+            "fr": "Places disponibles"
+          }
+        },
+        {
+          "key": "occupancy",
+          "type": "number",
+          "label": {
+            "en": "Occupancy (%)",
+            "fr": "Remplissage (%)"
+          }
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "label": {
+            "en": "Status",
+            "fr": "État"
+          }
+        }
+      ]
+    },
+    {
+      "key": "get_park_and_ride",
+      "label": {
+        "en": "Read a park & ride",
+        "fr": "Lire un parc relais"
+      },
+      "timeout_seconds": 60,
+      "fields": [
+        {
+          "key": "facility",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Park & ride",
+            "fr": "Parc relais"
+          },
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "facility_name",
+          "type": "string",
+          "label": {
+            "en": "Park & ride",
+            "fr": "Parc relais"
+          }
+        },
+        {
+          "key": "available",
+          "type": "number",
+          "label": {
+            "en": "Free spaces",
+            "fr": "Places libres"
+          }
+        },
+        {
+          "key": "capacity",
+          "type": "number",
+          "label": {
+            "en": "Capacity",
+            "fr": "Capacité"
+          }
+        },
+        {
+          "key": "occupancy",
+          "type": "number",
+          "label": {
+            "en": "Occupancy (%)",
+            "fr": "Remplissage (%)"
+          }
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "label": {
+            "en": "Status",
+            "fr": "État"
+          }
+        }
+      ]
+    }
+  ],
+  "widgets": [
+    {
+      "key": "departures",
+      "label": {
+        "en": "TCL departures",
+        "fr": "Passages TCL"
+      },
+      "description": {
+        "en": "The next departures of a watched stop.",
+        "fr": "Les prochains passages d’un arrêt surveillé."
+      },
+      "icon": "clock",
+      "settings": [
+        {
+          "key": "stop",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Transit stop",
+            "fr": "Arrêt"
+          },
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "velov_station",
+      "label": {
+        "en": "Vélo'v station",
+        "fr": "Station Vélo'v"
+      },
+      "description": {
+        "en": "Bikes, docks and the curve of the day.",
+        "fr": "Vélos, places et la courbe de la journée."
+      },
+      "icon": "map-pin",
+      "settings": [
+        {
+          "key": "station",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Vélo'v station",
+            "fr": "Station Vélo'v"
+          },
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "park_and_ride",
+      "label": {
+        "en": "TCL park & ride",
+        "fr": "Parc relais TCL"
+      },
+      "description": {
+        "en": "Free spaces, fill level and the curve of the day.",
+        "fr": "Places libres, remplissage et la courbe de la journée."
+      },
+      "icon": "grid",
+      "settings": [
+        {
+          "key": "facility",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Park & ride",
+            "fr": "Parc relais"
+          },
+          "required": true
+        }
+      ]
     }
   ]
 }

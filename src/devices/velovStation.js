@@ -157,17 +157,25 @@ export function createVelovStationBlueprint(watched) {
       };
     },
 
-    async onPoll(gladys, config) {
-      const ids = gladys.externalIds(DEVICE_TYPE, watched.id);
+    /**
+     * The live availability of the station, shared by the poll, the
+     * dashboard widget and the scene action.
+     */
+    async read(config) {
       const station = await fetchStationAvailability(config, watched.id);
-
       if (!station) {
-        // Unknown id: say so loudly once per poll rather than publishing
-        // zeroes that would look like a full, empty station.
+        // Unknown id: say so loudly rather than publishing zeroes that would
+        // look like a full, empty station.
         throw new Error(
           `Vélo'v station "${watched.id}" is not in the feed (check the id in the configuration)`,
         );
       }
+      return station;
+    },
+
+    async onPoll(gladys, config) {
+      const ids = gladys.externalIds(DEVICE_TYPE, watched.id);
+      const station = await this.read(config);
 
       logger.info(
         `Vélo'v ${station.name}: ${station.bikes ?? '?'} bike(s), ${station.docks ?? '?'} dock(s)`,
@@ -210,6 +218,7 @@ export function createVelovStationBlueprint(watched) {
       if (updates.length > 0) {
         await publishDeviceStates(gladys, ids.device, updates);
       }
+      return station;
     },
   };
 }

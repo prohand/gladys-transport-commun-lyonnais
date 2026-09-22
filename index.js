@@ -25,6 +25,8 @@ import { startRefreshLoop, stopRefreshLoop } from './src/devices/refreshLoop.js'
 import { clearLayerResolution } from './src/api/grandlyon.js';
 import { clearTclCache } from './src/api/tcl.js';
 import { clearVelovCache } from './src/api/velov.js';
+import { SCENE_ACTIONS } from './src/scenes/actions.js';
+import { WIDGETS } from './src/widgets/index.js';
 
 const gladys = new GladysIntegration();
 
@@ -54,6 +56,25 @@ gladys.onPoll(async (device) => {
 // key; the message resolved by the handler is displayed under the button.
 for (const [actionKey, handler] of Object.entries(ACTIONS)) {
   gladys.onAction(actionKey, (fields) => handler(gladys, { fields, config }));
+}
+
+// --- Scene actions: operations the scene editor offers (Gladys >= 5.1) ------
+// Each action declared in the `scene_actions` field of the manifest is
+// registered by key; the resolved object holds the declared outputs, handed to
+// the following steps of the scene. The scene TRIGGERS need no handler: they
+// are fired from the poll path (see src/scenes/triggers.js).
+for (const [actionKey, handler] of Object.entries(SCENE_ACTIONS)) {
+  gladys.onSceneAction(actionKey, (fields) => handler(gladys, { fields: fields ?? {}, config }));
+}
+
+// --- Dashboard widgets (Gladys >= 5.1) ---------------------------------------
+// Each widget declared in the `widgets` field of the manifest is registered by
+// key; Gladys pulls the content when a dashboard shows it (see
+// src/widgets/index.js).
+for (const [widgetKey, handler] of Object.entries(WIDGETS)) {
+  gladys.onWidgetGet(widgetKey, ({ settings }) =>
+    handler(gladys, { settings: settings ?? {}, config }),
+  );
 }
 
 // --- Configuration updated by the user ---------------------------------------

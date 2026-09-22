@@ -8,6 +8,7 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFakeGladys } from './helpers/fakeGladys.js';
+import { restoreFetch, stubFetch } from './helpers/stubFetch.js';
 import { GLADYS_POLL_FREQUENCIES_MS, normalizeConfig } from '../src/config.js';
 import { buildDiscoveredDevices, findBlueprintByDevice, pollDevice } from '../src/devices/index.js';
 import { clearPollSchedule } from '../src/devices/pollSchedule.js';
@@ -23,6 +24,7 @@ import {
 import { clearTclCache } from '../src/api/tcl.js';
 import { clearVelovCache } from '../src/api/velov.js';
 import { clearLayerResolution } from '../src/api/grandlyon.js';
+import { clearSceneMemory } from '../src/scenes/triggers.js';
 import { ACTIONS } from '../src/devices/index.js';
 
 const CONFIG = normalizeConfig({
@@ -33,39 +35,6 @@ const CONFIG = normalizeConfig({
   park_and_ride: 'PR1:Commute',
   max_departures: 2,
 });
-
-const realFetch = globalThis.fetch;
-
-/**
- * Route every outgoing request to an in-memory payload, keyed by a substring
- * of the URL. Requests to an unmapped URL fail the test loudly.
- * @param {Record<string, unknown>} routes
- */
-function stubFetch(routes) {
-  const calls = [];
-  globalThis.fetch = async (url) => {
-    const href = String(url);
-    calls.push(href);
-    const match = Object.keys(routes).find((fragment) => href.includes(fragment));
-    if (!match) {
-      throw new Error(`Unexpected request: ${href}`);
-    }
-    const payload = routes[match];
-    // A bare number stands for a status code with no body: that is how a
-    // retired dataset answers.
-    const status = typeof payload === 'number' ? payload : 200;
-    // `headers` is not decoration: the Data Grand Lyon client reads the
-    // Location header to follow the platform's redirects itself, so a stub
-    // without headers is not a Response.
-    return {
-      ok: status < 400,
-      status,
-      headers: new Headers(),
-      json: async () => payload,
-    };
-  };
-  return calls;
-}
 
 beforeEach(() => {
   clearPollSchedule();
@@ -78,10 +47,13 @@ beforeEach(() => {
   // Same for what has already been said about an incomplete device: it is said
   // once per device, and the next test is a new device.
   clearPublishReports();
+  // A reading left by the previous test would turn this one's first read into
+  // a transition, and fire scene events nobody asked for.
+  clearSceneMemory();
 });
 
 afterEach(() => {
-  globalThis.fetch = realFetch;
+  restoreFetch();
 });
 
 test('one device is published per configured entry', () => {

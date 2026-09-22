@@ -9,6 +9,7 @@
 //   - publishState / publishStates   -> record calls so tests can assert them
 //   - publishTransports              -> record calls so tests can assert them
 //   - setConnectionStatus            -> record calls so tests can assert them
+//   - publishSceneEvent              -> record calls so tests can assert them
 // This lets us test the pure "wiring" logic (discovery payloads, dispatch)
 // without a running Gladys server or a real WebSocket.
 // -----------------------------------------------------------------------------
@@ -17,11 +18,13 @@ export function createFakeGladys() {
   const published = [];
   const transports = [];
   const connectionStatuses = [];
+  const sceneEvents = [];
 
   return {
     published,
     transports,
     connectionStatuses,
+    sceneEvents,
     // The SDK resynchronizes this list on every connection and keeps it up to
     // date with the device-created/updated/deleted events; tests fill it in
     // with the devices they pretend the user created.
@@ -57,6 +60,10 @@ export function createFakeGladys() {
 
     async setConnectionStatus(connected, message) {
       connectionStatuses.push({ connected, message });
+    },
+
+    async publishSceneEvent(key, data) {
+      sceneEvents.push({ key, data });
     },
   };
 }

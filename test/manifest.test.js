@@ -9,6 +9,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { ACTIONS } from '../src/devices/index.js';
 import { DEFAULT_CONFIG, GLADYS_POLL_FREQUENCIES_MS, gladysPollFrequency } from '../src/config.js';
+import {
+  DEPARTURE_THRESHOLDS,
+  PARK_AND_RIDE_EVENTS,
+  SCENE_TRIGGERS,
+  VELOV_EVENTS,
+} from '../src/scenes/triggers.js';
+import { SCENE_ACTIONS } from '../src/scenes/actions.js';
+import { WIDGETS } from '../src/widgets/index.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -168,6 +176,7 @@ test('every field type is accepted by the store validator', () => {
   const fields = [
     ...manifest.config_schema,
     ...(manifest.actions ?? []).flatMap((action) => action.fields ?? []),
+    ...capabilityFields(),
   ];
   for (const field of fields) {
     assert.ok(
@@ -208,10 +217,161 @@ test('every label and description is translated in English and French', () => {
       texts.push(field.label, field.placeholder);
     }
   }
+  for (const declaration of capabilityDeclarations()) {
+    texts.push(declaration.label, declaration.description);
+    for (const entry of [...(declaration.variables ?? []), ...(declaration.outputs ?? [])]) {
+      texts.push(entry.label);
+    }
+  }
+  for (const field of capabilityFields()) {
+    texts.push(field.label, field.description, field.placeholder);
+    for (const option of field.options ?? []) {
+      texts.push(option.label);
+    }
+  }
   texts.push(manifest.description);
 
   for (const text of texts.filter(Boolean)) {
     assert.ok(text.en, `missing English text in ${JSON.stringify(text)}`);
     assert.ok(text.fr, `missing French text in ${JSON.stringify(text)}`);
+  }
+});
+
+// --- Widgets, scene triggers and scene actions (Gladys >= 5.1.0) -------------
+//
+// The three capability fields of the manifest. The store validator refuses
+// them below Gladys 5.1.0 (an older core rejects any unknown manifest field),
+// bounds their counts and labels, and the scene editor and the dashboard can
+// only call what the code registers: a declaration without a handler is a card
+// that fails, a handler without a declaration is dead code.
+
+/** Every widget, scene trigger and scene action the manifest declares. */
+function capabilityDeclarations() {
+  return [
+    ...(manifest.widgets ?? []),
+    ...(manifest.scene_triggers ?? []),
+    ...(manifest.scene_actions ?? []),
+  ];
+}
+
+/** Every form field of those declarations (widget settings included). */
+function capabilityFields() {
+  return capabilityDeclarations().flatMap((declaration) => [
+    ...(declaration.fields ?? []),
+    ...(declaration.settings ?? []),
+  ]);
+}
+
+// `requestWidgetRefresh` and the widget action keys share this pattern in the
+// SDK; the scene keys follow the config_schema key rule.
+const CAPABILITY_KEY = /^[a-z0-9_]{2,32}$/;
+const SCALAR_TYPES = ['string', 'number', 'boolean'];
+
+test('widgets and scene declarations require Gladys >= 5.1.0', () => {
+  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
+  const [, major, minor] = minVersion.map(Number);
+  assert.ok(
+    major > 5 || (major === 5 && minor >= 1),
+    `widgets and scene declarations require gladys_version >= 5.1.0, got "${manifest.gladys_version}"`,
+  );
+});
+
+test('the capability declarations stay within the store bounds', () => {
+  assert.ok(manifest.widgets.length >= 1 && manifest.widgets.length <= 5);
+  assert.ok(manifest.scene_triggers.length >= 1 && manifest.scene_triggers.length <= 20);
+  assert.ok(manifest.scene_actions.length >= 1 && manifest.scene_actions.length <= 20);
+
+  for (const declaration of capabilityDeclarations()) {
+    assert.match(declaration.key, CAPABILITY_KEY, `"${declaration.key}" is not a valid key`);
+    for (const [lang, text] of Object.entries(declaration.label)) {
+      assert.ok(
+        text.length >= 3 && text.length <= 30,
+        `"${declaration.key}" label.${lang} must be 3-30 characters, got ${text.length}`,
+      );
+    }
+    assert.ok((declaration.fields ?? []).length <= 10, `"${declaration.key}" has too many fields`);
+    assert.ok(
+      (declaration.settings ?? []).length <= 10,
+      `"${declaration.key}" has too many settings`,
+    );
+    for (const entry of [...(declaration.variables ?? []), ...(declaration.outputs ?? [])]) {
+      assert.ok(
+        SCALAR_TYPES.includes(entry.type),
+        `"${declaration.key}.${entry.key}" must be a string, a number or a boolean`,
+      );
+    }
+    assert.ok((declaration.variables ?? []).length <= 20);
+    assert.ok((declaration.outputs ?? []).length <= 20);
+  }
+  for (const action of manifest.scene_actions) {
+    assert.ok(action.timeout_seconds >= 5 && action.timeout_seconds <= 120);
+  }
+});
+
+test('widget settings never hold a secret', () => {
+  // The settings live in the dashboard JSON, which every user of a shared
+  // dashboard can read: the store refuses these types there.
+  for (const widget of manifest.widgets) {
+    for (const setting of widget.settings ?? []) {
+      assert.ok(
+        !['secret', 'oauth2', 'account_link'].includes(setting.type),
+        `widget "${widget.key}" cannot declare a "${setting.type}" setting`,
+      );
+    }
+  }
+});
+
+test('every declared widget has a handler, and vice versa', () => {
+  assert.deepEqual(
+    manifest.widgets.map((widget) => widget.key).sort(),
+    Object.keys(WIDGETS).sort(),
+  );
+});
+
+test('every declared scene action has a handler, and vice versa', () => {
+  assert.deepEqual(
+    manifest.scene_actions.map((action) => action.key).sort(),
+    Object.keys(SCENE_ACTIONS).sort(),
+  );
+});
+
+test('every declared scene trigger is fired by the code, and vice versa', () => {
+  assert.deepEqual(
+    manifest.scene_triggers.map((trigger) => trigger.key).sort(),
+    Object.values(SCENE_TRIGGERS).sort(),
+  );
+});
+
+test('the trigger options are the values the code sends', () => {
+  // The core compares them for equality: an option the code never sends is a
+  // scene that never runs, and the reverse an event no scene can filter on.
+  const optionsOf = (triggerKey, fieldKey) =>
+    manifest.scene_triggers
+      .find((trigger) => trigger.key === triggerKey)
+      .fields.find((field) => field.key === fieldKey)
+      .options.map((option) => option.value);
+
+  assert.deepEqual(
+    optionsOf(SCENE_TRIGGERS.DEPARTURE_APPROACHING, 'threshold'),
+    DEPARTURE_THRESHOLDS.map(String),
+  );
+  assert.deepEqual(
+    optionsOf(SCENE_TRIGGERS.VELOV_STATION_CHANGED, 'event'),
+    Object.values(VELOV_EVENTS),
+  );
+  assert.deepEqual(
+    optionsOf(SCENE_TRIGGERS.PARK_AND_RIDE_CHANGED, 'event'),
+    Object.values(PARK_AND_RIDE_EVENTS),
+  );
+});
+
+test('every device field of a scene or a widget lists the integration devices', () => {
+  // The code resolves these values as device external_ids: a static select
+  // there would hand it something it cannot look up.
+  for (const field of capabilityFields()) {
+    if (['stop', 'station', 'facility'].includes(field.key)) {
+      assert.equal(field.type, 'select');
+      assert.equal(field.source, 'devices', `"${field.key}" must list the created devices`);
+    }
   }
 });
