@@ -176,9 +176,18 @@ export function createTransitStopBlueprint(stop) {
       };
     },
 
+    /**
+     * The upcoming departures of the stop, soonest first, line filter
+     * applied. Shared by the poll, the dashboard widget and the scene action,
+     * so the three always agree on what "the next tram" is.
+     */
+    read(config) {
+      return fetchDepartures(config, stop);
+    },
+
     async onPoll(gladys, config) {
       const ids = gladys.externalIds(DEVICE_TYPE, platformId);
-      const departures = await fetchDepartures(config, stop);
+      const departures = await this.read(config);
 
       logger.info(`Stop ${stop.id}: ${departures.length} departure(s) upcoming`);
 
@@ -211,6 +220,9 @@ export function createTransitStopBlueprint(stop) {
       if (updates.length > 0) {
         await publishDeviceStates(gladys, ids.device, updates);
       }
+      // The whole board, not the published slice: the scene triggers watch
+      // every line of the stop (see src/scenes/triggers.js).
+      return departures;
     },
   };
 }

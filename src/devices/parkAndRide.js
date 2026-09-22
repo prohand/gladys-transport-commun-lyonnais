@@ -172,8 +172,11 @@ export function createParkAndRideBlueprint(watched) {
       };
     },
 
-    async onPoll(gladys, config) {
-      const ids = gladys.externalIds(DEVICE_TYPE, watched.id);
+    /**
+     * The facility as the two park & ride layers describe it, shared by the
+     * poll, the dashboard widget and the scene action.
+     */
+    async read(config) {
       // Whole-layer fetch, shared between every watched facility of the cycle.
       const facilities = await fetchParkAndRideFacilities(config);
       const facility = findParkAndRide(facilities, watched.id);
@@ -190,6 +193,12 @@ export function createParkAndRideBlueprint(watched) {
             `configuration${known ? `; the dataset holds ${known}...` : ''})`,
         );
       }
+      return facility;
+    },
+
+    async onPoll(gladys, config) {
+      const ids = gladys.externalIds(DEVICE_TYPE, watched.id);
+      const facility = await this.read(config);
 
       if (Number.isFinite(facility.available)) {
         logger.info(
@@ -259,6 +268,7 @@ export function createParkAndRideBlueprint(watched) {
       if (updates.length > 0) {
         await publishDeviceStates(gladys, ids.device, updates);
       }
+      return facility;
     },
   };
 }

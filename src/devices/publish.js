@@ -78,7 +78,7 @@ export function clearPublishReports() {
  * @param {string} deviceExternalId
  * @returns {Set<string> | null}
  */
-function createdFeatures(gladys, deviceExternalId) {
+export function createdFeatures(gladys, deviceExternalId) {
   const device = (gladys.devices ?? []).find(
     (candidate) => candidate?.external_id === deviceExternalId,
   );

@@ -10,21 +10,26 @@
 //   - key                        : short identifier, used in logs
 //   - deviceExternalId(gladys)   : the device external_id, used for dispatch
 //   - buildDevice(gladys, config): the discovery payload sent to Gladys
-//   - onPoll(gladys, config)     : periodic read, publishes the states
+//   - read(config)               : one fresh read of the feed, no publication
+//                                  (the widgets and the scene actions use it)
+//   - onPoll(gladys, config)     : periodic read, publishes the states and
+//                                  returns the reading (the scene triggers
+//                                  compare two of them)
 //
 // Nothing here is controllable: TCL data is read-only, so no blueprint
 // implements onSetValue.
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { createTransitStopBlueprint } from './transitStop.js';
-import { createVelovStationBlueprint } from './velovStation.js';
-import { createParkAndRideBlueprint } from './parkAndRide.js';
+import { createTransitStopBlueprint, DEVICE_TYPE as STOP_TYPE } from './transitStop.js';
+import { createVelovStationBlueprint, DEVICE_TYPE as VELOV_TYPE } from './velovStation.js';
+import { createParkAndRideBlueprint, DEVICE_TYPE as PARK_AND_RIDE_TYPE } from './parkAndRide.js';
 import { dueForRead } from './pollSchedule.js';
 import { checkDatasets, listParkAndRideFacilities, searchStops } from '../api/tcl.js';
 import { searchStations } from '../api/velov.js';
 import { GrandLyonError } from '../api/grandlyon.js';
 import { hasGrandLyonCredentials } from '../config.js';
+import { publishSceneEvents } from '../scenes/triggers.js';
 
 const logger = createLogger({ name: 'devices' });
 
@@ -98,7 +103,82 @@ export async function pollDevice(gladys, device, config) {
     logger.debug(`onPoll skipped, ${blueprint.key} was refreshed less than an interval ago`);
     return;
   }
-  await blueprint.onPoll(gladys, config);
+  const reading = await blueprint.onPoll(gladys, config);
+  // The scene triggers ride on the poll rather than on a read of their own:
+  // an event is the difference between two reads, and these are the reads the
+  // configured interval already pays for (see src/scenes/triggers.js).
+  await publishSceneEvents(gladys, blueprint, deviceName(gladys, blueprint, config), reading);
+}
+
+/**
+ * The name the user sees for a device: the one of the created device (the
+ * user may have renamed it in Gladys), else the one it is published with.
+ *
+ * @param {object} gladys
+ * @param {object} blueprint
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @returns {string}
+ */
+export function deviceName(gladys, blueprint, config) {
+  const externalId = blueprint.deviceExternalId(gladys);
+  const created = (gladys.devices ?? []).find((device) => device.external_id === externalId);
+  return created?.name || blueprint.buildDevice(gladys, config).name;
+}
+
+/**
+ * Error raised when a widget or a scene action points at a device this
+ * integration cannot read: nothing chosen, a device whose entry was removed
+ * from the watch lists, or a device of another kind (the `source: "devices"`
+ * selects list every device of the integration, stops, stations and car parks
+ * together). It carries the bilingual explanation the widget displays.
+ */
+export class DeviceSelectionError extends Error {
+  /** @param {{ en: string, fr: string }} userMessage */
+  constructor(userMessage) {
+    super(userMessage.en);
+    this.name = 'DeviceSelectionError';
+    this.userMessage = userMessage;
+  }
+}
+
+const KIND_LABELS = {
+  [STOP_TYPE]: { en: 'a transit stop', fr: 'un arrêt' },
+  [VELOV_TYPE]: { en: "a Vélo'v station", fr: 'une station Vélo’v' },
+  [PARK_AND_RIDE_TYPE]: { en: 'a park & ride', fr: 'un parc relais' },
+};
+
+/**
+ * The blueprint behind the device a widget or a scene action was set up with.
+ *
+ * @param {object} gladys
+ * @param {unknown} deviceExternalId the value of the `source: "devices"` field
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ * @param {string} type the device type the caller reads
+ * @returns {object} the blueprint
+ * @throws {DeviceSelectionError}
+ */
+export function findSelectedBlueprint(gladys, deviceExternalId, config, type) {
+  const kind = KIND_LABELS[type];
+  if (typeof deviceExternalId !== 'string' || deviceExternalId.length === 0) {
+    throw new DeviceSelectionError({
+      en: `Choose ${kind.en} in the settings.`,
+      fr: `Choisissez ${kind.fr} dans les réglages.`,
+    });
+  }
+  const blueprint = findBlueprintByDevice(gladys, { external_id: deviceExternalId }, config);
+  if (!blueprint) {
+    throw new DeviceSelectionError({
+      en: `This device is no longer in the integration configuration: add it back, or choose another one.`,
+      fr: `Cet appareil n’est plus dans la configuration de l’intégration : ajoutez-le à nouveau, ou choisissez-en un autre.`,
+    });
+  }
+  if (blueprint.type !== type) {
+    throw new DeviceSelectionError({
+      en: `This device is ${KIND_LABELS[blueprint.type]?.en ?? 'another kind of device'}: choose ${kind.en}.`,
+      fr: `Cet appareil est ${KIND_LABELS[blueprint.type]?.fr ?? 'd’un autre type'} : choisissez ${kind.fr}.`,
+    });
+  }
+  return blueprint;
 }
 
 /**

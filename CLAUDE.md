@@ -41,6 +41,9 @@ src/devices/refreshLoop.js    the container's own ticker over the created device
 src/devices/transitStop.js    one device per watched stop
 src/devices/velovStation.js   one device per watched Vélo'v station
 src/devices/parkAndRide.js    one device per watched P+R facility
+src/scenes/triggers.js        scene events, computed between two polls of a device
+src/scenes/actions.js         scene actions: a fresh read handed to the scene
+src/widgets/index.js          dashboard widgets: one card per kind of device
 test/                         node:test suites, with a fake Gladys SDK in test/helpers
 docs/en.md, docs/fr.md        user-facing documentation (re-hosted by Gladys)
 gladys-assistant-integration.json   the store manifest
@@ -48,7 +51,8 @@ cover.png                     store cover image (800x534)
 ```
 
 Keep the separation: `index.js` holds no transport logic, `src/api/` only reads
-feeds, `src/devices/` only turns a feed into features.
+feeds, `src/devices/` only turns a feed into features, `src/scenes/` and
+`src/widgets/` only turn a blueprint's `read` into events, outputs and cards.
 
 ## Conventions
 
@@ -288,6 +292,39 @@ minimum : champ obligatoire non renseigné". Every feature therefore declares a
 range — its real gauge bounds when numeric, `TEXT_FEATURE_RANGE`
 (src/devices/featureRange.js, the 0/0 the core's own UI stores) when the state
 is a string.
+
+## Widgets, scene triggers and scene actions
+
+Declared in the manifest (`widgets`, `scene_triggers`, `scene_actions`), which
+forces `gladys_version >= 5.1.0`: an older core rejects any unknown manifest
+field, and the store refuses the declaration below that range. They need SDK
+`>= 0.14.0`.
+
+- **Keys are forever.** A published widget, trigger or action key, and a
+  trigger option value (`threshold`, `event`), is referenced by the users'
+  dashboards and scenes: renaming one silently breaks them. Add, never rename.
+- **Every device field is a `source: "devices"` select** (`stop`, `station`,
+  `facility`): the value is the device external_id, resolved through
+  `findSelectedBlueprint`, which also refuses a device of the wrong kind — the
+  select lists stops, stations and car parks together.
+- **Blueprints expose `read(config)`**: one fresh read, no publication. The
+  widgets and the scene actions use it; they never publish states, because the
+  triggers compare consecutive polls and a read in between would hide a
+  transition.
+- **Triggers ride on the poll.** `pollDevice` hands the reading `onPoll`
+  returns to `publishSceneEvents`, which compares it with the previous one.
+  Nothing fires on the first read after a start, and a missing count is never a
+  transition. The core matches with equality and membership only, so every
+  threshold (the minutes marks, "almost full" at 90 %) is decided in
+  `src/scenes/triggers.js` and sent as a plain value.
+- **Widgets never throw at the dashboard**: a wrong device, a removed entry or a
+  feed that is down render as a card that says so. Every content must pass the
+  SDK's `validateWidgetContent` with no finding (the tests check it): the core
+  otherwise drops or truncates components silently.
+
+`test/manifest.test.js` keeps the declarations and the code in sync (handlers,
+trigger keys, option values), and `test/scenes.test.js` checks that the events
+and the outputs carry every key the manifest declares.
 
 ## Releasing
 

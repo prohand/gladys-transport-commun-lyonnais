@@ -5,7 +5,10 @@ Lyon's public transport network (TCL):
 
 - **Next departures** at the transit stops you watch;
 - **Vélo'v** bike and free-dock availability, in real time;
-- **Park & ride (P+R)** free spaces, in real time.
+- **Park & ride (P+R)** free spaces, in real time;
+- since Gladys 5.1, **dashboard widgets** (a departure board, a Vélo'v card, a
+  park & ride card) and **scene triggers and actions** (a departure
+  approaching, a station running out of bikes, a car park filling up).
 
 Built on the official
 [integration-template-js](https://github.com/GladysAssistant/integration-template-js).
@@ -66,6 +69,9 @@ src/devices/index.js      dynamic registry (devices come from the config) + acti
 src/devices/transitStop.js    one device per watched stop
 src/devices/velovStation.js   one device per watched Vélo'v station
 src/devices/parkAndRide.js    one device per watched P+R facility
+src/scenes/triggers.js    scene events, computed between two polls of a device
+src/scenes/actions.js     scene actions: a fresh read, handed to the scene
+src/widgets/index.js      dashboard widgets: one card per kind of device
 ```
 
 Unlike the template, the device list is **not static**: it is derived from the
