@@ -238,3 +238,20 @@ test('a feed that is down renders as a card saying so', async () => {
   assert.deepEqual(validateWidgetContent(content), []);
   assert.match(textsOf(content)[0].en, /could not be read right now/);
 });
+
+test('a feed slower than the deadline gives a loading card, never a dead one', async () => {
+  const gladys = createFakeGladys();
+  gladys.devices = createdDevices(gladys);
+  // Slower than the deadline, then failing: the card must not wait for either.
+  globalThis.fetch = () =>
+    new Promise((resolve, reject) => setTimeout(() => reject(new Error('timeout')), 100));
+
+  const content = await WIDGETS.departures(
+    gladys,
+    { settings: { stop: gladys.devices[0].external_id }, config: CONFIG },
+    { deadlineMs: 10 },
+  );
+  assert.deepEqual(validateWidgetContent(content), []);
+  assert.equal(content.ttl_seconds, 15);
+  assert.match(textsOf(content)[0].fr, /plus longue que d’habitude/);
+});
