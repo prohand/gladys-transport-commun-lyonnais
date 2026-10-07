@@ -81,6 +81,11 @@ export function clearSceneMemory() {
 
 const isCount = (value) => Number.isFinite(value);
 
+/** The key of a line in one direction, the unit a countdown is followed by. */
+function routeOf(departure) {
+  return `${departure.line}\u0000${departure.direction}`;
+}
+
 /**
  * The soonest departure of each line and direction of a board.
  *
@@ -95,7 +100,7 @@ const isCount = (value) => Number.isFinite(value);
 function soonestByRoute(departures) {
   const byRoute = new Map();
   for (const departure of departures) {
-    const route = `${departure.line}\u0000${departure.direction}`;
+    const route = routeOf(departure);
     const known = byRoute.get(route);
     if (!known || departure.minutes < known.minutes) {
       byRoute.set(route, departure);
@@ -119,15 +124,21 @@ function soonestByRoute(departures) {
  * @returns {{ departure: object, threshold: number }[]}
  */
 export function departureCrossings(previous, current) {
-  const before = soonestByRoute(previous);
   const crossings = [];
   for (const [route, departure] of soonestByRoute(current)) {
-    const was = before.get(route);
-    if (!was) {
+    // Compared with the same vehicle, not with the previous soonest one: the
+    // vehicle at the head of the board may have left in between, and the next
+    // one, read at 7 minutes then at 5, was then compared with the 1 minute of
+    // the one that left — its "5 minutes" never fired. The vehicle it most
+    // likely was is the closest one that was not already nearer.
+    const was = previous
+      .filter((candidate) => routeOf(candidate) === route && candidate.minutes >= departure.minutes)
+      .reduce((closest, candidate) => Math.min(closest, candidate.minutes), Infinity);
+    if (!Number.isFinite(was)) {
       continue;
     }
     for (const threshold of DEPARTURE_THRESHOLDS) {
-      if (was.minutes > threshold && departure.minutes <= threshold) {
+      if (was > threshold && departure.minutes <= threshold) {
         crossings.push({ departure, threshold });
       }
     }

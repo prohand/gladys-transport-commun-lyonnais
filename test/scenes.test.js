@@ -132,6 +132,20 @@ test('the next vehicle taking the place of the one that left is not an approach'
   assert.deepEqual(crossings, []);
 });
 
+test('the next vehicle crossing a mark as the one ahead leaves still fires', () => {
+  // Read every two minutes: the tram at 1 min leaves, the next one goes from 7
+  // to 5. It was compared with the 1 minute of the one that left, and its
+  // "5 minutes" never fired.
+  const crossings = departureCrossings(
+    [departure('T1', 'IUT Feyssine', 1), departure('T1', 'IUT Feyssine', 7)],
+    [departure('T1', 'IUT Feyssine', 5), departure('T1', 'IUT Feyssine', 11)],
+  );
+  assert.deepEqual(
+    crossings.map(({ threshold }) => threshold),
+    [5],
+  );
+});
+
 test('each line and direction of a stop is followed on its own', () => {
   const crossings = departureCrossings(
     [departure('T1', 'IUT Feyssine', 4), departure('T1', 'Debourg', 3)],
