@@ -57,7 +57,7 @@ jobs:
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # `permission_denied: write_package` here does NOT mean the workflow asks
       # for too little: the job already runs with `packages: write`, and the run
