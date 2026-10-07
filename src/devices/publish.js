@@ -206,6 +206,25 @@ async function flagDevice(gladys, deviceExternalId, missingKeys) {
 }
 
 /**
+ * Send a batch, and forget it from the state cache when it did not leave.
+ *
+ * `changedStates` records a value as published when it selects it, before the
+ * request: a batch Gladys refused (restarting, rate limited, a timeout) would
+ * otherwise be taken for delivered, and a value that does not move — a car
+ * park full all afternoon — would not be sent again for fifteen minutes.
+ * @param {object} gladys
+ * @param {{ device_feature_external_id: string }[]} states
+ */
+async function sendStates(gladys, states) {
+  try {
+    await gladys.publishStates(states);
+  } catch (err) {
+    forgetStates(states);
+    throw err;
+  }
+}
+
+/**
  * Publish the states of one device, keeping the ones Gladys can store.
  *
  * @param {object} gladys
@@ -222,7 +241,7 @@ export async function publishDeviceStates(gladys, deviceExternalId, states) {
     // Nothing known about this device: publishing everything is what the
     // integration did before this module existed, and it is the right answer
     // for a device the SDK simply has not listed yet.
-    await gladys.publishStates(states);
+    await sendStates(gladys, states);
     return;
   }
 
@@ -230,7 +249,7 @@ export async function publishDeviceStates(gladys, deviceExternalId, states) {
   const orphans = states.filter((state) => !features.has(state.device_feature_external_id));
 
   if (publishable.length > 0) {
-    await gladys.publishStates(publishable);
+    await sendStates(gladys, publishable);
     // What actually reached Gladys, which is the one thing the logs did not
     // say when a device stayed empty: `LOG_LEVEL=debug` now answers "was this
     // value published at all" without having to reason about the feed.

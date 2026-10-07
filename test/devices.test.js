@@ -429,6 +429,29 @@ test('polling an unknown Vélo’v station fails loudly instead of publishing ze
   assert.equal(gladys.published.length, 0);
 });
 
+test('a board Gladys refused is sent again on the next poll', async () => {
+  // The state cache must not take a refused request for a delivered one, or a
+  // value that does not move would only be sent again fifteen minutes later.
+  const gladys = createFakeGladys();
+  stubFetch({
+    tclpassagearret: {
+      values: [{ ligne: 'T1', direction: 'IUT Feyssine', delaipassage: '7 min', type: 'E' }],
+    },
+  });
+  const [device] = buildDiscoveredDevices(gladys, CONFIG);
+  const blueprint = findBlueprintByDevice(gladys, device, CONFIG);
+
+  const publishStates = gladys.publishStates;
+  gladys.publishStates = async () => {
+    throw new Error('HTTP 429');
+  };
+  await assert.rejects(blueprint.onPoll(gladys, CONFIG), /429/);
+  gladys.publishStates = publishStates;
+
+  await blueprint.onPoll(gladys, CONFIG);
+  assert.ok(gladys.published.length > 0, 'the unchanged board goes out once Gladys accepts it');
+});
+
 test('polling a park & ride publishes free spaces and occupancy', async () => {
   const gladys = createFakeGladys();
   stubFetch({

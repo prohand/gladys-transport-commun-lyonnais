@@ -56,6 +56,30 @@ export const WIDGET_KEYS = {
 
 // How long the core may serve a card before pulling it again. A countdown is
 // stale after half a minute; a car park moves over minutes.
+// The core waits 15 s for a widget, then shows "data unavailable" and never
+// retries until the dashboard is reloaded — and one Data Grand Lyon request is
+// allowed 15 s on its own. Past this deadline the card says it is loading, and
+// the read keeps going: the feeds cache it, so the re-pull 15 s later finds it.
+export const PULL_DEADLINE_MS = 9000;
+const LOADING_TTL_SECONDS = 15;
+
+/**
+ * Settle with the promise, or with null once the deadline passed.
+ * @param {Promise<object>} promise
+ * @param {number} deadlineMs
+ * @returns {Promise<object|null>}
+ */
+function withDeadline(promise, deadlineMs) {
+  // A failure after the deadline must not be left unhandled.
+  promise.catch((err) => logger.debug(`Widget read failed after the deadline: ${err.message}`));
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(null), deadlineMs);
+    timer.unref?.();
+  });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
+
 const TTL_SECONDS = {
   [WIDGET_KEYS.DEPARTURES]: 30,
   [WIDGET_KEYS.VELOV_STATION]: 60,
@@ -368,9 +392,18 @@ const RAW_WIDGETS = {
 export const WIDGETS = Object.fromEntries(
   Object.entries(RAW_WIDGETS).map(([key, handler]) => [
     key,
-    async (gladys, context) => {
+    async (gladys, context, { deadlineMs = PULL_DEADLINE_MS } = {}) => {
       try {
-        return await handler(gladys, context);
+        const read = handler(gladys, context);
+        const content = await withDeadline(read, deadlineMs);
+        if (content === null) {
+          logger.info(`Widget ${key}: no answer within ${deadlineMs} ms, serving a loading card`);
+          return messageContent(LOADING_TTL_SECONDS, {
+            en: 'Reading the data, this takes longer than usual…',
+            fr: 'Lecture des données, plus longue que d’habitude…',
+          });
+        }
+        return content;
       } catch (err) {
         if (err instanceof DeviceSelectionError) {
           return messageContent(TTL_SECONDS[key], err.userMessage);
