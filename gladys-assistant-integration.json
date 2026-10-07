@@ -6,8 +6,8 @@
     "en": "Next TCL departures, Vélo'v availability and park & ride occupancy in Lyon.",
     "fr": "Prochains passages TCL, disponibilités Vélo'v et places en parcs relais à Lyon."
   },
-  "version": "2.1.1",
-  "docker_image": "ghcr.io/prohand/gladys-transport-commun-lyonnais:2.1.1",
+  "version": "2.2.0",
+  "docker_image": "ghcr.io/prohand/gladys-transport-commun-lyonnais:2.2.0",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-transport-commun-lyonnais/main/cover.png",
   "categories": ["environment"],
