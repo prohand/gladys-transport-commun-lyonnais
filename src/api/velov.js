@@ -107,7 +107,10 @@ async function fetchFeedIndex(gbfsUrl) {
       return byName;
     })
     .catch((err) => {
-      indexCache = null;
+      // Only this read: a newer one may already have taken its place.
+      if (indexCache?.promise === promise) {
+        indexCache = null;
+      }
       throw err;
     });
 
@@ -218,7 +221,10 @@ export function fetchStationInformation(config) {
   const promise = resolveFeedUrl(url, 'station_information')
     .then((feedUrl) => fetchStationMap(feedUrl, normalizeStationInformation))
     .catch((err) => {
-      informationCache = null;
+      // Only this read: a newer one may already have taken its place.
+      if (informationCache?.promise === promise) {
+        informationCache = null;
+      }
       throw err;
     });
 
@@ -240,7 +246,10 @@ export function fetchStationStatus(config) {
   const promise = resolveFeedUrl(url, 'station_status')
     .then((feedUrl) => fetchStationMap(feedUrl, normalizeStationStatus))
     .catch((err) => {
-      statusCache = null;
+      // Only this read: a newer one may already have taken its place.
+      if (statusCache?.promise === promise) {
+        statusCache = null;
+      }
       throw err;
     });
 
