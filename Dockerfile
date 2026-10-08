@@ -17,7 +17,9 @@ WORKDIR /app
 
 # Install the PROD dependencies first (better build cache).
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev || npm install --omit=dev
+# `npm ci` alone: an install that ignores the lockfile would ship versions
+# nobody tested. The cache is dropped in the same layer, it is dead weight.
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Then the integration code.
 COPY index.js ./
