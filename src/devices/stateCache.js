@@ -93,6 +93,27 @@ export function forgetStates(states) {
 }
 
 /**
+ * Forget every published value of one device, so its next read publishes it
+ * whole.
+ *
+ * The belief this cache holds is wrong for a device that was just created:
+ * whatever was "published" under its external_id before — the same device
+ * deleted and added again, or states sent while it only sat in the Discovery
+ * screen — was dropped by Gladys, and the unchanged values would otherwise
+ * stay away for up to REPUBLISH_AFTER_MS.
+ *
+ * @param {string} deviceExternalId
+ */
+export function forgetDeviceStates(deviceExternalId) {
+  const prefix = `${deviceExternalId}:`;
+  for (const key of published.keys()) {
+    if (key.startsWith(prefix)) {
+      published.delete(key);
+    }
+  }
+}
+
+/**
  * Forget every published value (configuration change, reconnection, tests).
  *
  * A reconnection is the moment the assumption behind this cache is the least

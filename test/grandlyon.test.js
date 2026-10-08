@@ -439,3 +439,56 @@ test('a request that runs out of time says so, and says retrying is worth it', a
     },
   );
 });
+
+test('a response nobody reads is released, so its connection goes back to the pool', async (t) => {
+  clearLayerResolution();
+  const realFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = realFetch;
+  });
+  const responses = [];
+  const respond = (status, { location, payload } = {}) => {
+    const response = {
+      status,
+      ok: status >= 200 && status < 300,
+      headers: new Headers(location ? { location } : {}),
+      cancelled: false,
+      body: {
+        cancel: async () => {
+          response.cancelled = true;
+        },
+      },
+      json: async () => payload,
+    };
+    responses.push(response);
+    return response;
+  };
+  // The portal redirects, the first layer name is gone, the second answers.
+  const script = [
+    () => respond(302, { location: 'http://127.0.0.1:1/ws/rdata/tcl_sytral.a/all.json' }),
+    () => respond(404),
+    () => respond(200, { payload: { values: [{ id: '1' }] } }),
+  ];
+  globalThis.fetch = async () => script.shift()();
+
+  const values = await fetchLayer(configFor('http://127.0.0.1:1/ws/rdata'), [
+    'tcl_sytral.a',
+    'tcl_sytral.b',
+  ]);
+
+  assert.deepEqual(values, [{ id: '1' }]);
+  assert.deepEqual(
+    responses.map((response) => [response.status, response.cancelled]),
+    [
+      [302, true],
+      [404, true],
+      [200, false],
+    ],
+  );
+
+  // A refused account is released too.
+  clearLayerResolution();
+  globalThis.fetch = async () => respond(401);
+  await assert.rejects(fetchLayer(configFor('http://127.0.0.1:1/ws/rdata'), 'tcl_sytral.a'));
+  assert.equal(responses.at(-1).cancelled, true);
+});

@@ -14,6 +14,7 @@ import { clearLayerResolution } from '../src/api/grandlyon.js';
 import {
   checkDatasets,
   clearTclCache,
+  DEPARTURES_MAX_FEATURES,
   fetchDepartures,
   findParkAndRide,
   fetchParkAndRideFacilities,
@@ -240,6 +241,42 @@ test('departures are kept for the stop that was asked for', async (t) => {
   assert.equal(belongsToStop({ ligne: 'T1' }, '1001'), true, 'a filtered answer carries no id');
 });
 
+test('a departures read is capped, and a filter the service ignored is reported', async (t) => {
+  clearLayerResolution();
+  clearTclCache();
+  const now = new Date('2026-08-23T10:00:00Z');
+  const asked = [];
+  const { baseUrl, close } = await startServer((req, res) => {
+    asked.push(new URL(req.url, 'http://localhost'));
+    if (!req.url.startsWith('/ws/rdata/tcl_sytral.tclpassagearret_2_0_0/')) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    sendJson(res, {
+      values: [
+        { id: '1001', ligne: 'T1', direction: 'IUT', heurepassage: '2026-08-23T10:04:00Z' },
+        { id: '9999', ligne: 'C3', direction: 'Vaulx', heurepassage: '2026-08-23T10:01:00Z' },
+      ],
+    });
+  });
+  t.after(close);
+  const warnings = [];
+  t.mock.method(console, 'error', (...args) => warnings.push(args.join(' ')));
+
+  const config = configFor(`${baseUrl}/ws/rdata`);
+  await fetchDepartures(config, { id: '1001', lines: [] }, now);
+  await fetchDepartures(config, { id: '1001', lines: [] }, now);
+
+  // Without the cap, a service that drops the filter hands back the whole
+  // network on every poll.
+  assert.equal(asked[0].searchParams.get('maxfeatures'), String(DEPARTURES_MAX_FEATURES));
+  assert.ok(DEPARTURES_MAX_FEATURES > 0);
+  const reports = warnings.filter((line) => line.includes('ignore the stop filter'));
+  assert.equal(reports.length, 1, 'said once per stop, not on every poll');
+  assert.match(reports[0], /Stop 1001: .*2 record\(s\), 1 of them about other stops/);
+});
+
 test('a departure is matched on any of the columns naming its stop', () => {
   // The departures layer carries both a passage id and a stop id. Reading only
   // the first column that is present threw away every record of a stop whose
@@ -440,6 +477,51 @@ test('a park & ride read that fails on both layers is an error, not an empty lis
   t.after(close);
 
   await assert.rejects(listParkAndRideFacilities(configFor(`${baseUrl}/ws/rdata`)), /HTTP 500/);
+});
+
+test('a late failure does not throw away the park & ride read that replaced it', async (t) => {
+  clearLayerResolution();
+  clearTclCache();
+  let now = 1_000_000;
+  t.mock.method(Date, 'now', () => now);
+  // The first cycle's requests hang, then fail; the next cycle's succeed.
+  let failing = true;
+  const held = [];
+  const asked = [];
+  const { baseUrl, close } = await startServer((req, res) => {
+    asked.push(req.url);
+    if (failing) {
+      held.push(res);
+      return;
+    }
+    const isRealtime = req.url.includes('tclparcrelaistr');
+    const values = isRealtime ? PARK_AND_RIDE_REALTIME : PARK_AND_RIDE_STATIC;
+    sendJson(res, { nb_results: values.length, values });
+  });
+  t.after(close);
+  const config = configFor(`${baseUrl}/ws/rdata`);
+
+  const stale = listParkAndRideFacilities(config);
+  stale.catch(() => {});
+  while (held.length < 2) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+
+  // The cache entry expires while the first read is still hanging.
+  now += 60_000;
+  failing = false;
+  const fresh = listParkAndRideFacilities(config);
+  await fresh;
+  const requestsSoFar = asked.length;
+
+  for (const res of held) {
+    res.writeHead(500);
+    res.end();
+  }
+  await assert.rejects(stale, /HTTP 500/);
+
+  assert.equal(listParkAndRideFacilities(config), fresh, 'the newer read is still the cached one');
+  assert.equal(asked.length, requestsSoFar, 'and nothing was read again');
 });
 
 test('a count is read from the column name when its spelling is unknown', () => {

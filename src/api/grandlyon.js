@@ -87,6 +87,26 @@ const MAX_REDIRECTS = 3;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 /**
+ * Let go of a response whose body nobody is going to read.
+ *
+ * Under undici (Node's `fetch`), a body left unconsumed keeps its connection
+ * out of the pool until the garbage collector gets to it: every redirect
+ * followed, every 404 of a layer name that moved and every refused request
+ * would hold a socket for nothing — at the pace of a poll every 30 seconds.
+ * Cancelling it hands the connection back at once. A failure to cancel
+ * changes nothing for the caller, who is about to follow or throw anyway.
+ *
+ * @param {Response} response
+ */
+async function discardBody(response) {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Already consumed, or the stream is gone: nothing left to release.
+  }
+}
+
+/**
  * Whether we accept to replay the Basic credentials on a redirect target.
  *
  * The rule we are working around exists for a good reason — credentials must
@@ -376,6 +396,8 @@ async function getWithBasicAuth(url, credentials, layer, timeoutMs = REQUEST_TIM
     if (!REDIRECT_STATUSES.has(response.status) || !location) {
       return response;
     }
+    // A redirect's body is a courtesy page: it is never read.
+    await discardBody(response);
 
     if (hop >= MAX_REDIRECTS) {
       throw new GrandLyonError(`Data Grand Lyon redirects in a loop (${current})`, { layer });
@@ -513,6 +535,7 @@ export async function fetchLayer(
     const response = await getWithBasicAuth(url, credentials, layer, timeoutMs);
 
     if (response.status === 401 || response.status === 403) {
+      await discardBody(response);
       throw new GrandLyonError(
         `Data Grand Lyon refused the credentials (HTTP ${response.status})`,
         {
@@ -525,11 +548,13 @@ export async function fetchLayer(
     if (response.status === 404) {
       // This spelling is gone (or never existed on this namespace): try the
       // next one rather than reporting a status code the user cannot act on.
+      await discardBody(response);
       logger.debug(`No layer ${layer} under ${baseUrl}, trying the next candidate`);
       resolvedLayers.delete(cacheKey);
       continue;
     }
     if (!response.ok) {
+      await discardBody(response);
       throw new GrandLyonError(`Data Grand Lyon answered HTTP ${response.status}`, {
         status: response.status,
         layer,
@@ -736,6 +761,7 @@ function listPublishedLayers(baseUrl, credentials) {
       BULK_TIMEOUT_MS,
     );
     if (!response.ok) {
+      await discardBody(response);
       throw new GrandLyonError(`Data Grand Lyon catalogue answered HTTP ${response.status}`, {
         status: response.status,
         layer: 'catalogue',
@@ -761,7 +787,10 @@ function listPublishedLayers(baseUrl, credentials) {
   })().catch((err) => {
     // Never cache a failure: the catalogue is read when something is already
     // wrong, and the next attempt must not inherit this one.
-    publishedLayers.delete(baseUrl);
+    // Only this read, though: a newer one may already have replaced it.
+    if (publishedLayers.get(baseUrl)?.promise === promise) {
+      publishedLayers.delete(baseUrl);
+    }
     throw err;
   });
 

@@ -12,10 +12,11 @@ import { validateWidgetContent } from '@gladysassistant/integration-sdk';
 import { createFakeGladys } from './helpers/fakeGladys.js';
 import { restoreFetch, stubFetch } from './helpers/stubFetch.js';
 import { normalizeConfig } from '../src/config.js';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
+import { buildBlueprints, buildDiscoveredDevices } from '../src/devices/index.js';
 import { clearTclCache } from '../src/api/tcl.js';
 import { clearVelovCache } from '../src/api/velov.js';
 import { clearLayerResolution } from '../src/api/grandlyon.js';
+import { clearReadings, recordReading } from '../src/devices/readings.js';
 import {
   departuresContent,
   parkAndRideContent,
@@ -35,6 +36,7 @@ beforeEach(() => {
   clearTclCache();
   clearVelovCache();
   clearLayerResolution();
+  clearReadings();
 });
 
 afterEach(() => {
@@ -254,4 +256,57 @@ test('a feed slower than the deadline gives a loading card, never a dead one', a
   assert.deepEqual(validateWidgetContent(content), []);
   assert.equal(content.ttl_seconds, 15);
   assert.match(textsOf(content)[0].fr, /plus longue que d’habitude/);
+});
+
+test('a widget reuses the reading of the last poll while it is fresh', async () => {
+  const gladys = createFakeGladys();
+  gladys.devices = createdDevices(gladys);
+  const calls = stubFetch({
+    tclpassagearret: {
+      values: [{ ligne: 'T1', direction: 'IUT Feyssine', delaipassage: '9 min', type: 'E' }],
+    },
+  });
+  const stop = buildBlueprints(CONFIG)[0];
+  // What the poll read a moment ago.
+  recordReading(stop.key, [{ line: 'T1', direction: 'IUT Feyssine', minutes: 4, realtime: true }]);
+
+  const content = await WIDGETS.departures(gladys, {
+    settings: { stop: gladys.devices[0].external_id },
+    config: CONFIG,
+  });
+  assert.equal(content.components.find((component) => component.type === 'value').value, 4);
+  assert.equal(calls.length, 0, 'the poll already paid for this read');
+
+  // Older than the card may be: read again.
+  recordReading(stop.key, [], Date.now() - 31_000);
+  const fresh = await WIDGETS.departures(gladys, {
+    settings: { stop: gladys.devices[0].external_id },
+    config: CONFIG,
+  });
+  assert.equal(fresh.components.find((component) => component.type === 'value').value, 9);
+  assert.equal(calls.length, 1);
+});
+
+test('widgets pulled at the same moment share one read', async () => {
+  const gladys = createFakeGladys();
+  gladys.devices = createdDevices(gladys);
+  const calls = stubFetch({
+    tclpassagearret: {
+      values: [{ ligne: 'T1', direction: 'IUT Feyssine', delaipassage: '4 min', type: 'E' }],
+    },
+  });
+  const context = { settings: { stop: gladys.devices[0].external_id }, config: CONFIG };
+
+  const contents = await Promise.all([
+    WIDGETS.departures(gladys, context),
+    WIDGETS.departures(gladys, context),
+    WIDGETS.departures(gladys, context),
+  ]);
+  assert.equal(calls.length, 1);
+  for (const content of contents) {
+    assert.deepEqual(validateWidgetContent(content), []);
+  }
+  // And the next pull, within the card's lifetime, reads nothing at all.
+  await WIDGETS.departures(gladys, context);
+  assert.equal(calls.length, 1);
 });

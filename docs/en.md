@@ -163,7 +163,8 @@ honored by the integration, which simply skips the ticks in between.
 
 The integration also batches its requests: watching ten Vélo'v stations costs
 two HTTP requests per cycle, not twenty, and watching five park & ride
-facilities costs two.
+facilities costs two. A read that fails (the platform timed out, the network
+dropped) is tried again a minute later rather than after the whole interval.
 
 **What it stores.** A fast refresh interval is a fast-growing database if every
 reading is written down, so the integration only sends Gladys the values that
@@ -202,6 +203,11 @@ On the board, a green dot is a departure tracked in real time and a grey dot
 (with the `~` prefix) a timetable estimate. A widget set up with a device of
 the wrong kind — a Vélo'v station in the departures widget — says so instead of
 staying empty.
+
+A widget shows the device's last reading while it is fresher than the card
+itself (30 s for departures, 60 s for Vélo'v, 120 s for park & ride), and the
+widgets opened at the same moment share one read: a dashboard left open on
+several screens does not multiply the requests to Data Grand Lyon.
 
 ### Scene triggers
 
@@ -319,8 +325,8 @@ thin feed. The integration now says so instead: the device carries an orange
 dot in the device list, whose tooltip names what is missing, and the logs spell
 it out once (`… does not have the feature(s) capacity, status in Gladys …`).
 The fix is in the **Discovery** screen: press **Update** on the device (
-deleting it and adding it again works too), and the values arrive on the next
-read.
+deleting it and adding it again works too), and the device is read again at
+once.
 
 **A device I added stays empty** — features showing no value at all mean the
 device is never read. Older versions published their devices without the flag

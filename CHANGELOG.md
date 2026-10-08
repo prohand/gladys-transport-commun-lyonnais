@@ -6,9 +6,46 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Departure countdowns were one or two hours too long: the passage times the
+  departures layer publishes carry no time zone and were read in the
+  container's (UTC). They are now read as Lyon time, daylight-saving changes
+  included; a time that carries its own offset is read as it says.
+- A device added (or updated from the Discovery screen) is read at once and its
+  values published whole, instead of waiting up to fifteen minutes for the ones
+  that did not change.
+- A read that fails is tried again a minute later instead of after the whole
+  refresh interval (five minutes for a park & ride).
+- A slow read that failed late no longer threw away the newer cached read that
+  had replaced it (park & ride, stop directory, Vélo'v feeds).
+- The responses that are never read (redirects, refused account, retired layer
+  names) are released at once instead of holding a connection.
+
+### Changed
+
+- The departures reads are capped at 200 records, and a warning is logged when
+  the platform answers about other stops than the one asked for.
+- The dashboard widgets reuse the last reading of the device while it is fresh,
+  and widgets pulled at the same moment share one read.
+- Node.js 22 or later is required (the image ships Node 24).
+- An unexpected promise rejection is logged instead of stopping the container.
+
 ## [2.2.0] - 2026-10-07
 
-- Maintenance release, no functional change.
+### Fixed
+
+- A batch of states Gladys refused is sent again on the next poll, instead of
+  being taken for delivered for fifteen minutes.
+- The "departure in N minutes" trigger follows the same vehicle between two
+  reads, so it no longer misses a departure when the one ahead of it has left.
+- A widget answers before the core gives up on it: past 9 s it shows a loading
+  card and the read completes in the background.
+
+### Changed
+
+- Continuous integration runs the store admission checks on pull requests, and
+  Dependabot keeps the dependencies and actions up to date.
 
 ## [2.1.1] - 2026-10-06
 

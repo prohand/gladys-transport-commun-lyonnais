@@ -151,12 +151,117 @@ export function foldName(value) {
     .trim();
 }
 
+// The network's own time zone: a passage time written without an offset is a
+// wall-clock time in Lyon, whatever the time zone of the container reading it.
+const NETWORK_TIME_ZONE = 'Europe/Paris';
+
+// `2026-10-08 14:05:00`, `2026-10-08T14:05`, `2026-10-08T14:05:00.000+02:00`,
+// `...Z`: a date, a time, and an optional offset. Anything else is left to
+// `Date` as before.
+const PASSAGE_TIME =
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:[.,](\d{1,3})\d*)?)?\s*(Z|[+-]\d{2}(?::?\d{2})?)?$/i;
+
+const networkClock = new Intl.DateTimeFormat('en-US', {
+  timeZone: NETWORK_TIME_ZONE,
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
+
+/**
+ * How far ahead of UTC Lyon is at one instant, in milliseconds.
+ * @param {number} instant
+ * @returns {number}
+ */
+function networkOffsetMs(instant) {
+  const parts = Object.fromEntries(
+    networkClock.formatToParts(new Date(instant)).map((part) => [part.type, part.value]),
+  );
+  const wallClock = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second),
+  );
+  return wallClock - (instant - (((instant % 1000) + 1000) % 1000));
+}
+
+/**
+ * Read a passage time as an instant.
+ *
+ * The departures layer declares `heurepassage` as a `timestamp` WITHOUT a time
+ * zone: the value is Lyon's wall clock. `new Date('2026-10-08 14:05:00')`
+ * reads such a string in the time zone of the process, and the container runs
+ * in UTC — every countdown was then two hours too long in summer, one in
+ * winter, and a tram due in 5 minutes read "125 min". A string that carries
+ * its own offset (`Z`, `+02:00`) is read as it says; one that does not is read
+ * in Europe/Paris, through `Intl` (no date library).
+ *
+ * Lyon is UTC+1 or UTC+2, so a wall-clock time is one of two instants. Around
+ * the autumn change both are real (02:30 happens twice): the one nearest to
+ * `now` wins, since an upcoming departure is never an hour away from its own
+ * board. In the spring gap neither is (02:30 never happens): the time is read
+ * in winter time, i.e. 03:30 summer time, the clock a timetable would follow.
+ *
+ * @param {string} value
+ * @param {Date} [now] tie-breaker for the ambiguous autumn hour
+ * @returns {Date | null}
+ */
+export function parsePassageTime(value, now = new Date()) {
+  const text = String(value).trim();
+  const match = text.match(PASSAGE_TIME);
+  if (!match) {
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const [, year, month, day, hour, minute, second = '0', fraction = '0', offset] = match;
+  const wallClock = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+    Number(fraction.padEnd(3, '0')),
+  );
+  if (Number.isNaN(wallClock)) {
+    return null;
+  }
+
+  if (offset) {
+    if (offset.toUpperCase() === 'Z') {
+      return new Date(wallClock);
+    }
+    const sign = offset.startsWith('-') ? -1 : 1;
+    const digits = offset.slice(1).replace(':', '');
+    const minutes = Number(digits.slice(0, 2)) * 60 + Number(digits.slice(2) || 0);
+    return new Date(wallClock - sign * minutes * 60_000);
+  }
+
+  const candidates = [60, 120]
+    .map((minutes) => wallClock - minutes * 60_000)
+    .filter((instant) => instant + networkOffsetMs(instant) === wallClock);
+  if (candidates.length === 0) {
+    return new Date(wallClock - 60 * 60_000);
+  }
+  candidates.sort((a, b) => Math.abs(a - now.getTime()) - Math.abs(b - now.getTime()) || a - b);
+  return new Date(candidates[0]);
+}
+
 /**
  * Convert an upcoming passage into "minutes from now".
  *
- * `heurepassage` is the authoritative field (an ISO timestamp); `delaipassage`
- * is a display string the operator also sends ("3 min", "Proche"). We prefer
- * the timestamp and fall back on parsing the label.
+ * `heurepassage` is the authoritative field (a timestamp, Lyon's wall clock
+ * unless it says otherwise: see `parsePassageTime`); `delaipassage` is a
+ * display string the operator also sends ("3 min", "Proche"). We prefer the
+ * timestamp and fall back on parsing the label.
  *
  * @param {Record<string, unknown>} record one raw passage record
  * @param {Date} [now] injectable clock, for tests
@@ -165,8 +270,8 @@ export function foldName(value) {
 export function minutesUntilPassage(record, now = new Date()) {
   const timestamp = pickString(record, ['heurepassage', 'heure_passage', 'expectedtime']);
   if (timestamp) {
-    const passage = new Date(timestamp);
-    if (!Number.isNaN(passage.getTime())) {
+    const passage = parsePassageTime(timestamp, now);
+    if (passage) {
       return Math.max(0, Math.round((passage.getTime() - now.getTime()) / 60_000));
     }
   }
@@ -203,6 +308,41 @@ export function normalizePassage(record, now = new Date()) {
   };
 }
 
+// The most records a filtered departures read may bring back. One stop point
+// has a few dozen upcoming passages at the busiest hour; the cap only matters
+// the day the service ignores the filter again, when it is the difference
+// between a page of the board and the whole network (~24,000 records) every
+// 30 seconds.
+export const DEPARTURES_MAX_FEATURES = 200;
+
+/** Stops whose ignored filter has already been reported, so it is said once. */
+const ignoredFilterReported = new Set();
+
+/**
+ * Say it when a filtered departures read answers about other stops.
+ *
+ * The records are re-checked anyway, so the board stays right; what goes
+ * wrong is the cost — a service that drops the filter hands back a page of
+ * the whole network instead of one stop, and the stop's own passages may not
+ * even be on that page. That is a regression of the platform worth reporting,
+ * not something to absorb in silence.
+ *
+ * @param {string} stopId
+ * @param {number} received records the service sent
+ * @param {number} kept records that belong to the stop
+ */
+function warnAboutIgnoredFilter(stopId, received, kept) {
+  if (kept === received || ignoredFilterReported.has(stopId)) {
+    return;
+  }
+  ignoredFilterReported.add(stopId);
+  logger.warn(
+    `Stop ${stopId}: the departures service answered ${received} record(s), ` +
+      `${received - kept} of them about other stops — it seems to ignore the stop filter ` +
+      `(the read is capped at ${DEPARTURES_MAX_FEATURES} records), please report it`,
+  );
+}
+
 /**
  * Fetch the upcoming departures at one stop point, soonest first.
  *
@@ -220,13 +360,16 @@ export async function fetchDepartures(config, stop, now = new Date()) {
   // spellings the service does document.
   const values = await fetchLayer(config, DEPARTURES_LAYERS, {
     params: equalityParams('id', stop.id),
+    maxFeatures: DEPARTURES_MAX_FEATURES,
   });
 
-  const departures = values
-    // A service that ignored the filter would otherwise answer about every
-    // stop of the network, so the stop is checked here too: a record with no
-    // readable stop id can only come from a filtered answer, and is kept.
-    .filter((record) => belongsToStop(record, stop.id))
+  // A service that ignored the filter would otherwise answer about every
+  // stop of the network, so the stop is checked here too: a record with no
+  // readable stop id can only come from a filtered answer, and is kept.
+  const ours = values.filter((record) => belongsToStop(record, stop.id));
+  warnAboutIgnoredFilter(stop.id, values.length, ours.length);
+
+  const departures = ours
     .map((record) => normalizePassage(record, now))
     .filter((departure) => departure.minutes !== null);
 
@@ -572,8 +715,12 @@ export function listParkAndRideFacilities(config) {
   }
 
   const promise = loadParkAndRideFacilities(config).catch((err) => {
-    // Never cache a failure: the next poll must retry immediately.
-    parkAndRideCache = null;
+    // Never cache a failure: the next poll must retry immediately. Only THIS
+    // read is dropped, though: a slow read that fails after the cache expired
+    // and a newer one took its place must not throw the newer one away.
+    if (parkAndRideCache?.promise === promise) {
+      parkAndRideCache = null;
+    }
     throw err;
   });
 
@@ -668,6 +815,7 @@ export function normalizeStop(record) {
 export async function fetchStopDirections(config, stopId) {
   const values = await fetchLayer(config, DEPARTURES_LAYERS, {
     params: equalityParams('id', stopId),
+    maxFeatures: DEPARTURES_MAX_FEATURES,
     // The short budget on purpose: this is the bonus on top of a search that
     // has already spent up to a minute downloading the directory, and the
     // action has ninety seconds in total before Gladys gives up on it. A
@@ -748,8 +896,11 @@ export function fetchStops(config) {
       return values;
     })
     .catch((err) => {
-      // Never cache a failure: a timeout must be retryable straight away.
-      stopsCache = null;
+      // Never cache a failure: a timeout must be retryable straight away —
+      // unless a newer download has already replaced this one.
+      if (stopsCache?.promise === promise) {
+        stopsCache = null;
+      }
       throw err;
     });
 
@@ -879,4 +1030,5 @@ export function checkDatasets(config) {
 export function clearTclCache() {
   parkAndRideCache = null;
   stopsCache = null;
+  ignoredFilterReported.clear();
 }

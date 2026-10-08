@@ -173,7 +173,8 @@ l'intégration, qui ignore simplement les déclenchements intermédiaires.
 
 L'intégration groupe aussi ses requêtes : surveiller dix stations Vélo'v coûte
 deux requêtes HTTP par cycle, pas vingt, et surveiller cinq parcs relais en
-coûte deux.
+coûte deux. Une relève qui échoue (plateforme trop lente, réseau coupé) est
+retentée une minute plus tard plutôt qu'au bout de l'intervalle complet.
 
 **Ce qui est enregistré.** Un intervalle court fait grossir vite la base de
 données si chaque relève y est écrite : l'intégration n'envoie donc à Gladys
@@ -216,6 +217,12 @@ Sur le tableau, un point vert signale un passage suivi en temps réel, un point
 gris (avec le préfixe `~`) un horaire théorique. Un widget réglé sur un
 appareil du mauvais type — une station Vélo'v dans le widget des passages — le
 dit au lieu de rester vide.
+
+Un widget affiche la dernière relève de l'appareil tant qu'elle est plus récente
+que la carte elle-même (30 s pour les passages, 60 s pour Vélo'v, 120 s pour
+les parcs relais), et les widgets ouverts au même moment partagent une seule
+lecture : un tableau de bord laissé ouvert sur plusieurs écrans ne multiplie pas
+les requêtes vers Data Grand Lyon.
 
 ### Déclencheurs de scène
 
@@ -339,8 +346,8 @@ L'intégration le dit désormais : l'appareil porte un point orange dans la list
 des appareils, dont l'infobulle nomme ce qui manque, et les logs l'écrivent une
 fois (`… does not have the feature(s) capacity, status in Gladys …`). La
 solution est dans l'écran **Découverte** : appuyez sur **Mettre à jour** sur
-l'appareil (le supprimer puis le rajouter fonctionne aussi), et les valeurs
-arrivent à la relève suivante.
+l'appareil (le supprimer puis le rajouter fonctionne aussi), et l'appareil est
+relu aussitôt.
 
 **Un appareil que je viens d'ajouter n'a aucune valeur** — des fonctionnalités
 sans la moindre valeur signifient que l'appareil n'est jamais relevé. Les
