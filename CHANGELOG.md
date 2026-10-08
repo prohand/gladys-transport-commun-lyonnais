@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-10-08
+
 ### Fixed
 
 - Departure countdowns were one or two hours too long: the passage times the
@@ -109,7 +111,8 @@ First public release.
 - Survive a republished dataset instead of reporting HTTP 404
 - Publish devices Gladys accepts, list every P+R, file the integration under a real category
 
-[Unreleased]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.0.0...v2.1.1
 [2.0.0]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v1.0.4...v2.0.0

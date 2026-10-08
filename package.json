@@ -1,6 +1,6 @@
 {
   "name": "gladys-transport-commun-lyonnais",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "private": true,
   "description": "Gladys Assistant external integration for TCL (Transports en Commun Lyonnais): next departures, Vélo'v availability and park & ride occupancy.",
   "type": "module",
