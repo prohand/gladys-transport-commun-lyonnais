@@ -10,8 +10,19 @@ import assert from 'node:assert/strict';
 import { createFakeGladys } from './helpers/fakeGladys.js';
 import { restoreFetch, stubFetch } from './helpers/stubFetch.js';
 import { GLADYS_POLL_FREQUENCIES_MS, normalizeConfig } from '../src/config.js';
-import { buildDiscoveredDevices, findBlueprintByDevice, pollDevice } from '../src/devices/index.js';
-import { clearPollSchedule } from '../src/devices/pollSchedule.js';
+import {
+  buildDiscoveredDevices,
+  findBlueprintByDevice,
+  pollDevice,
+  refreshDeviceNow,
+} from '../src/devices/index.js';
+import {
+  clearPollSchedule,
+  dueForRead,
+  readFailed,
+  RETRY_AFTER_FAILURE_MS,
+} from '../src/devices/pollSchedule.js';
+import { clearReadings } from '../src/devices/readings.js';
 import { clearStateCache } from '../src/devices/stateCache.js';
 import { clearPublishReports } from '../src/devices/publish.js';
 import { refreshCreatedDevices, refreshTickMs } from '../src/devices/refreshLoop.js';
@@ -38,6 +49,7 @@ const CONFIG = normalizeConfig({
 
 beforeEach(() => {
   clearPollSchedule();
+  clearReadings();
   clearTclCache();
   clearVelovCache();
   clearLayerResolution();
@@ -248,6 +260,93 @@ test('the ticks arriving inside the configured interval do not reach the feed', 
   gladys.published.length = 0;
   await pollDevice(gladys, device, config);
   assert.equal(calls.length, afterFirstTick, 'a tick inside the interval reads nothing');
+  assert.equal(gladys.published.length, 0);
+});
+
+test('a failed read is retried after a minute, not after a whole interval', () => {
+  const fiveMinutes = 300_000;
+  assert.equal(dueForRead('pr', fiveMinutes, 0), true);
+  readFailed('pr', fiveMinutes, 0);
+  assert.equal(dueForRead('pr', fiveMinutes, 30_000), false, 'not on the very next tick');
+  assert.equal(dueForRead('pr', fiveMinutes, RETRY_AFTER_FAILURE_MS), true);
+  // Back on the configured interval once the retry went through.
+  assert.equal(dueForRead('pr', fiveMinutes, RETRY_AFTER_FAILURE_MS + 60_000), false);
+
+  // An interval shorter than the retry delay is not lengthened by a failure.
+  assert.equal(dueForRead('stop', 30_000, 0), true);
+  readFailed('stop', 30_000, 0);
+  assert.equal(dueForRead('stop', 30_000, 30_000), true);
+});
+
+test('a park & ride whose read failed is read again on the next minute tick', async (t) => {
+  let now = 1_000_000;
+  t.mock.method(Date, 'now', () => now);
+  const gladys = createFakeGladys();
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    throw new Error('network down');
+  };
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'PR1',
+    park_and_ride_poll_frequency: 300,
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+
+  await assert.rejects(pollDevice(gladys, device, config));
+  const afterFailure = calls;
+  assert.ok(afterFailure > 0);
+
+  now += 60_000;
+  clearTclCache();
+  await assert.rejects(pollDevice(gladys, device, config));
+  assert.ok(calls > afterFailure, 'the next minute tick reads again instead of waiting 5 minutes');
+});
+
+test('a device just created is read at once, and published whole', async () => {
+  const gladys = createFakeGladys();
+  const calls = stubFetch({
+    tclparcrelaistr: {
+      values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400, nb_tot_place_dispo: 100 }],
+    },
+    tclparcrelaisst: { values: [{ id: 'PR1', nom: 'Gorge de Loup', capacite: 400 }] },
+  });
+  const config = normalizeConfig({
+    ...CONFIG,
+    stops: '',
+    velov_stations: '',
+    park_and_ride: 'PR1',
+    park_and_ride_poll_frequency: 300,
+  });
+  const [device] = buildDiscoveredDevices(gladys, config);
+
+  // Read while the device only sat in the Discovery screen: Gladys dropped
+  // these states, the state cache believes they were delivered.
+  await pollDevice(gladys, device, config);
+  const firstStates = gladys.published.length;
+  const firstReads = calls.length;
+  assert.ok(firstStates > 0);
+
+  // The user adds the device: the SDK lists it, then runs onDeviceCreated.
+  gladys.devices = [device];
+  gladys.published.length = 0;
+  clearTclCache();
+  await refreshDeviceNow(gladys, device, config);
+
+  assert.ok(calls.length > firstReads, 'read now, not at the end of the 5-minute interval');
+  assert.equal(gladys.published.length, firstStates, 'the unchanged values are published again');
+  assert.equal(
+    gladys.published.find((entry) => entry.featureExternalId.endsWith(':spaces_available'))?.state,
+    100,
+  );
+});
+
+test('a device created that is not configured any more is ignored', async () => {
+  const gladys = createFakeGladys();
+  await refreshDeviceNow(gladys, { external_id: 'ext:test:gone' }, CONFIG);
   assert.equal(gladys.published.length, 0);
 });
 

@@ -30,10 +30,10 @@ const TOLERANCE_RATIO = 0.9;
 /**
  * Whether a device is due for an upstream read, and remember that it is.
  *
- * The tick is consumed here, before the read: a read that then fails is not
- * retried on the next tick, it waits for the next interval like a successful
- * one. Retrying a failing source faster than a working one is how an outage
- * upstream turns into a burst of requests against it.
+ * The tick is consumed here, before the read, so that two tickers asking at
+ * once (the core scheduler and the internal loop) read once. A read that then
+ * fails calls `readFailed`, which brings the next attempt forward — but never
+ * closer than RETRY_AFTER_FAILURE_MS (see there).
  *
  * @param {string} key stable device key (the blueprint key)
  * @param {number} intervalMs configured refresh interval, in milliseconds
@@ -47,6 +47,43 @@ export function dueForRead(key, intervalMs, now = Date.now()) {
   }
   lastReads.set(key, now);
   return true;
+}
+
+// How soon a failed read is attempted again. Without it, a park & ride read
+// every 5 minutes that hit one timeout showed its previous value for five
+// more minutes, ten in all. One minute is the slowest tick the core itself
+// uses, so a failing source is never asked more often than a working one
+// configured at the slowest Gladys frequency — retrying faster than that is
+// how an upstream outage turns into a burst of requests against it. An
+// interval already shorter than this is simply kept.
+export const RETRY_AFTER_FAILURE_MS = 60_000;
+
+/**
+ * Bring the next read of a device forward after a failed one.
+ *
+ * @param {string} key stable device key (the blueprint key)
+ * @param {number} intervalMs configured refresh interval, in milliseconds
+ * @param {number} [now] injectable clock, for tests
+ */
+export function readFailed(key, intervalMs, now = Date.now()) {
+  // Back-date the read so that `dueForRead` says yes RETRY_AFTER_FAILURE_MS
+  // from now (with the same tolerance as a regular tick), or after the
+  // regular interval when that one is shorter.
+  const head = Math.max(0, (intervalMs - RETRY_AFTER_FAILURE_MS) * TOLERANCE_RATIO);
+  lastReads.set(key, now - head);
+}
+
+/**
+ * Forget when one device was read, so its next tick reads it.
+ *
+ * The device the user just created (or updated from the Discovery screen) is
+ * the one they are looking at: it is read straight away, not after whatever
+ * remains of an interval started before it existed.
+ *
+ * @param {string} key stable device key (the blueprint key)
+ */
+export function forgetRead(key) {
+  lastReads.delete(key);
 }
 
 /**

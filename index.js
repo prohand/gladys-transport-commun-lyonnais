@@ -17,10 +17,16 @@
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { hasGrandLyonCredentials, normalizeConfig } from './src/config.js';
-import { ACTIONS, buildDiscoveredDevices, pollDevice } from './src/devices/index.js';
+import {
+  ACTIONS,
+  buildDiscoveredDevices,
+  pollDevice,
+  refreshDeviceNow,
+} from './src/devices/index.js';
 import { clearPollSchedule } from './src/devices/pollSchedule.js';
 import { clearStateCache } from './src/devices/stateCache.js';
 import { clearPublishReports } from './src/devices/publish.js';
+import { clearReadings } from './src/devices/readings.js';
 import { startRefreshLoop, stopRefreshLoop } from './src/devices/refreshLoop.js';
 import { clearLayerResolution } from './src/api/grandlyon.js';
 import { clearTclCache } from './src/api/tcl.js';
@@ -50,6 +56,22 @@ gladys.onScanRequest(async () => {
 gladys.onPoll(async (device) => {
   await pollDevice(gladys, device, config);
 });
+
+// --- A device was just created, or updated from the Discovery screen --------
+// Gladys drops the states of a feature that does not exist yet, and the
+// integration remembers what it published to skip unchanged values: without
+// this, a device added again (or given a new feature) waits up to fifteen
+// minutes for its stable values. The SDK has already added the device to
+// `gladys.devices` when these run.
+const refreshAddedDevice = (event) => async (device) => {
+  try {
+    await refreshDeviceNow(gladys, device, config);
+  } catch (err) {
+    logger.warn(`Reading ${device?.external_id} after it was ${event} failed: ${err.message}`);
+  }
+};
+gladys.onDeviceCreated(refreshAddedDevice('created'));
+gladys.onDeviceUpdated(refreshAddedDevice('updated'));
 
 // --- Manifest actions: buttons in the Configuration screen -------------------
 // Each action declared in the `actions` field of the manifest is registered by
@@ -90,6 +112,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   // A refresh interval that just changed must apply on the next tick, not
   // after the old one has elapsed.
   clearPollSchedule();
+  // A reading taken under the previous configuration (another line filter,
+  // another account) must not be served to a widget.
+  clearReadings();
   // The watch lists may have changed: the values remembered as "already
   // published" belong to devices that may no longer be the same ones, and a
   // full republication is one request.
@@ -237,6 +262,16 @@ async function reportConnectionStatus() {
     fr: `Connecté. Surveille ${watched.fr} — ils apparaissent dans l’écran Découverte.`,
   });
 }
+
+// --- Safety net for a forgotten promise --------------------------------------
+// Every handler and timer of this file catches its own errors, but a promise
+// that slips through one day would, by Node's default, kill the container —
+// and every device with it, for one failed read. Log it, loudly, and keep
+// running: the next tick reads again. An uncaught EXCEPTION is left alone on
+// purpose: the process state is then unknown, and restarting is the right call.
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', reason);
+});
 
 // --- Graceful shutdown -------------------------------------------------------
 // The SDK disconnects cleanly and exits with code 0 when the supervisor stops

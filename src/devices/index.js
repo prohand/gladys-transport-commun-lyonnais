@@ -24,7 +24,9 @@ import { createLogger } from '@gladysassistant/integration-sdk';
 import { createTransitStopBlueprint, DEVICE_TYPE as STOP_TYPE } from './transitStop.js';
 import { createVelovStationBlueprint, DEVICE_TYPE as VELOV_TYPE } from './velovStation.js';
 import { createParkAndRideBlueprint, DEVICE_TYPE as PARK_AND_RIDE_TYPE } from './parkAndRide.js';
-import { dueForRead } from './pollSchedule.js';
+import { dueForRead, forgetRead, readFailed } from './pollSchedule.js';
+import { recordReading } from './readings.js';
+import { forgetDeviceStates } from './stateCache.js';
 import { checkDatasets, listParkAndRideFacilities, searchStops } from '../api/tcl.js';
 import { searchStations } from '../api/velov.js';
 import { GrandLyonError } from '../api/grandlyon.js';
@@ -103,11 +105,46 @@ export async function pollDevice(gladys, device, config) {
     logger.debug(`onPoll skipped, ${blueprint.key} was refreshed less than an interval ago`);
     return;
   }
-  const reading = await blueprint.onPoll(gladys, config);
+  const intervalMs = blueprint.pollIntervalMs(config);
+  let reading;
+  try {
+    reading = await blueprint.onPoll(gladys, config);
+  } catch (err) {
+    // The tick was consumed before the read: give the device an earlier
+    // retry than a full interval (see `readFailed`).
+    readFailed(blueprint.key, intervalMs);
+    throw err;
+  }
+  // The widgets reuse it rather than reading the feed again (src/devices/readings.js).
+  recordReading(blueprint.key, reading);
   // The scene triggers ride on the poll rather than on a read of their own:
   // an event is the difference between two reads, and these are the reads the
   // configured interval already pays for (see src/scenes/triggers.js).
   await publishSceneEvents(gladys, blueprint, deviceName(gladys, blueprint, config), reading);
+}
+
+/**
+ * Read a device the user just created or updated, now, and publish all of it.
+ *
+ * Gladys drops the states of a feature that does not exist yet, while the
+ * state cache wrote them down as published: a device deleted and added again,
+ * or updated from the Discovery screen to gain a feature, would otherwise wait
+ * up to fifteen minutes for its stable values — and a whole refresh interval
+ * for any value at all. Both beliefs are dropped for this device only, and the
+ * poll path does the rest (scene triggers included).
+ *
+ * @param {object} gladys
+ * @param {{ external_id: string }} device
+ * @param {ReturnType<import('../config.js').normalizeConfig>} config
+ */
+export async function refreshDeviceNow(gladys, device, config) {
+  const blueprint = findBlueprintByDevice(gladys, device, config);
+  if (!blueprint) {
+    return;
+  }
+  forgetDeviceStates(blueprint.deviceExternalId(gladys));
+  forgetRead(blueprint.key);
+  await pollDevice(gladys, device, config);
 }
 
 /**

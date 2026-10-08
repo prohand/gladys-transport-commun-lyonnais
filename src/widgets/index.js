@@ -32,6 +32,7 @@ import {
 } from '@gladysassistant/integration-sdk';
 import { DeviceSelectionError, deviceName, findSelectedBlueprint } from '../devices/index.js';
 import { createdFeatures } from '../devices/publish.js';
+import { sharedReading } from '../devices/readings.js';
 import { DEVICE_TYPE as STOP_TYPE, formatDeparture } from '../devices/transitStop.js';
 import {
   computeOccupancy as velovOccupancy,
@@ -59,7 +60,8 @@ export const WIDGET_KEYS = {
 // The core waits 15 s for a widget, then shows "data unavailable" and never
 // retries until the dashboard is reloaded — and one Data Grand Lyon request is
 // allowed 15 s on its own. Past this deadline the card says it is loading, and
-// the read keeps going: the feeds cache it, so the re-pull 15 s later finds it.
+// the read keeps going: it is remembered (src/devices/readings.js), so the
+// re-pull 15 s later finds it.
 export const PULL_DEADLINE_MS = 9000;
 const LOADING_TTL_SECONDS = 15;
 
@@ -350,6 +352,20 @@ export function parkAndRideContent(name, facility, chartFeatures = []) {
 }
 
 /**
+ * What a card shows: the poll's last reading when it is younger than the card
+ * itself may be, else one read shared by every card asking at that moment (see
+ * src/devices/readings.js). A dashboard opened on three screens costs the feed
+ * nothing more than the poll already pays.
+ *
+ * @param {{ key: string, read: (config: object) => Promise<unknown> }} blueprint
+ * @param {object} config
+ * @param {string} widgetKey
+ */
+function latestReading(blueprint, config, widgetKey) {
+  return sharedReading(blueprint, config, { maxAgeMs: TTL_SECONDS[widgetKey] * 1000 });
+}
+
+/**
  * The raw handlers: the device the widget is bound to, read, turned into a
  * card. Each one receives the SDK options (`settings` holds the chosen device
  * external_id) and the current configuration.
@@ -357,13 +373,13 @@ export function parkAndRideContent(name, facility, chartFeatures = []) {
 const RAW_WIDGETS = {
   async [WIDGET_KEYS.DEPARTURES](gladys, { settings, config }) {
     const blueprint = findSelectedBlueprint(gladys, settings.stop, config, STOP_TYPE);
-    const departures = await blueprint.read(config);
+    const departures = await latestReading(blueprint, config, WIDGET_KEYS.DEPARTURES);
     return departuresContent(deviceName(gladys, blueprint, config), departures);
   },
 
   async [WIDGET_KEYS.VELOV_STATION](gladys, { settings, config }) {
     const blueprint = findSelectedBlueprint(gladys, settings.station, config, VELOV_TYPE);
-    const station = await blueprint.read(config);
+    const station = await latestReading(blueprint, config, WIDGET_KEYS.VELOV_STATION);
     const ids = gladys.externalIds(VELOV_TYPE, blueprint.station.id);
     const chart = chartableFeatures(gladys, ids.device, [
       ids.feature(VELOV_FEATURE.BIKES),
@@ -374,7 +390,7 @@ const RAW_WIDGETS = {
 
   async [WIDGET_KEYS.PARK_AND_RIDE](gladys, { settings, config }) {
     const blueprint = findSelectedBlueprint(gladys, settings.facility, config, PARK_AND_RIDE_TYPE);
-    const facility = await blueprint.read(config);
+    const facility = await latestReading(blueprint, config, WIDGET_KEYS.PARK_AND_RIDE);
     const ids = gladys.externalIds(PARK_AND_RIDE_TYPE, blueprint.facility.id);
     const chart = chartableFeatures(gladys, ids.device, [
       ids.feature(PARK_AND_RIDE_FEATURE.SPACES),
