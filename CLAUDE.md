@@ -56,7 +56,7 @@ feeds, `src/devices/` only turns a feed into features, `src/scenes/` and
 
 ## Conventions
 
-- ES modules (`"type": "module"`), Node >= 20, no runtime dependency besides
+- ES modules (`"type": "module"`), Node >= 22, no runtime dependency besides
   the SDK. Do not add dependencies without a strong reason.
 - Prettier decides formatting; ESLint decides the rest. Never hand-format.
 - Comments in this repo explain **why**, in full sentences, in English. Match
