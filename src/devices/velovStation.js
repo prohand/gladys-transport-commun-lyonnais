@@ -21,7 +21,6 @@ import {
 } from '@gladysassistant/integration-sdk';
 import { gladysPollFrequency } from '../config.js';
 import { TEXT_FEATURE_RANGE } from './featureRange.js';
-import { changedStates } from './stateCache.js';
 import { publishDeviceStates } from './publish.js';
 import { fetchStationAvailability } from '../api/velov.js';
 
@@ -213,11 +212,8 @@ export function createVelovStationBlueprint(watched) {
       }
 
       // Only what moved: a station nobody uses between midnight and six is
-      // otherwise recorded as unchanged every two minutes (see stateCache.js).
-      const updates = changedStates(states);
-      if (updates.length > 0) {
-        await publishDeviceStates(gladys, ids.device, updates);
-      }
+      // otherwise recorded as unchanged every two minutes (see publish.js).
+      await publishDeviceStates(gladys, ids.device, states);
       return station;
     },
   };

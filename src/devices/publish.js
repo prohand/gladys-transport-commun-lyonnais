@@ -28,19 +28,45 @@
 //     at the container logs;
 //   - it forgets the dropped states, so the read that follows the update
 //     publishes them immediately instead of waiting for the periodic
-//     republication of src/devices/stateCache.js.
+//     republication below.
 //
 // The filtering only applies when the features of the created device are
 // actually known: `gladys.devices` is resynchronized on every connection, but
 // a device missing from that list, or listed without its features, must be
 // published to as before — a filter that is not sure is a filter that must not
 // drop anything.
+//
+// It is also where the values that did not move are dropped. Everything this
+// integration publishes is written down twice by Gladys: once in
+// `t_device_feature.last_value`, and once more as a row of
+// `t_device_feature_state` for every feature that keeps an history. The reads
+// are deliberately frequent — a departure countdown is only worth anything
+// while it is fresh, and the configuration allows one read every 30 seconds —
+// so the values that did NOT move between two reads are what fills the
+// database: a park & ride whose free spaces do not change all night still
+// writes one row a minute per feature, forever, for nothing. Dropping them
+// costs nothing: Gladys keeps the last value it was given, and a series
+// recorded "one point per change" draws exactly the same chart as one recorded
+// "one point per poll". `gladys.publishChangedStates` does the comparison,
+// against the last value Gladys ACCEPTED for each feature (a refused batch is
+// sent again by the next read).
+//
+// That memory is trusted, but not blindly: it is a belief about what Gladys
+// holds, and that belief is wrong the moment a device is deleted and
+// re-created, or the instance on the other end changes. That is the "device
+// added, nothing recorded" symptom this repository has already shipped once,
+// so an unchanged value is republished anyway every REPUBLISH_AFTER_MS, and
+// the memory is dropped on every connection and configuration change (index.js).
 // -----------------------------------------------------------------------------
 
 import { createLogger, DEVICE_TRANSPORTS } from '@gladysassistant/integration-sdk';
-import { forgetStates } from './stateCache.js';
 
 const logger = createLogger({ name: 'publish' });
+
+// How long an unchanged value may stay unpublished. Short enough that a device
+// the user just re-created fills in while they are still looking at it, long
+// enough that a still feature writes 96 rows a day instead of 2880.
+export const REPUBLISH_AFTER_MS = 15 * 60_000;
 
 /**
  * What has already been said about a device, so the explanation is logged once
@@ -206,26 +232,8 @@ async function flagDevice(gladys, deviceExternalId, missingKeys) {
 }
 
 /**
- * Send a batch, and forget it from the state cache when it did not leave.
- *
- * `changedStates` records a value as published when it selects it, before the
- * request: a batch Gladys refused (restarting, rate limited, a timeout) would
- * otherwise be taken for delivered, and a value that does not move — a car
- * park full all afternoon — would not be sent again for fifteen minutes.
- * @param {object} gladys
- * @param {{ device_feature_external_id: string }[]} states
- */
-async function sendStates(gladys, states) {
-  try {
-    await gladys.publishStates(states);
-  } catch (err) {
-    forgetStates(states);
-    throw err;
-  }
-}
-
-/**
- * Publish the states of one device, keeping the ones Gladys can store.
+ * Publish the states of one device, keeping the ones Gladys can store and, out
+ * of those, the ones that moved since they were last accepted.
  *
  * @param {object} gladys
  * @param {string} deviceExternalId the device the states belong to
@@ -241,22 +249,25 @@ export async function publishDeviceStates(gladys, deviceExternalId, states) {
     // Nothing known about this device: publishing everything is what the
     // integration did before this module existed, and it is the right answer
     // for a device the SDK simply has not listed yet.
-    await sendStates(gladys, states);
+    await gladys.publishChangedStates(states, { heartbeat: REPUBLISH_AFTER_MS });
     return;
   }
 
   const publishable = states.filter((state) => features.has(state.device_feature_external_id));
   const orphans = states.filter((state) => !features.has(state.device_feature_external_id));
 
-  if (publishable.length > 0) {
-    await sendStates(gladys, publishable);
+  const { count } = await gladys.publishChangedStates(publishable, {
+    heartbeat: REPUBLISH_AFTER_MS,
+  });
+  if (count > 0) {
     // What actually reached Gladys, which is the one thing the logs did not
     // say when a device stayed empty: `LOG_LEVEL=debug` now answers "was this
     // value published at all" without having to reason about the feed.
     logger.debug(
-      `${deviceExternalId}: published ${publishable
-        .map((state) => featureKey(state.device_feature_external_id, deviceExternalId))
-        .join(', ')}`,
+      `${deviceExternalId}: ${count} of ${publishable.length} value(s) moved and were ` +
+        `published (read: ${publishable
+          .map((state) => featureKey(state.device_feature_external_id, deviceExternalId))
+          .join(', ')})`,
     );
   }
 
@@ -270,8 +281,10 @@ export async function publishDeviceStates(gladys, deviceExternalId, states) {
     return;
   }
 
-  // Never remembered as published: they were not.
-  forgetStates(orphans);
+  // Never remembered as published: they were not. A value sent while the
+  // device was not listed yet may still be, and it must go out again as soon
+  // as the device can store it.
+  orphans.forEach((state) => gladys.forgetPublishedStates(state.device_feature_external_id));
 
   const device = (gladys.devices ?? []).find(
     (candidate) => candidate?.external_id === deviceExternalId,

@@ -11,6 +11,8 @@
 // structures the device modules consume.
 // -----------------------------------------------------------------------------
 
+import { DEVICE_POLL_FREQUENCIES } from '@gladysassistant/integration-sdk';
+
 // Defaults: they MUST stay consistent with the `default` values declared in the
 // `config_schema` of the manifest (test/manifest.test.js enforces it).
 export const DEFAULT_CONFIG = {
@@ -54,8 +56,9 @@ const MAX_POLL_FREQUENCY = 3600;
 // `poll_frequency` outside this list makes the core reject the WHOLE
 // `POST /discovered_device` batch with a 400, so a single device published
 // with "60" (seconds) is enough for the Discovery screen to stay empty — with
-// the integration cheerfully logging "Publishing 1 device(s)" every time.
-export const GLADYS_POLL_FREQUENCIES_MS = [1000, 2000, 10000, 15000, 30000, 60000];
+// the integration cheerfully logging "Publishing 1 device(s)" every time. The
+// SDK mirrors the core's list, so this one cannot drift from it.
+export const GLADYS_POLL_FREQUENCIES_MS = Object.values(DEVICE_POLL_FREQUENCIES);
 
 /**
  * The interval Gladys is asked to poll a device at, for a configured refresh

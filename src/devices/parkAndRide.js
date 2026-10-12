@@ -28,7 +28,6 @@ import {
 } from '@gladysassistant/integration-sdk';
 import { gladysPollFrequency } from '../config.js';
 import { TEXT_FEATURE_RANGE } from './featureRange.js';
-import { changedStates } from './stateCache.js';
 import { publishDeviceStates } from './publish.js';
 import { fetchParkAndRideFacilities, findParkAndRide } from '../api/tcl.js';
 
@@ -263,11 +262,8 @@ export function createParkAndRideBlueprint(watched) {
 
       // Only what moved: the occupancy of a car park is flat for hours at a
       // time, and republishing it unchanged is what fills the Gladys database
-      // without adding a single point to the chart (see stateCache.js).
-      const updates = changedStates(states);
-      if (updates.length > 0) {
-        await publishDeviceStates(gladys, ids.device, updates);
-      }
+      // without adding a single point to the chart (see publish.js).
+      await publishDeviceStates(gladys, ids.device, states);
       return facility;
     },
   };

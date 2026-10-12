@@ -14,7 +14,6 @@ import { restoreFetch, stubFetch } from './helpers/stubFetch.js';
 import { normalizeConfig } from '../src/config.js';
 import { buildDiscoveredDevices, findBlueprintByDevice, pollDevice } from '../src/devices/index.js';
 import { clearPollSchedule } from '../src/devices/pollSchedule.js';
-import { clearStateCache } from '../src/devices/stateCache.js';
 import { clearPublishReports } from '../src/devices/publish.js';
 import { clearTclCache } from '../src/api/tcl.js';
 import { clearVelovCache } from '../src/api/velov.js';
@@ -54,7 +53,6 @@ beforeEach(() => {
   clearTclCache();
   clearVelovCache();
   clearLayerResolution();
-  clearStateCache();
   clearPublishReports();
   clearSceneMemory();
 });
