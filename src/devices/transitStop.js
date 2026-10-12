@@ -12,7 +12,7 @@
 // for a dashboard tile or a chat answer.
 //
 // None of them keeps an history, and the states that did not move are not even
-// published (see stateCache.js): a countdown re-read every 30 seconds is the
+// published (see publish.js): a countdown re-read every 30 seconds is the
 // one value of this integration whose past is worth nothing and whose storage
 // cost is the highest.
 // -----------------------------------------------------------------------------
@@ -25,7 +25,6 @@ import {
 } from '@gladysassistant/integration-sdk';
 import { gladysPollFrequency } from '../config.js';
 import { TEXT_FEATURE_RANGE } from './featureRange.js';
-import { changedStates } from './stateCache.js';
 import { publishDeviceStates } from './publish.js';
 import { fetchDepartures } from '../api/tcl.js';
 
@@ -215,11 +214,8 @@ export function createTransitStopBlueprint(stop) {
 
       // One batched request for the whole board — and only for what moved
       // since the last read, so a stop with no service at night stops writing
-      // the same "no departure" down every minute (see stateCache.js).
-      const updates = changedStates(states);
-      if (updates.length > 0) {
-        await publishDeviceStates(gladys, ids.device, updates);
-      }
+      // the same "no departure" down every minute (see publish.js).
+      await publishDeviceStates(gladys, ids.device, states);
       // The whole board, not the published slice: the scene triggers watch
       // every line of the stop (see src/scenes/triggers.js).
       return departures;

@@ -23,7 +23,6 @@ import {
   RETRY_AFTER_FAILURE_MS,
 } from '../src/devices/pollSchedule.js';
 import { clearReadings } from '../src/devices/readings.js';
-import { clearStateCache } from '../src/devices/stateCache.js';
 import { clearPublishReports } from '../src/devices/publish.js';
 import { refreshCreatedDevices, refreshTickMs } from '../src/devices/refreshLoop.js';
 import { formatDeparture, formatSummary } from '../src/devices/transitStop.js';
@@ -53,11 +52,9 @@ beforeEach(() => {
   clearTclCache();
   clearVelovCache();
   clearLayerResolution();
-  // The states published in the previous test are remembered as sent, and a
-  // test that publishes the same values again would see nothing published.
-  clearStateCache();
-  // Same for what has already been said about an incomplete device: it is said
-  // once per device, and the next test is a new device.
+  // What has already been said about an incomplete device is said once per
+  // device, and the next test is a new device. (The published values are
+  // remembered per fake Gladys, and every test makes its own.)
   clearPublishReports();
   // A reading left by the previous test would turn this one's first read into
   // a transition, and fire scene events nobody asked for.
@@ -423,7 +420,7 @@ test('polling a stop publishes the countdowns, the labels and the summary', asyn
 test('a second poll publishes nothing when nothing moved', async () => {
   // Gladys writes down every state it is given, so a value republished
   // unchanged every 30 seconds is a row in its database and nothing on the
-  // screen. Only the departures that moved are sent (see stateCache.js).
+  // screen. Only the departures that moved are sent (see publish.js).
   const gladys = createFakeGladys();
   stubFetch({
     tclpassagearret: {

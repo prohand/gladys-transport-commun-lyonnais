@@ -36,7 +36,7 @@ src/api/tcl.js                departures + park & ride, per-cycle cache
 src/api/velov.js              GBFS index/information/status, per-cycle cache
 src/devices/index.js          dynamic device registry + manifest actions
 src/devices/pollSchedule.js   drops the poll ticks inside the configured interval
-src/devices/stateCache.js     drops the states that did not move since the last read
+src/devices/publish.js        publishes what the created device can store, and only what moved
 src/devices/refreshLoop.js    the container's own ticker over the created devices
 src/devices/transitStop.js    one device per watched stop
 src/devices/velovStation.js   one device per watched Vélo'v station
@@ -252,14 +252,17 @@ optimisation the next refactor may drop:
   fastest-moving values here and the ones whose past is worth the least (a
   countdown is a sawtooth nobody reads back), while Vélo'v and park & ride keep
   theirs, because those curves mean something;
-- `changedStates` (src/devices/stateCache.js) drops the states that did not move
-  since the last read, in every blueprint. It is a belief about what the host
+- `publishDeviceStates` (src/devices/publish.js) hands the states to the SDK's
+  `publishChangedStates`, which drops the ones that did not move since the last
+  value Gladys accepted, in every blueprint. It is a belief about what the host
   already holds, and it is wrong exactly once: when the user deletes and
   re-creates a device, which starts empty while the container thinks it has
   already published. Hence the republication of an unchanged value every
-  15 minutes, and the reset on `connected` and on a configuration change — do
-  not remove those, they are what keeps this from becoming another "appareil
-  ajouté, aucune valeur enregistrée".
+  15 minutes (`REPUBLISH_AFTER_MS`, its `heartbeat`), and the reset
+  (`gladys.forgetPublishedStates()`) on `connected` and on a configuration
+  change — the SDK forgets a device's values on device created / updated /
+  deleted, never on a reconnection. Do not remove those, they are what keeps
+  this from becoming another "appareil ajouté, aucune valeur enregistrée".
 
 A device keeps the features it was CREATED with. Re-publishing a discovery
 upserts the `params` and the feature `supported_options` of an already-created

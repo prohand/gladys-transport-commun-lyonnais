@@ -9,6 +9,10 @@ All notable changes to this integration are documented here. The format follows
 ### Changed
 
 - `@gladysassistant/integration-sdk` updated to 0.15.0.
+- The values that did not move are now skipped by the SDK's `publishChangedStates`
+  (same 15-minute republication, same reset on reconnection and configuration
+  change), and the accepted poll frequencies come from the SDK's
+  `DEVICE_POLL_FREQUENCIES`.
 
 ## [2.2.1] - 2026-10-08
 

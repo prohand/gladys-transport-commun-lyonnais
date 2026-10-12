@@ -24,7 +24,6 @@ import {
   refreshDeviceNow,
 } from './src/devices/index.js';
 import { clearPollSchedule } from './src/devices/pollSchedule.js';
-import { clearStateCache } from './src/devices/stateCache.js';
 import { clearPublishReports } from './src/devices/publish.js';
 import { clearReadings } from './src/devices/readings.js';
 import { startRefreshLoop, stopRefreshLoop } from './src/devices/refreshLoop.js';
@@ -118,7 +117,7 @@ gladys.onConfigUpdated(async (newConfig) => {
   // The watch lists may have changed: the values remembered as "already
   // published" belong to devices that may no longer be the same ones, and a
   // full republication is one request.
-  clearStateCache();
+  gladys.forgetPublishedStates();
   // Same for what has already been said about the devices Gladys created: the
   // configuration that just changed is what the device list is built from.
   clearPublishReports();
@@ -144,8 +143,9 @@ gladys.on('connected', async () => {
     // The de-duplication of the published states is a belief about what the
     // instance on the other end already holds, and a (re)connection is exactly
     // when that belief can be wrong: publish everything once, then only the
-    // changes (see src/devices/stateCache.js).
-    clearStateCache();
+    // changes (see src/devices/publish.js). The SDK does not forget on its own
+    // when it reconnects.
+    gladys.forgetPublishedStates();
     // The SDK resynchronizes the devices Gladys holds at this exact moment: an
     // incomplete one is worth looking at, and naming, again (see
     // src/devices/publish.js).

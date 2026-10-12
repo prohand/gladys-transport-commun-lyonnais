@@ -26,7 +26,6 @@ import { createVelovStationBlueprint, DEVICE_TYPE as VELOV_TYPE } from './velovS
 import { createParkAndRideBlueprint, DEVICE_TYPE as PARK_AND_RIDE_TYPE } from './parkAndRide.js';
 import { dueForRead, forgetRead, readFailed } from './pollSchedule.js';
 import { recordReading } from './readings.js';
-import { forgetDeviceStates } from './stateCache.js';
 import { checkDatasets, listParkAndRideFacilities, searchStops } from '../api/tcl.js';
 import { searchStations } from '../api/velov.js';
 import { GrandLyonError } from '../api/grandlyon.js';
@@ -127,11 +126,13 @@ export async function pollDevice(gladys, device, config) {
  * Read a device the user just created or updated, now, and publish all of it.
  *
  * Gladys drops the states of a feature that does not exist yet, while the
- * state cache wrote them down as published: a device deleted and added again,
- * or updated from the Discovery screen to gain a feature, would otherwise wait
- * up to fifteen minutes for its stable values — and a whole refresh interval
- * for any value at all. Both beliefs are dropped for this device only, and the
- * poll path does the rest (scene triggers included).
+ * SDK's `publishChangedStates` wrote them down as published: a device deleted
+ * and added again, or updated from the Discovery screen to gain a feature,
+ * would otherwise wait up to fifteen minutes for its stable values — and a
+ * whole refresh interval for any value at all. Both beliefs are dropped for
+ * this device only (the SDK already forgets its values on the created/updated
+ * events; done here too so this function keeps its promise whoever calls it),
+ * and the poll path does the rest (scene triggers included).
  *
  * @param {object} gladys
  * @param {{ external_id: string }} device
@@ -142,7 +143,7 @@ export async function refreshDeviceNow(gladys, device, config) {
   if (!blueprint) {
     return;
   }
-  forgetDeviceStates(blueprint.deviceExternalId(gladys));
+  gladys.forgetPublishedStates(blueprint.deviceExternalId(gladys));
   forgetRead(blueprint.key);
   await pollDevice(gladys, device, config);
 }
