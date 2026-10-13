@@ -45,7 +45,7 @@ src/scenes/triggers.js        scene events, computed between two polls of a devi
 src/scenes/actions.js         scene actions: a fresh read handed to the scene
 src/widgets/index.js          dashboard widgets: one card per kind of device
 test/                         node:test suites, with a fake Gladys SDK in test/helpers
-docs/en.md, docs/fr.md        user-facing documentation (re-hosted by Gladys)
+docs/{en,fr,de,es}.md         user-facing documentation (re-hosted by Gladys)
 gladys-assistant-integration.json   the store manifest
 cover.png                     store cover image (800x534)
 ```
@@ -61,8 +61,9 @@ feeds, `src/devices/` only turns a feed into features, `src/scenes/` and
 - Prettier decides formatting; ESLint decides the rest. Never hand-format.
 - Comments in this repo explain **why**, in full sentences, in English. Match
   that density — the file headers are a deliberate part of the style.
-- Every user-visible string in the manifest and in action results is
-  bilingual (`{ en, fr }`).
+- Every user-visible string in the manifest, in action results, statuses and
+  widget cards is `{ en, fr, de, es }` (`src/i18n.js` for messages built from
+  parts); `docs/en.md`, `docs/fr.md`, `docs/de.md`, `docs/es.md` stay in sync.
 - Devices are read-only: no blueprint implements `onSetValue`.
 - The device list is derived from the configuration, never static:
   `buildDiscoveredDevices` and `findBlueprintByDevice` rebuild the blueprints
@@ -183,8 +184,8 @@ rejected manifest blocks publication. The rules that bite most often:
   `multi_select`, `secret`, `oauth2`, `account_link`, `section`. There is no
   `text` and no `password` type: use `string` and `secret`.
 - `placeholder` is only allowed on `string`, `number` and `secret` fields, and
-  like every user-visible string it must be a `{ en, fr }` object, not a bare
-  string.
+  like every user-visible string it must be a `{ en, fr, de, es }` object, not
+  a bare string.
 - `section` fields are presentational: no `required`, `default` or
   `placeholder`, and their key must never appear in `DEFAULT_CONFIG`.
 - Any `default` declared in `config_schema` must equal the matching value in

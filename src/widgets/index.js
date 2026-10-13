@@ -45,6 +45,7 @@ import {
   FEATURE as PARK_AND_RIDE_FEATURE,
 } from '../devices/parkAndRide.js';
 import { GrandLyonError } from '../api/grandlyon.js';
+import { perLanguage } from '../i18n.js';
 
 const logger = createLogger({ name: 'widgets' });
 
@@ -123,61 +124,116 @@ function messageContent(ttlSeconds, message) {
  * @param {number} minutes
  */
 function formatMinutes(minutes) {
-  return minutes === 0 ? { en: 'Now', fr: 'Proche' } : `${minutes} min`;
+  return minutes === 0 ? { en: 'Now', fr: 'Proche', de: 'Jetzt', es: 'Ahora' } : `${minutes} min`;
 }
 
 /**
- * The state of a Vélo'v station, in both languages, with the color of its dot.
+ * The state of a Vélo'v station, in every language, with the color of its dot.
  * The device's own Status feature is a single English string (a text feature
  * holds one value); the card can do better.
  *
  * @param {{ installed: boolean, renting: boolean, returning: boolean,
  *   bikes?: number, docks?: number }} station
- * @returns {{ value: { en: string, fr: string }, color: string }}
+ * @returns {{ value: { en: string, fr: string, de: string, es: string }, color: string }}
  */
 export function describeVelovStation(station) {
   if (!station.installed) {
-    return { value: { en: 'Out of service', fr: 'Hors service' }, color: DANGER };
+    return {
+      value: {
+        en: 'Out of service',
+        fr: 'Hors service',
+        de: 'Außer Betrieb',
+        es: 'Fuera de servicio',
+      },
+      color: DANGER,
+    };
   }
   const issues = [];
-  if (!station.renting) issues.push({ en: 'no rental', fr: 'location impossible' });
-  if (!station.returning) issues.push({ en: 'no return', fr: 'retour impossible' });
-  if (station.bikes === 0) issues.push({ en: 'no bike', fr: 'aucun vélo' });
-  if (station.docks === 0) issues.push({ en: 'no free dock', fr: 'aucune place' });
+  if (!station.renting) {
+    issues.push({
+      en: 'no rental',
+      fr: 'location impossible',
+      de: 'kein Ausleihen',
+      es: 'sin alquiler',
+    });
+  }
+  if (!station.returning) {
+    issues.push({
+      en: 'no return',
+      fr: 'retour impossible',
+      de: 'keine Rückgabe',
+      es: 'sin devolución',
+    });
+  }
+  if (station.bikes === 0) {
+    issues.push({ en: 'no bike', fr: 'aucun vélo', de: 'kein Rad', es: 'ninguna bici' });
+  }
+  if (station.docks === 0) {
+    issues.push({
+      en: 'no free dock',
+      fr: 'aucune place',
+      de: 'kein freier Stellplatz',
+      es: 'ningún anclaje libre',
+    });
+  }
   if (issues.length === 0) {
-    return { value: { en: 'OK', fr: 'OK' }, color: SUCCESS };
+    return { value: { en: 'OK', fr: 'OK', de: 'OK', es: 'OK' }, color: SUCCESS };
   }
   return {
-    value: {
-      en: issues.map((issue) => issue.en).join(', '),
-      fr: issues.map((issue) => issue.fr).join(', '),
-    },
+    value: perLanguage((language) => issues.map((issue) => issue[language]).join(', ')),
     color: WARNING,
   };
 }
 
 /**
- * The state of a park & ride facility, in both languages, with the color of
+ * The state of a park & ride facility, in every language, with the color of
  * its dot. The two reasons for a missing count stay distinct here too (see
  * `formatStatus` in src/devices/parkAndRide.js): one is the open data, the
  * other is a bug to report.
  *
  * @param {{ available?: number, capacity?: number, live?: boolean }} facility
- * @returns {{ value: { en: string, fr: string }, color: string }}
+ * @returns {{ value: { en: string, fr: string, de: string, es: string }, color: string }}
  */
 export function describeParkAndRide(facility) {
   if (!Number.isFinite(facility.available)) {
     return facility.live === true
-      ? { value: { en: 'Live count unreadable', fr: 'Comptage illisible' }, color: WARNING }
-      : { value: { en: 'No live count', fr: 'Pas de comptage en direct' }, color: NEUTRAL };
+      ? {
+          value: {
+            en: 'Live count unreadable',
+            fr: 'Comptage illisible',
+            de: 'Zählung nicht lesbar',
+            es: 'Recuento ilegible',
+          },
+          color: WARNING,
+        }
+      : {
+          value: {
+            en: 'No live count',
+            fr: 'Pas de comptage en direct',
+            de: 'Keine Live-Zählung',
+            es: 'Sin recuento en directo',
+          },
+          color: NEUTRAL,
+        };
   }
   if (facility.available === 0) {
-    return { value: { en: 'Full', fr: 'Complet' }, color: DANGER };
+    return { value: { en: 'Full', fr: 'Complet', de: 'Voll', es: 'Lleno' }, color: DANGER };
   }
   const occupancy = parkAndRideOccupancy(facility);
   return occupancy !== null && occupancy >= 90
-    ? { value: { en: 'Almost full', fr: 'Presque complet' }, color: WARNING }
-    : { value: { en: 'Spaces available', fr: 'Places disponibles' }, color: SUCCESS };
+    ? {
+        value: { en: 'Almost full', fr: 'Presque complet', de: 'Fast voll', es: 'Casi lleno' },
+        color: WARNING,
+      }
+    : {
+        value: {
+          en: 'Spaces available',
+          fr: 'Places disponibles',
+          de: 'Plätze frei',
+          es: 'Plazas disponibles',
+        },
+        color: SUCCESS,
+      };
 }
 
 /**
@@ -193,7 +249,12 @@ export function departuresContent(name, departures) {
     components.push({
       type: 'text',
       variant: WIDGET_TEXT_VARIANTS.BODY,
-      text: { en: 'No upcoming departure.', fr: 'Aucun passage à venir.' },
+      text: {
+        en: 'No upcoming departure.',
+        fr: 'Aucun passage à venir.',
+        de: 'Keine kommende Abfahrt.',
+        es: 'Ninguna salida próxima.',
+      },
     });
     return { ttl_seconds: TTL_SECONDS[WIDGET_KEYS.DEPARTURES], components };
   }
@@ -223,6 +284,8 @@ export function departuresContent(name, departures) {
       text: {
         en: '~ timetable estimate, not tracked in real time',
         fr: '~ horaire théorique, non suivi en temps réel',
+        de: '~ Fahrplanschätzung, nicht in Echtzeit verfolgt',
+        es: '~ horario teórico, sin seguimiento en tiempo real',
       },
     });
   }
@@ -242,7 +305,7 @@ export function velovStationContent(name, station, chartFeatures = []) {
     components.push({
       type: 'value',
       value: station.bikes,
-      label: { en: 'Bikes', fr: 'Vélos' },
+      label: { en: 'Bikes', fr: 'Vélos', de: 'Räder', es: 'Bicis' },
       color: station.bikes === 0 ? DANGER : SUCCESS,
     });
   }
@@ -250,7 +313,12 @@ export function velovStationContent(name, station, chartFeatures = []) {
     components.push({
       type: 'value',
       value: station.electricBikes,
-      label: { en: 'Electric bikes', fr: 'Vélos électriques' },
+      label: {
+        en: 'Electric bikes',
+        fr: 'Vélos électriques',
+        de: 'E-Bikes',
+        es: 'Bicis eléctricas',
+      },
       icon: 'zap',
     });
   }
@@ -258,7 +326,12 @@ export function velovStationContent(name, station, chartFeatures = []) {
     components.push({
       type: 'value',
       value: station.docks,
-      label: { en: 'Free docks', fr: 'Places libres' },
+      label: {
+        en: 'Free docks',
+        fr: 'Places libres',
+        de: 'Freie Stellplätze',
+        es: 'Anclajes libres',
+      },
       color: station.docks === 0 ? WARNING : NEUTRAL,
     });
   }
@@ -270,7 +343,7 @@ export function velovStationContent(name, station, chartFeatures = []) {
       min: 0,
       max: 100,
       unit: '%',
-      label: { en: 'Fill', fr: 'Remplissage' },
+      label: { en: 'Fill', fr: 'Remplissage', de: 'Füllstand', es: 'Ocupación' },
     });
   }
   if (chartFeatures.length > 0) {
@@ -279,13 +352,24 @@ export function velovStationContent(name, station, chartFeatures = []) {
       device_features: chartFeatures,
       interval: WIDGET_CHART_INTERVALS.LAST_DAY,
       chart_type: 'line',
-      title: { en: 'Last 24 hours', fr: 'Dernières 24 heures' },
+      title: {
+        en: 'Last 24 hours',
+        fr: 'Dernières 24 heures',
+        de: 'Letzte 24 Stunden',
+        es: 'Últimas 24 horas',
+      },
     });
   }
   const state = describeVelovStation(station);
   components.push({
     type: 'status',
-    items: [{ label: { en: 'State', fr: 'État' }, value: state.value, color: state.color }],
+    items: [
+      {
+        label: { en: 'State', fr: 'État', de: 'Zustand', es: 'Estado' },
+        value: state.value,
+        color: state.color,
+      },
+    ],
   });
   return { ttl_seconds: TTL_SECONDS[WIDGET_KEYS.VELOV_STATION], components };
 }
@@ -303,7 +387,7 @@ export function parkAndRideContent(name, facility, chartFeatures = []) {
     components.push({
       type: 'value',
       value: facility.available,
-      label: { en: 'Free spaces', fr: 'Places libres' },
+      label: { en: 'Free spaces', fr: 'Places libres', de: 'Freie Plätze', es: 'Plazas libres' },
       color: facility.available === 0 ? DANGER : SUCCESS,
     });
   }
@@ -311,14 +395,19 @@ export function parkAndRideContent(name, facility, chartFeatures = []) {
     components.push({
       type: 'value',
       value: facility.capacity,
-      label: { en: 'Capacity', fr: 'Capacité' },
+      label: { en: 'Capacity', fr: 'Capacité', de: 'Kapazität', es: 'Capacidad' },
     });
   }
   if (Number.isFinite(facility.availableDisabled)) {
     components.push({
       type: 'value',
       value: facility.availableDisabled,
-      label: { en: 'Accessible spaces', fr: 'Places PMR' },
+      label: {
+        en: 'Accessible spaces',
+        fr: 'Places PMR',
+        de: 'Behindertenplätze',
+        es: 'Plazas PMR',
+      },
     });
   }
   const occupancy = parkAndRideOccupancy(facility);
@@ -329,7 +418,7 @@ export function parkAndRideContent(name, facility, chartFeatures = []) {
       min: 0,
       max: 100,
       unit: '%',
-      label: { en: 'Fill', fr: 'Remplissage' },
+      label: { en: 'Fill', fr: 'Remplissage', de: 'Füllstand', es: 'Ocupación' },
     });
   }
   // A facility with no live count has no curve to draw: an empty frame would
@@ -340,13 +429,24 @@ export function parkAndRideContent(name, facility, chartFeatures = []) {
       device_features: chartFeatures,
       interval: WIDGET_CHART_INTERVALS.LAST_DAY,
       chart_type: 'line',
-      title: { en: 'Free spaces, last 24 hours', fr: 'Places libres, dernières 24 h' },
+      title: {
+        en: 'Free spaces, last 24 hours',
+        fr: 'Places libres, dernières 24 h',
+        de: 'Freie Plätze, letzte 24 h',
+        es: 'Plazas libres, últimas 24 h',
+      },
     });
   }
   const state = describeParkAndRide(facility);
   components.push({
     type: 'status',
-    items: [{ label: { en: 'State', fr: 'État' }, value: state.value, color: state.color }],
+    items: [
+      {
+        label: { en: 'State', fr: 'État', de: 'Zustand', es: 'Estado' },
+        value: state.value,
+        color: state.color,
+      },
+    ],
   });
   return { ttl_seconds: TTL_SECONDS[WIDGET_KEYS.PARK_AND_RIDE], components };
 }
@@ -402,7 +502,7 @@ const RAW_WIDGETS = {
 /**
  * Handlers of the widgets, by key, with every failure turned into a card that
  * says what is wrong. The settings problems and the refused Data Grand Lyon
- * account already carry a bilingual explanation; anything else is a feed that
+ * account already carry a multi-language explanation; anything else is a feed that
  * could not be read, logged for the report and summed up on the card.
  */
 export const WIDGETS = Object.fromEntries(
@@ -417,6 +517,8 @@ export const WIDGETS = Object.fromEntries(
           return messageContent(LOADING_TTL_SECONDS, {
             en: 'Reading the data, this takes longer than usual…',
             fr: 'Lecture des données, plus longue que d’habitude…',
+            de: 'Daten werden gelesen, das dauert länger als üblich…',
+            es: 'Leyendo los datos, tarda más de lo habitual…',
           });
         }
         return content;
@@ -432,6 +534,8 @@ export const WIDGETS = Object.fromEntries(
         return messageContent(TTL_SECONDS[key], {
           en: `The data could not be read right now (${err.message}).`,
           fr: `Les données n’ont pas pu être lues pour l’instant (${err.message}).`,
+          de: `Die Daten konnten gerade nicht gelesen werden (${err.message}).`,
+          es: `No se han podido leer los datos en este momento (${err.message}).`,
         });
       }
     },

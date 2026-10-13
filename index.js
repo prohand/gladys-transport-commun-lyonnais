@@ -30,6 +30,7 @@ import { startRefreshLoop, stopRefreshLoop } from './src/devices/refreshLoop.js'
 import { clearLayerResolution } from './src/api/grandlyon.js';
 import { clearTclCache } from './src/api/tcl.js';
 import { clearVelovCache } from './src/api/velov.js';
+import { perLanguage } from './src/i18n.js';
 import { SCENE_ACTIONS } from './src/scenes/actions.js';
 import { WIDGETS } from './src/widgets/index.js';
 
@@ -172,6 +173,8 @@ gladys.on('connected', async () => {
       .setConnectionStatus(false, {
         en: 'Initialization failed, check the integration logs.',
         fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
+        de: 'Die Initialisierung ist fehlgeschlagen, prüfen Sie die Protokolle der Integration.',
+        es: 'La inicialización ha fallado, consulte los registros de la integración.',
       })
       .catch(() => {});
   }
@@ -204,24 +207,44 @@ async function publishDevices() {
 }
 
 /**
- * A short bilingual inventory of what the configuration asks for, shown next
- * to the connection status: it is how the user checks that the entry they just
- * typed was understood, without opening the container logs.
+ * A short multi-language inventory of what the configuration asks for, shown
+ * next to the connection status: it is how the user checks that the entry they
+ * just typed was understood, without opening the container logs.
+ *
+ * Each word carries its singular and its plural: an "s" appended at the end
+ * is English and French only ("Haltestellen", "estaciones Vélo'v").
  *
  * @param {{ stops: unknown[], velovStations: unknown[], parkAndRide: unknown[] }} watched
- * @returns {{ en: string, fr: string }}
+ * @returns {{ en: string, fr: string, de: string, es: string }}
  */
 function describeWatchList({ stops, velovStations, parkAndRide }) {
   const parts = [
-    { count: stops.length, en: 'stop', fr: 'arrêt' },
-    { count: velovStations.length, en: "Vélo'v station", fr: 'station Vélo’v' },
-    { count: parkAndRide.length, en: 'park & ride', fr: 'parc relais' },
+    {
+      count: stops.length,
+      en: ['stop', 'stops'],
+      fr: ['arrêt', 'arrêts'],
+      de: ['Haltestelle', 'Haltestellen'],
+      es: ['parada', 'paradas'],
+    },
+    {
+      count: velovStations.length,
+      en: ["Vélo'v station", "Vélo'v stations"],
+      fr: ['station Vélo’v', 'stations Vélo’v'],
+      de: ['Vélo’v-Station', 'Vélo’v-Stationen'],
+      es: ['estación Vélo’v', 'estaciones Vélo’v'],
+    },
+    {
+      count: parkAndRide.length,
+      en: ['park & ride', 'park & rides'],
+      fr: ['parc relais', 'parcs relais'],
+      de: ['P+R-Parkplatz', 'P+R-Parkplätze'],
+      es: ['aparcamiento disuasorio', 'aparcamientos disuasorios'],
+    },
   ].filter((part) => part.count > 0);
 
-  return {
-    en: parts.map((part) => `${part.count} ${part.en}${part.count > 1 ? 's' : ''}`).join(', '),
-    fr: parts.map((part) => `${part.count} ${part.fr}${part.count > 1 ? 's' : ''}`).join(', '),
-  };
+  return perLanguage((language) =>
+    parts.map((part) => `${part.count} ${part[language][part.count > 1 ? 1 : 0]}`).join(', '),
+  );
 }
 
 /**
@@ -240,6 +263,8 @@ async function reportConnectionStatus() {
     await gladys.setConnectionStatus(false, {
       en: 'Transit stops and park & ride need a Data Grand Lyon account: fill in the username and password.',
       fr: 'Les arrêts et parcs relais nécessitent un compte Data Grand Lyon : renseignez le nom d’utilisateur et le mot de passe.',
+      de: 'Haltestellen und P+R-Parkplätze erfordern ein Konto bei Data Grand Lyon: Geben Sie Benutzername und Passwort ein.',
+      es: 'Las paradas y los aparcamientos disuasorios necesitan una cuenta de Data Grand Lyon: indique el usuario y la contraseña.',
     });
     return;
   }
@@ -248,6 +273,8 @@ async function reportConnectionStatus() {
     await gladys.setConnectionStatus(false, {
       en: 'Nothing to watch yet: add a transit stop, a Vélo’v station or a park & ride in the configuration.',
       fr: 'Rien à surveiller : ajoutez un arrêt, une station Vélo’v ou un parc relais dans la configuration.',
+      de: 'Noch nichts zu überwachen: Fügen Sie in der Konfiguration eine Haltestelle, eine Vélo’v-Station oder einen P+R-Parkplatz hinzu.',
+      es: 'Todavía no hay nada que vigilar: añada una parada, una estación Vélo’v o un aparcamiento disuasorio en la configuración.',
     });
     return;
   }
@@ -260,6 +287,8 @@ async function reportConnectionStatus() {
   await gladys.setConnectionStatus(true, {
     en: `Connected. Watching ${watched.en} — they appear in the Discovery screen.`,
     fr: `Connecté. Surveille ${watched.fr} — ils apparaissent dans l’écran Découverte.`,
+    de: `Verbunden. Überwacht ${watched.de} — sie erscheinen im Reiter „Entdecken“.`,
+    es: `Conectado. Vigilando ${watched.es}: aparecen en la pestaña «Descubrir».`,
   });
 }
 

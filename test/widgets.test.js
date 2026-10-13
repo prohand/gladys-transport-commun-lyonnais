@@ -81,6 +81,8 @@ test('an empty departure board says so', () => {
   assert.deepEqual(textsOf(content)[1], {
     en: 'No upcoming departure.',
     fr: 'Aucun passage à venir.',
+    de: 'Keine kommende Abfahrt.',
+    es: 'Ninguna salida próxima.',
   });
 });
 
@@ -100,7 +102,12 @@ test('a Vélo’v card fits the widget vocabulary and budget', () => {
   );
   assert.deepEqual(validateWidgetContent(content), []);
   const status = content.components.find((component) => component.type === 'status');
-  assert.deepEqual(status.items[0].value, { en: 'no bike', fr: 'aucun vélo' });
+  assert.deepEqual(status.items[0].value, {
+    en: 'no bike',
+    fr: 'aucun vélo',
+    de: 'kein Rad',
+    es: 'ninguna bici',
+  });
 });
 
 test('a park & ride card fits the widget vocabulary and budget', () => {
@@ -111,7 +118,12 @@ test('a park & ride card fits the widget vocabulary and budget', () => {
   );
   assert.deepEqual(validateWidgetContent(content), []);
   const status = content.components.find((component) => component.type === 'status');
-  assert.deepEqual(status.items[0].value, { en: 'Almost full', fr: 'Presque complet' });
+  assert.deepEqual(status.items[0].value, {
+    en: 'Almost full',
+    fr: 'Presque complet',
+    de: 'Fast voll',
+    es: 'Casi lleno',
+  });
 });
 
 test('a park & ride nobody counts live shows its capacity, and no empty curve', () => {
@@ -121,7 +133,12 @@ test('a park & ride nobody counts live shows its capacity, and no empty curve', 
   assert.deepEqual(validateWidgetContent(content), []);
   assert.ok(!content.components.some((component) => component.type === 'chart'));
   const status = content.components.find((component) => component.type === 'status');
-  assert.deepEqual(status.items[0].value, { en: 'No live count', fr: 'Pas de comptage en direct' });
+  assert.deepEqual(status.items[0].value, {
+    en: 'No live count',
+    fr: 'Pas de comptage en direct',
+    de: 'Keine Live-Zählung',
+    es: 'Sin recuento en directo',
+  });
 });
 
 test('the departures widget reads the stop it is bound to', async () => {
@@ -209,6 +226,8 @@ test('a widget bound to a device of another kind explains itself instead of fail
     {
       en: 'This device is a park & ride: choose a transit stop.',
       fr: 'Cet appareil est un parc relais : choisissez un arrêt.',
+      de: 'Dieses Gerät ist ein P+R-Parkplatz: Wählen Sie eine Haltestelle.',
+      es: 'Este dispositivo es un aparcamiento disuasorio: elija una parada.',
     },
   ]);
 });
@@ -222,6 +241,8 @@ test('a widget with no device chosen asks for one', async () => {
     {
       en: "Choose a Vélo'v station in the settings.",
       fr: 'Choisissez une station Vélo’v dans les réglages.',
+      de: 'Wählen Sie eine Vélo’v-Station in den Einstellungen.',
+      es: 'Elija una estación Vélo’v en los ajustes.',
     },
   ]);
 });

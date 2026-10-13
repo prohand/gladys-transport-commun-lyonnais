@@ -87,17 +87,32 @@ export const STOP_ID_COLUMNS = ['id', 'idtarret', 'idarret', 'stopid', 'stop_id'
 export const TCL_DATASETS = [
   {
     key: 'departures',
-    label: { en: 'Next departures', fr: 'Prochains passages' },
+    label: {
+      en: 'Next departures',
+      fr: 'Prochains passages',
+      de: 'Nächste Abfahrten',
+      es: 'Próximas salidas',
+    },
     layers: DEPARTURES_LAYERS,
   },
   {
     key: 'stops',
-    label: { en: 'Stop directory', fr: 'Annuaire des arrêts' },
+    label: {
+      en: 'Stop directory',
+      fr: 'Annuaire des arrêts',
+      de: 'Haltestellenverzeichnis',
+      es: 'Directorio de paradas',
+    },
     layers: STOPS_LAYERS,
   },
   {
     key: 'park_and_ride',
-    label: { en: 'Park & ride', fr: 'Parcs relais' },
+    label: {
+      en: 'Park & ride',
+      fr: 'Parcs relais',
+      de: 'P+R-Parkplätze',
+      es: 'Aparcamientos disuasorios',
+    },
     layers: PARK_AND_RIDE_LAYERS,
   },
 ];
@@ -996,7 +1011,7 @@ async function searchStopsByExactName(config, query, limit) {
  * surfaces as such because that error is the one worth propagating.
  *
  * @param {ReturnType<import('../config.js').normalizeConfig>} config
- * @returns {Promise<{ key: string, label: { en: string, fr: string }, ok: boolean,
+ * @returns {Promise<{ key: string, label: Record<string, string>, ok: boolean,
  *   layer: string | undefined, error: Error | undefined }[]>}
  */
 export function checkDatasets(config) {

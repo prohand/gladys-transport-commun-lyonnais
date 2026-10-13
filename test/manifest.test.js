@@ -15,6 +15,7 @@ import {
   SCENE_TRIGGERS,
   VELOV_EVENTS,
 } from '../src/scenes/triggers.js';
+import { LANGUAGES } from '../src/i18n.js';
 import { SCENE_ACTIONS } from '../src/scenes/actions.js';
 import { WIDGETS } from '../src/widgets/index.js';
 
@@ -191,7 +192,7 @@ test('every field type is accepted by the store validator', () => {
       assert.equal(
         typeof field.placeholder,
         'object',
-        `field "${field.key}" must declare its placeholder as a { en, fr } object`,
+        `field "${field.key}" must declare its placeholder as a { en, fr, de, es } object`,
       );
     }
   }
@@ -206,34 +207,52 @@ test('the store description stays within 10-100 characters', () => {
   }
 });
 
-test('every label and description is translated in English and French', () => {
+// Gladys shows a multi-language object in the reader's language — its UI
+// speaks English, French, German and Spanish — and falls back on English for
+// any other. Every user-visible text of the manifest therefore carries the
+// four of them, and nothing else: a key that is not a two-letter language is
+// rejected by the store schema.
+test('every user-visible text is translated in English, French, German and Spanish', () => {
   const texts = [];
-  for (const field of manifest.config_schema) {
-    texts.push(field.label, field.description, field.placeholder);
-  }
-  for (const action of manifest.actions ?? []) {
-    texts.push(action.label);
-    for (const field of action.fields ?? []) {
-      texts.push(field.label, field.placeholder);
+  (function collect(node) {
+    if (Array.isArray(node)) {
+      node.forEach(collect);
+    } else if (node && typeof node === 'object') {
+      if (typeof node.en === 'string') {
+        texts.push(node);
+        return;
+      }
+      Object.values(node).forEach(collect);
     }
-  }
-  for (const declaration of capabilityDeclarations()) {
-    texts.push(declaration.label, declaration.description);
-    for (const entry of [...(declaration.variables ?? []), ...(declaration.outputs ?? [])]) {
-      texts.push(entry.label);
-    }
-  }
-  for (const field of capabilityFields()) {
-    texts.push(field.label, field.description, field.placeholder);
-    for (const option of field.options ?? []) {
-      texts.push(option.label);
-    }
-  }
-  texts.push(manifest.description);
+  })(manifest);
 
-  for (const text of texts.filter(Boolean)) {
-    assert.ok(text.en, `missing English text in ${JSON.stringify(text)}`);
-    assert.ok(text.fr, `missing French text in ${JSON.stringify(text)}`);
+  // Sanity check that the walk does find the texts: the catalog description,
+  // every label, description, placeholder and option label.
+  assert.ok(texts.includes(manifest.description));
+  assert.ok(texts.length > 100, `only ${texts.length} texts found`);
+  for (const text of texts) {
+    assert.deepEqual(
+      Object.keys(text),
+      [...LANGUAGES],
+      `${JSON.stringify(text)} must carry exactly ${LANGUAGES.join(', ')}, in that order`,
+    );
+    for (const language of LANGUAGES) {
+      assert.ok(
+        typeof text[language] === 'string' && text[language].trim().length > 0,
+        `missing ${language} text in ${JSON.stringify(text)}`,
+      );
+    }
+  }
+});
+
+test('the section texts stay within the store bounds in every language', () => {
+  for (const section of manifest.config_schema.filter((field) => field.type === 'section')) {
+    for (const [language, text] of Object.entries(section.description ?? {})) {
+      assert.ok(
+        text.length <= 1000,
+        `section "${section.key}" description.${language} must be at most 1000 characters`,
+      );
+    }
   }
 });
 
@@ -287,6 +306,12 @@ test('the capability declarations stay within the store bounds', () => {
       assert.ok(
         text.length >= 3 && text.length <= 30,
         `"${declaration.key}" label.${lang} must be 3-30 characters, got ${text.length}`,
+      );
+    }
+    for (const [lang, text] of Object.entries(declaration.description ?? {})) {
+      assert.ok(
+        text.length <= 100,
+        `"${declaration.key}" description.${lang} must be at most 100 characters, got ${text.length}`,
       );
     }
     assert.ok((declaration.fields ?? []).length <= 10, `"${declaration.key}" has too many fields`);

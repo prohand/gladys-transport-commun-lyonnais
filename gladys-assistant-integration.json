@@ -4,7 +4,9 @@
   "name": "Transports en Commun Lyonnais",
   "description": {
     "en": "Next TCL departures, Vélo'v availability and park & ride occupancy in Lyon.",
-    "fr": "Prochains passages TCL, disponibilités Vélo'v et places en parcs relais à Lyon."
+    "fr": "Prochains passages TCL, disponibilités Vélo'v et places en parcs relais à Lyon.",
+    "de": "Nächste TCL-Abfahrten, Vélo'v-Verfügbarkeit und freie Plätze auf P+R-Parkplätzen in Lyon.",
+    "es": "Próximas salidas TCL, disponibilidad de Vélo'v y plazas en aparcamientos disuasorios de Lyon."
   },
   "version": "2.2.2",
   "docker_image": "ghcr.io/prohand/gladys-transport-commun-lyonnais:2.2.2",
@@ -18,32 +20,42 @@
       "type": "section",
       "label": {
         "en": "How it works",
-        "fr": "Comment ça marche"
+        "fr": "Comment ça marche",
+        "de": "So funktioniert es",
+        "es": "Cómo funciona"
       },
       "description": {
         "en": "This integration creates one read-only device per transit stop, Vélo'v station and park & ride you list below. Vélo'v works out of the box (open GBFS feed). Transit stops and park & ride read the TCL real-time datasets on Data Grand Lyon, which need a free account.",
-        "fr": "Cette intégration crée un appareil en lecture seule par arrêt, station Vélo'v et parc relais listé ci-dessous. Vélo'v fonctionne sans rien configurer (flux GBFS ouvert). Les arrêts et les parcs relais lisent les jeux de données temps réel TCL sur Data Grand Lyon, qui nécessitent un compte gratuit."
+        "fr": "Cette intégration crée un appareil en lecture seule par arrêt, station Vélo'v et parc relais listé ci-dessous. Vélo'v fonctionne sans rien configurer (flux GBFS ouvert). Les arrêts et les parcs relais lisent les jeux de données temps réel TCL sur Data Grand Lyon, qui nécessitent un compte gratuit.",
+        "de": "Diese Integration erstellt ein schreibgeschütztes Gerät pro Haltestelle, Vélo'v-Station und P+R-Parkplatz, die Sie unten angeben. Vélo'v funktioniert ohne weitere Einrichtung (offener GBFS-Feed). Haltestellen und P+R-Parkplätze lesen die TCL-Echtzeitdatensätze auf Data Grand Lyon, für die ein kostenloses Konto nötig ist.",
+        "es": "Esta integración crea un dispositivo de solo lectura por cada parada, estación Vélo'v y aparcamiento disuasorio que indique a continuación. Vélo'v funciona sin configurar nada (feed GBFS abierto). Las paradas y los aparcamientos disuasorios leen los conjuntos de datos en tiempo real de TCL en Data Grand Lyon, que requieren una cuenta gratuita."
       },
       "links": [
         {
           "url": "https://data.grandlyon.com/portail/fr/jeux-de-donnees/prochains-passages-reseau-transports-commun-lyonnais-rhonexpress-disponibilites-temps-reel/info",
           "label": {
             "en": "TCL real-time departures dataset",
-            "fr": "Jeu de données prochains passages TCL"
+            "fr": "Jeu de données prochains passages TCL",
+            "de": "Datensatz der TCL-Echtzeitabfahrten",
+            "es": "Conjunto de datos de salidas TCL en tiempo real"
           }
         },
         {
           "url": "https://data.grandlyon.com/portail/fr/jeux-de-donnees/parcs-relais-reseau-transports-commun-lyonnais-disponibilites-temps-reel/info",
           "label": {
             "en": "TCL park & ride dataset",
-            "fr": "Jeu de données parcs relais TCL"
+            "fr": "Jeu de données parcs relais TCL",
+            "de": "Datensatz der TCL-P+R-Parkplätze",
+            "es": "Conjunto de datos de aparcamientos disuasorios TCL"
           }
         },
         {
           "url": "https://transport.data.gouv.fr/datasets/velos-libre-service-lyon-velov-disponibilite-en-temps-reel",
           "label": {
             "en": "Vélo'v GBFS feed",
-            "fr": "Flux GBFS Vélo'v"
+            "fr": "Flux GBFS Vélo'v",
+            "de": "Vélo'v-GBFS-Feed",
+            "es": "Feed GBFS de Vélo'v"
           }
         }
       ]
@@ -53,25 +65,33 @@
       "type": "section",
       "label": {
         "en": "Data Grand Lyon account",
-        "fr": "Compte Data Grand Lyon"
+        "fr": "Compte Data Grand Lyon",
+        "de": "Konto bei Data Grand Lyon",
+        "es": "Cuenta de Data Grand Lyon"
       },
       "description": {
         "en": "You sign in on data.grandlyon.com with GrandLyon Connect, but the API needs a separate password that you set on the data platform itself. If its profile page asks for an old password you never had, log out of the portal and use its forgotten-password link. Leave both fields empty if you only watch Vélo'v stations.",
-        "fr": "Vous vous connectez à data.grandlyon.com avec GrandLyon Connect, mais l'API exige un mot de passe distinct, à définir sur la plateforme de données. Si sa page de profil réclame un ancien mot de passe que vous n'avez jamais eu, déconnectez-vous du portail et utilisez son lien « Mot de passe oublié ? ». Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v."
+        "fr": "Vous vous connectez à data.grandlyon.com avec GrandLyon Connect, mais l'API exige un mot de passe distinct, à définir sur la plateforme de données. Si sa page de profil réclame un ancien mot de passe que vous n'avez jamais eu, déconnectez-vous du portail et utilisez son lien « Mot de passe oublié ? ». Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v.",
+        "de": "Sie melden sich bei data.grandlyon.com mit GrandLyon Connect an, die API benötigt jedoch ein eigenes Passwort, das Sie auf der Datenplattform selbst festlegen. Fragt deren Profilseite nach einem alten Passwort, das Sie nie hatten, melden Sie sich vom Portal ab und nutzen Sie dessen Link „Mot de passe oublié ?“ (Passwort vergessen). Lassen Sie beide Felder leer, wenn Sie nur Vélo'v-Stationen überwachen.",
+        "es": "En data.grandlyon.com se inicia sesión con GrandLyon Connect, pero la API necesita una contraseña distinta, que se define en la propia plataforma de datos. Si su página de perfil le pide una contraseña antigua que nunca tuvo, cierre la sesión del portal y utilice su enlace «Mot de passe oublié ?» (contraseña olvidada). Deje ambos campos vacíos si solo vigila estaciones Vélo'v."
       },
       "links": [
         {
           "url": "https://moncompte.grandlyon.com/login/",
           "label": {
             "en": "Create a GrandLyon Connect account",
-            "fr": "Créer un compte GrandLyon Connect"
+            "fr": "Créer un compte GrandLyon Connect",
+            "de": "GrandLyon-Connect-Konto erstellen",
+            "es": "Crear una cuenta GrandLyon Connect"
           }
         },
         {
           "url": "https://data.grandlyon.com/onegeo-login/fr/profile/",
           "label": {
             "en": "Set the data platform password",
-            "fr": "Définir le mot de passe de la plateforme"
+            "fr": "Définir le mot de passe de la plateforme",
+            "de": "Passwort der Datenplattform festlegen",
+            "es": "Definir la contraseña de la plataforma"
           }
         }
       ]
@@ -81,16 +101,22 @@
       "type": "string",
       "label": {
         "en": "Data Grand Lyon login",
-        "fr": "Identifiant Data Grand Lyon"
+        "fr": "Identifiant Data Grand Lyon",
+        "de": "Benutzername bei Data Grand Lyon",
+        "es": "Usuario de Data Grand Lyon"
       },
       "description": {
         "en": "The login of your data platform account — in general the email address of your GrandLyon Connect account.",
-        "fr": "L'identifiant de votre compte sur la plateforme de données — en général l'adresse email de votre compte GrandLyon Connect."
+        "fr": "L'identifiant de votre compte sur la plateforme de données — en général l'adresse email de votre compte GrandLyon Connect.",
+        "de": "Der Benutzername Ihres Kontos auf der Datenplattform — in der Regel die E-Mail-Adresse Ihres GrandLyon-Connect-Kontos.",
+        "es": "El usuario de su cuenta en la plataforma de datos: por lo general, la dirección de correo electrónico de su cuenta GrandLyon Connect."
       },
       "required": false,
       "placeholder": {
         "en": "you@example.com",
-        "fr": "vous@exemple.com"
+        "fr": "vous@exemple.com",
+        "de": "sie@beispiel.de",
+        "es": "usted@ejemplo.es"
       }
     },
     {
@@ -98,11 +124,15 @@
       "type": "secret",
       "label": {
         "en": "Data platform password",
-        "fr": "Mot de passe de la plateforme"
+        "fr": "Mot de passe de la plateforme",
+        "de": "Passwort der Datenplattform",
+        "es": "Contraseña de la plataforma"
       },
       "description": {
         "en": "The password you defined on data.grandlyon.com/onegeo-login/fr/profile/, NOT your GrandLyon Connect password.",
-        "fr": "Le mot de passe défini sur data.grandlyon.com/onegeo-login/fr/profile/, PAS votre mot de passe GrandLyon Connect."
+        "fr": "Le mot de passe défini sur data.grandlyon.com/onegeo-login/fr/profile/, PAS votre mot de passe GrandLyon Connect.",
+        "de": "Das auf data.grandlyon.com/onegeo-login/fr/profile/ festgelegte Passwort, NICHT Ihr GrandLyon-Connect-Passwort.",
+        "es": "La contraseña definida en data.grandlyon.com/onegeo-login/fr/profile/, NO su contraseña de GrandLyon Connect."
       },
       "required": false
     },
@@ -111,11 +141,15 @@
       "type": "section",
       "label": {
         "en": "What to watch",
-        "fr": "Ce que vous voulez surveiller"
+        "fr": "Ce que vous voulez surveiller",
+        "de": "Was überwacht werden soll",
+        "es": "Qué vigilar"
       },
       "description": {
         "en": "Separate entries with commas or newlines. Use the buttons at the bottom of this screen to look up the identifiers without leaving Gladys.",
-        "fr": "Séparez les entrées par des virgules ou des retours à la ligne. Utilisez les boutons en bas de cet écran pour retrouver les identifiants sans quitter Gladys."
+        "fr": "Séparez les entrées par des virgules ou des retours à la ligne. Utilisez les boutons en bas de cet écran pour retrouver les identifiants sans quitter Gladys.",
+        "de": "Trennen Sie die Einträge durch Kommas oder Zeilenumbrüche. Mit den Schaltflächen unten auf dieser Seite finden Sie die Kennungen, ohne Gladys zu verlassen.",
+        "es": "Separe las entradas con comas o saltos de línea. Utilice los botones de la parte inferior de esta pantalla para buscar los identificadores sin salir de Gladys."
       }
     },
     {
@@ -123,16 +157,22 @@
       "type": "string",
       "label": {
         "en": "Transit stops",
-        "fr": "Arrêts"
+        "fr": "Arrêts",
+        "de": "Haltestellen",
+        "es": "Paradas"
       },
       "description": {
         "en": "Stop identifiers. Optional line filter after @ and custom name after : — e.g. \"1234, 5678@T1:Tram at home, 4321@C3|C13\".",
-        "fr": "Identifiants d'arrêt. Filtre de lignes optionnel après @ et nom personnalisé après : — ex. « 1234, 5678@T1:Tram en bas, 4321@C3|C13 »."
+        "fr": "Identifiants d'arrêt. Filtre de lignes optionnel après @ et nom personnalisé après : — ex. « 1234, 5678@T1:Tram en bas, 4321@C3|C13 ».",
+        "de": "Kennungen der Haltestellen. Optionaler Linienfilter nach @ und eigener Name nach : — z. B. „1234, 5678@T1:Tram zu Hause, 4321@C3|C13“.",
+        "es": "Identificadores de parada. Filtro de líneas opcional tras @ y nombre personalizado tras : — p. ej. «1234, 5678@T1:Tranvía de casa, 4321@C3|C13»."
       },
       "required": false,
       "placeholder": {
         "en": "1234, 5678@T1:Tram at home",
-        "fr": "1234, 5678@T1:Tram en bas"
+        "fr": "1234, 5678@T1:Tram en bas",
+        "de": "1234, 5678@T1:Tram zu Hause",
+        "es": "1234, 5678@T1:Tranvía de casa"
       }
     },
     {
@@ -140,16 +180,22 @@
       "type": "string",
       "label": {
         "en": "Vélo'v stations",
-        "fr": "Stations Vélo'v"
+        "fr": "Stations Vélo'v",
+        "de": "Vélo'v-Stationen",
+        "es": "Estaciones Vélo'v"
       },
       "description": {
         "en": "Station identifiers or names, with an optional custom name after : — e.g. \"10063, Hotel de Ville:Work\".",
-        "fr": "Identifiants ou noms de stations, avec un nom personnalisé optionnel après : — ex. « 10063, Hotel de Ville:Bureau »."
+        "fr": "Identifiants ou noms de stations, avec un nom personnalisé optionnel après : — ex. « 10063, Hotel de Ville:Bureau ».",
+        "de": "Kennungen oder Namen der Stationen, mit optionalem eigenem Namen nach : — z. B. „10063, Hotel de Ville:Arbeit“.",
+        "es": "Identificadores o nombres de estación, con un nombre personalizado opcional tras : — p. ej. «10063, Hotel de Ville:Trabajo»."
       },
       "required": false,
       "placeholder": {
         "en": "10063, Hotel de Ville:Work",
-        "fr": "10063, Hotel de Ville:Bureau"
+        "fr": "10063, Hotel de Ville:Bureau",
+        "de": "10063, Hotel de Ville:Arbeit",
+        "es": "10063, Hotel de Ville:Trabajo"
       }
     },
     {
@@ -157,16 +203,22 @@
       "type": "string",
       "label": {
         "en": "Park & ride (P+R)",
-        "fr": "Parcs relais (P+R)"
+        "fr": "Parcs relais (P+R)",
+        "de": "P+R-Parkplätze (Park & Ride)",
+        "es": "Aparcamientos disuasorios (P+R)"
       },
       "description": {
         "en": "Park & ride identifiers or names, with an optional custom name after : — e.g. \"Gorge de Loup, Parilly:Commute\".",
-        "fr": "Identifiants ou noms de parcs relais, avec un nom personnalisé optionnel après : — ex. « Gorge de Loup, Parilly:Trajet boulot »."
+        "fr": "Identifiants ou noms de parcs relais, avec un nom personnalisé optionnel après : — ex. « Gorge de Loup, Parilly:Trajet boulot ».",
+        "de": "Kennungen oder Namen der P+R-Parkplätze, mit optionalem eigenem Namen nach : — z. B. „Gorge de Loup, Parilly:Pendeln“.",
+        "es": "Identificadores o nombres de aparcamientos disuasorios, con un nombre personalizado opcional tras : — p. ej. «Gorge de Loup, Parilly:Trabajo»."
       },
       "required": false,
       "placeholder": {
         "en": "Gorge de Loup, Parilly:Commute",
-        "fr": "Gorge de Loup, Parilly:Trajet boulot"
+        "fr": "Gorge de Loup, Parilly:Trajet boulot",
+        "de": "Gorge de Loup, Parilly:Pendeln",
+        "es": "Gorge de Loup, Parilly:Trabajo"
       }
     },
     {
@@ -174,11 +226,15 @@
       "type": "section",
       "label": {
         "en": "Refresh intervals",
-        "fr": "Fréquences de rafraîchissement"
+        "fr": "Fréquences de rafraîchissement",
+        "de": "Aktualisierungsintervalle",
+        "es": "Intervalos de actualización"
       },
       "description": {
         "en": "Each device is refreshed by Gladys at its own interval. The upstream feeds are recomputed about once a minute, so polling faster only costs requests.",
-        "fr": "Chaque appareil est rafraîchi par Gladys à son propre intervalle. Les flux sources sont recalculés environ toutes les minutes : interroger plus souvent ne fait que consommer des requêtes."
+        "fr": "Chaque appareil est rafraîchi par Gladys à son propre intervalle. Les flux sources sont recalculés environ toutes les minutes : interroger plus souvent ne fait que consommer des requêtes.",
+        "de": "Gladys aktualisiert jedes Gerät in seinem eigenen Intervall. Die Quell-Feeds werden etwa einmal pro Minute neu berechnet: Häufigeres Abfragen kostet nur Anfragen.",
+        "es": "Gladys actualiza cada dispositivo con su propio intervalo. Los feeds de origen se recalculan aproximadamente una vez por minuto, así que consultar más a menudo solo consume peticiones."
       }
     },
     {
@@ -186,11 +242,15 @@
       "type": "number",
       "label": {
         "en": "Departures refresh interval (s)",
-        "fr": "Rafraîchissement des passages (s)"
+        "fr": "Rafraîchissement des passages (s)",
+        "de": "Aktualisierung der Abfahrten (s)",
+        "es": "Actualización de salidas (s)"
       },
       "description": {
         "en": "How often the next departures of each watched stop are refreshed, in seconds.",
-        "fr": "Fréquence de rafraîchissement des prochains passages de chaque arrêt surveillé, en secondes."
+        "fr": "Fréquence de rafraîchissement des prochains passages de chaque arrêt surveillé, en secondes.",
+        "de": "Wie oft die nächsten Abfahrten jeder überwachten Haltestelle aktualisiert werden, in Sekunden.",
+        "es": "Frecuencia de actualización de las próximas salidas de cada parada vigilada, en segundos."
       },
       "required": false,
       "default": 60,
@@ -202,11 +262,15 @@
       "type": "number",
       "label": {
         "en": "Vélo'v refresh interval (s)",
-        "fr": "Rafraîchissement Vélo'v (s)"
+        "fr": "Rafraîchissement Vélo'v (s)",
+        "de": "Aktualisierung Vélo'v (s)",
+        "es": "Actualización de Vélo'v (s)"
       },
       "description": {
         "en": "How often bike and dock availability is refreshed, in seconds.",
-        "fr": "Fréquence de rafraîchissement des vélos et places disponibles, en secondes."
+        "fr": "Fréquence de rafraîchissement des vélos et places disponibles, en secondes.",
+        "de": "Wie oft die Verfügbarkeit von Rädern und Stellplätzen aktualisiert wird, in Sekunden.",
+        "es": "Frecuencia de actualización de la disponibilidad de bicis y anclajes, en segundos."
       },
       "required": false,
       "default": 120,
@@ -218,11 +282,15 @@
       "type": "number",
       "label": {
         "en": "Park & ride refresh interval (s)",
-        "fr": "Rafraîchissement parcs relais (s)"
+        "fr": "Rafraîchissement parcs relais (s)",
+        "de": "Aktualisierung P+R-Parkplätze (s)",
+        "es": "Actualización de aparcamientos (s)"
       },
       "description": {
         "en": "How often park & ride occupancy is refreshed, in seconds.",
-        "fr": "Fréquence de rafraîchissement de l'occupation des parcs relais, en secondes."
+        "fr": "Fréquence de rafraîchissement de l'occupation des parcs relais, en secondes.",
+        "de": "Wie oft die Belegung der P+R-Parkplätze aktualisiert wird, in Sekunden.",
+        "es": "Frecuencia de actualización de la ocupación de los aparcamientos disuasorios, en segundos."
       },
       "required": false,
       "default": 300,
@@ -234,11 +302,15 @@
       "type": "number",
       "label": {
         "en": "Departures per stop",
-        "fr": "Passages par arrêt"
+        "fr": "Passages par arrêt",
+        "de": "Abfahrten pro Haltestelle",
+        "es": "Salidas por parada"
       },
       "description": {
         "en": "How many upcoming departures each stop device exposes as features.",
-        "fr": "Nombre de prochains passages exposés en fonctionnalités par arrêt."
+        "fr": "Nombre de prochains passages exposés en fonctionnalités par arrêt.",
+        "de": "Wie viele kommende Abfahrten jedes Haltestellen-Gerät als Funktionen bereitstellt.",
+        "es": "Número de próximas salidas que cada dispositivo de parada expone como funciones."
       },
       "required": false,
       "default": 3,
@@ -251,7 +323,9 @@
       "key": "test_grandlyon",
       "label": {
         "en": "Test the Data Grand Lyon account",
-        "fr": "Tester le compte Data Grand Lyon"
+        "fr": "Tester le compte Data Grand Lyon",
+        "de": "Konto bei Data Grand Lyon testen",
+        "es": "Probar la cuenta de Data Grand Lyon"
       },
       "timeout_seconds": 90
     },
@@ -259,7 +333,9 @@
       "key": "search_stops",
       "label": {
         "en": "Find a transit stop",
-        "fr": "Chercher un arrêt"
+        "fr": "Chercher un arrêt",
+        "de": "Haltestelle suchen",
+        "es": "Buscar una parada"
       },
       "timeout_seconds": 90,
       "fields": [
@@ -268,11 +344,15 @@
           "type": "string",
           "label": {
             "en": "Stop name",
-            "fr": "Nom de l'arrêt"
+            "fr": "Nom de l'arrêt",
+            "de": "Name der Haltestelle",
+            "es": "Nombre de la parada"
           },
           "placeholder": {
             "en": "Bellecour",
-            "fr": "Bellecour"
+            "fr": "Bellecour",
+            "de": "Bellecour",
+            "es": "Bellecour"
           },
           "required": true
         }
@@ -282,7 +362,9 @@
       "key": "search_velov_stations",
       "label": {
         "en": "Find a Vélo'v station",
-        "fr": "Chercher une station Vélo'v"
+        "fr": "Chercher une station Vélo'v",
+        "de": "Vélo'v-Station suchen",
+        "es": "Buscar una estación Vélo'v"
       },
       "timeout_seconds": 30,
       "fields": [
@@ -291,11 +373,15 @@
           "type": "string",
           "label": {
             "en": "Station name",
-            "fr": "Nom de la station"
+            "fr": "Nom de la station",
+            "de": "Name der Station",
+            "es": "Nombre de la estación"
           },
           "placeholder": {
             "en": "Hotel de Ville",
-            "fr": "Hotel de Ville"
+            "fr": "Hotel de Ville",
+            "de": "Hotel de Ville",
+            "es": "Hotel de Ville"
           },
           "required": true
         }
@@ -305,7 +391,9 @@
       "key": "list_park_and_ride",
       "label": {
         "en": "List the park & ride facilities",
-        "fr": "Lister les parcs relais"
+        "fr": "Lister les parcs relais",
+        "de": "P+R-Parkplätze auflisten",
+        "es": "Listar los aparcamientos disuasorios"
       },
       "timeout_seconds": 60
     }
@@ -315,7 +403,9 @@
       "key": "departure_approaching",
       "label": {
         "en": "TCL departure approaching",
-        "fr": "Passage TCL imminent"
+        "fr": "Passage TCL imminent",
+        "de": "TCL-Abfahrt steht bevor",
+        "es": "Salida TCL inminente"
       },
       "fields": [
         {
@@ -324,7 +414,9 @@
           "source": "devices",
           "label": {
             "en": "Transit stop",
-            "fr": "Arrêt"
+            "fr": "Arrêt",
+            "de": "Haltestelle",
+            "es": "Parada"
           },
           "required": true
         },
@@ -333,7 +425,9 @@
           "type": "select",
           "label": {
             "en": "Minutes before departure",
-            "fr": "Minutes avant le passage"
+            "fr": "Minutes avant le passage",
+            "de": "Minuten vor der Abfahrt",
+            "es": "Minutos antes de la salida"
           },
           "required": true,
           "options": [
@@ -341,42 +435,54 @@
               "value": "1",
               "label": {
                 "en": "1 minute",
-                "fr": "1 minute"
+                "fr": "1 minute",
+                "de": "1 Minute",
+                "es": "1 minuto"
               }
             },
             {
               "value": "2",
               "label": {
                 "en": "2 minutes",
-                "fr": "2 minutes"
+                "fr": "2 minutes",
+                "de": "2 Minuten",
+                "es": "2 minutos"
               }
             },
             {
               "value": "3",
               "label": {
                 "en": "3 minutes",
-                "fr": "3 minutes"
+                "fr": "3 minutes",
+                "de": "3 Minuten",
+                "es": "3 minutos"
               }
             },
             {
               "value": "5",
               "label": {
                 "en": "5 minutes",
-                "fr": "5 minutes"
+                "fr": "5 minutes",
+                "de": "5 Minuten",
+                "es": "5 minutos"
               }
             },
             {
               "value": "10",
               "label": {
                 "en": "10 minutes",
-                "fr": "10 minutes"
+                "fr": "10 minutes",
+                "de": "10 Minuten",
+                "es": "10 minutos"
               }
             },
             {
               "value": "15",
               "label": {
                 "en": "15 minutes",
-                "fr": "15 minutes"
+                "fr": "15 minutes",
+                "de": "15 Minuten",
+                "es": "15 minutos"
               }
             }
           ]
@@ -386,15 +492,21 @@
           "type": "string",
           "label": {
             "en": "Line (empty: any)",
-            "fr": "Ligne (vide : toutes)"
+            "fr": "Ligne (vide : toutes)",
+            "de": "Linie (leer: alle)",
+            "es": "Línea (vacío: todas)"
           },
           "description": {
             "en": "As written on the vehicle, e.g. T1 or C3 — upper case included.",
-            "fr": "Telle qu’affichée sur le véhicule, ex. T1 ou C3 — majuscules comprises."
+            "fr": "Telle qu’affichée sur le véhicule, ex. T1 ou C3 — majuscules comprises.",
+            "de": "Wie auf dem Fahrzeug angezeigt, z. B. T1 oder C3 — Großschreibung inbegriffen.",
+            "es": "Tal como aparece en el vehículo, p. ej. T1 o C3, mayúsculas incluidas."
           },
           "placeholder": {
             "en": "T1",
-            "fr": "T1"
+            "fr": "T1",
+            "de": "T1",
+            "es": "T1"
           }
         }
       ],
@@ -404,7 +516,9 @@
           "type": "string",
           "label": {
             "en": "Stop",
-            "fr": "Arrêt"
+            "fr": "Arrêt",
+            "de": "Haltestelle",
+            "es": "Parada"
           }
         },
         {
@@ -412,7 +526,9 @@
           "type": "string",
           "label": {
             "en": "Line",
-            "fr": "Ligne"
+            "fr": "Ligne",
+            "de": "Linie",
+            "es": "Línea"
           }
         },
         {
@@ -420,7 +536,9 @@
           "type": "string",
           "label": {
             "en": "Direction",
-            "fr": "Direction"
+            "fr": "Direction",
+            "de": "Richtung",
+            "es": "Dirección"
           }
         },
         {
@@ -428,7 +546,9 @@
           "type": "number",
           "label": {
             "en": "Minutes to wait",
-            "fr": "Minutes d’attente"
+            "fr": "Minutes d’attente",
+            "de": "Wartezeit in Minuten",
+            "es": "Minutos de espera"
           }
         },
         {
@@ -436,7 +556,9 @@
           "type": "boolean",
           "label": {
             "en": "Real-time tracked",
-            "fr": "Suivi en temps réel"
+            "fr": "Suivi en temps réel",
+            "de": "In Echtzeit verfolgt",
+            "es": "Seguido en tiempo real"
           }
         }
       ]
@@ -445,7 +567,9 @@
       "key": "velov_station_changed",
       "label": {
         "en": "Vélo'v availability changed",
-        "fr": "Disponibilité Vélo'v"
+        "fr": "Disponibilité Vélo'v",
+        "de": "Vélo'v-Verfügbarkeit geändert",
+        "es": "Disponibilidad Vélo'v"
       },
       "fields": [
         {
@@ -454,7 +578,9 @@
           "source": "devices",
           "label": {
             "en": "Vélo'v station",
-            "fr": "Station Vélo'v"
+            "fr": "Station Vélo'v",
+            "de": "Vélo'v-Station",
+            "es": "Estación Vélo'v"
           },
           "required": true
         },
@@ -463,49 +589,63 @@
           "type": "multi_select",
           "label": {
             "en": "Events (empty: any)",
-            "fr": "Événements (vide : tous)"
+            "fr": "Événements (vide : tous)",
+            "de": "Ereignisse (leer: alle)",
+            "es": "Eventos (vacío: todos)"
           },
           "options": [
             {
               "value": "no_bike",
               "label": {
                 "en": "Last bike taken",
-                "fr": "Plus aucun vélo"
+                "fr": "Plus aucun vélo",
+                "de": "Letztes Rad ausgeliehen",
+                "es": "Última bici retirada"
               }
             },
             {
               "value": "bikes_back",
               "label": {
                 "en": "Bikes available again",
-                "fr": "Vélos de nouveau disponibles"
+                "fr": "Vélos de nouveau disponibles",
+                "de": "Wieder Räder verfügbar",
+                "es": "Bicis disponibles de nuevo"
               }
             },
             {
               "value": "no_dock",
               "label": {
                 "en": "No free dock left",
-                "fr": "Plus aucune place libre"
+                "fr": "Plus aucune place libre",
+                "de": "Kein freier Stellplatz mehr",
+                "es": "Ningún anclaje libre"
               }
             },
             {
               "value": "docks_back",
               "label": {
                 "en": "Docks free again",
-                "fr": "Places de nouveau libres"
+                "fr": "Places de nouveau libres",
+                "de": "Wieder Stellplätze frei",
+                "es": "Anclajes libres de nuevo"
               }
             },
             {
               "value": "out_of_service",
               "label": {
                 "en": "Station out of service",
-                "fr": "Station hors service"
+                "fr": "Station hors service",
+                "de": "Station außer Betrieb",
+                "es": "Estación fuera de servicio"
               }
             },
             {
               "value": "back_in_service",
               "label": {
                 "en": "Station back in service",
-                "fr": "Station remise en service"
+                "fr": "Station remise en service",
+                "de": "Station wieder in Betrieb",
+                "es": "Estación de nuevo en servicio"
               }
             }
           ]
@@ -517,7 +657,9 @@
           "type": "string",
           "label": {
             "en": "Station",
-            "fr": "Station"
+            "fr": "Station",
+            "de": "Station",
+            "es": "Estación"
           }
         },
         {
@@ -525,7 +667,9 @@
           "type": "string",
           "label": {
             "en": "Event",
-            "fr": "Événement"
+            "fr": "Événement",
+            "de": "Ereignis",
+            "es": "Evento"
           }
         },
         {
@@ -533,7 +677,9 @@
           "type": "number",
           "label": {
             "en": "Bikes available",
-            "fr": "Vélos disponibles"
+            "fr": "Vélos disponibles",
+            "de": "Verfügbare Räder",
+            "es": "Bicis disponibles"
           }
         },
         {
@@ -541,7 +687,9 @@
           "type": "number",
           "label": {
             "en": "Electric bikes available",
-            "fr": "Vélos électriques disponibles"
+            "fr": "Vélos électriques disponibles",
+            "de": "Verfügbare E-Bikes",
+            "es": "Bicis eléctricas disponibles"
           }
         },
         {
@@ -549,7 +697,9 @@
           "type": "number",
           "label": {
             "en": "Docks available",
-            "fr": "Places disponibles"
+            "fr": "Places disponibles",
+            "de": "Freie Stellplätze",
+            "es": "Anclajes disponibles"
           }
         }
       ]
@@ -558,7 +708,9 @@
       "key": "park_and_ride_changed",
       "label": {
         "en": "Park & ride availability",
-        "fr": "Disponibilité parc relais"
+        "fr": "Disponibilité parc relais",
+        "de": "P+R-Verfügbarkeit",
+        "es": "Disponibilidad de aparcamiento"
       },
       "fields": [
         {
@@ -567,7 +719,9 @@
           "source": "devices",
           "label": {
             "en": "Park & ride",
-            "fr": "Parc relais"
+            "fr": "Parc relais",
+            "de": "P+R-Parkplatz",
+            "es": "Aparcamiento disuasorio"
           },
           "required": true
         },
@@ -576,28 +730,36 @@
           "type": "multi_select",
           "label": {
             "en": "Events (empty: any)",
-            "fr": "Événements (vide : tous)"
+            "fr": "Événements (vide : tous)",
+            "de": "Ereignisse (leer: alle)",
+            "es": "Eventos (vacío: todos)"
           },
           "options": [
             {
               "value": "almost_full",
               "label": {
                 "en": "Almost full (90 %)",
-                "fr": "Presque complet (90 %)"
+                "fr": "Presque complet (90 %)",
+                "de": "Fast voll (90 %)",
+                "es": "Casi lleno (90 %)"
               }
             },
             {
               "value": "full",
               "label": {
                 "en": "Full",
-                "fr": "Complet"
+                "fr": "Complet",
+                "de": "Voll",
+                "es": "Lleno"
               }
             },
             {
               "value": "spaces_back",
               "label": {
                 "en": "Spaces available again",
-                "fr": "Places de nouveau disponibles"
+                "fr": "Places de nouveau disponibles",
+                "de": "Wieder Plätze frei",
+                "es": "Plazas disponibles de nuevo"
               }
             }
           ]
@@ -609,7 +771,9 @@
           "type": "string",
           "label": {
             "en": "Park & ride",
-            "fr": "Parc relais"
+            "fr": "Parc relais",
+            "de": "P+R-Parkplatz",
+            "es": "Aparcamiento disuasorio"
           }
         },
         {
@@ -617,7 +781,9 @@
           "type": "string",
           "label": {
             "en": "Event",
-            "fr": "Événement"
+            "fr": "Événement",
+            "de": "Ereignis",
+            "es": "Evento"
           }
         },
         {
@@ -625,7 +791,9 @@
           "type": "number",
           "label": {
             "en": "Free spaces",
-            "fr": "Places libres"
+            "fr": "Places libres",
+            "de": "Freie Plätze",
+            "es": "Plazas libres"
           }
         },
         {
@@ -633,7 +801,9 @@
           "type": "number",
           "label": {
             "en": "Capacity",
-            "fr": "Capacité"
+            "fr": "Capacité",
+            "de": "Kapazität",
+            "es": "Capacidad"
           }
         },
         {
@@ -641,7 +811,9 @@
           "type": "number",
           "label": {
             "en": "Occupancy (%)",
-            "fr": "Remplissage (%)"
+            "fr": "Remplissage (%)",
+            "de": "Belegung (%)",
+            "es": "Ocupación (%)"
           }
         }
       ]
@@ -652,7 +824,9 @@
       "key": "get_next_departures",
       "label": {
         "en": "Read the next departures",
-        "fr": "Lire les prochains passages"
+        "fr": "Lire les prochains passages",
+        "de": "Nächste Abfahrten lesen",
+        "es": "Leer las próximas salidas"
       },
       "timeout_seconds": 60,
       "fields": [
@@ -662,7 +836,9 @@
           "source": "devices",
           "label": {
             "en": "Transit stop",
-            "fr": "Arrêt"
+            "fr": "Arrêt",
+            "de": "Haltestelle",
+            "es": "Parada"
           },
           "required": true
         },
@@ -671,15 +847,21 @@
           "type": "string",
           "label": {
             "en": "Line (empty: any)",
-            "fr": "Ligne (vide : toutes)"
+            "fr": "Ligne (vide : toutes)",
+            "de": "Linie (leer: alle)",
+            "es": "Línea (vacío: todas)"
           },
           "description": {
             "en": "Only this line, e.g. T1 or C3.",
-            "fr": "Seulement cette ligne, ex. T1 ou C3."
+            "fr": "Seulement cette ligne, ex. T1 ou C3.",
+            "de": "Nur diese Linie, z. B. T1 oder C3.",
+            "es": "Solo esta línea, p. ej. T1 o C3."
           },
           "placeholder": {
             "en": "T1",
-            "fr": "T1"
+            "fr": "T1",
+            "de": "T1",
+            "es": "T1"
           }
         }
       ],
@@ -689,7 +871,9 @@
           "type": "string",
           "label": {
             "en": "Stop",
-            "fr": "Arrêt"
+            "fr": "Arrêt",
+            "de": "Haltestelle",
+            "es": "Parada"
           }
         },
         {
@@ -697,7 +881,9 @@
           "type": "string",
           "label": {
             "en": "Line",
-            "fr": "Ligne"
+            "fr": "Ligne",
+            "de": "Linie",
+            "es": "Línea"
           }
         },
         {
@@ -705,7 +891,9 @@
           "type": "string",
           "label": {
             "en": "Direction",
-            "fr": "Direction"
+            "fr": "Direction",
+            "de": "Richtung",
+            "es": "Dirección"
           }
         },
         {
@@ -713,7 +901,9 @@
           "type": "number",
           "label": {
             "en": "Minutes to wait",
-            "fr": "Minutes d’attente"
+            "fr": "Minutes d’attente",
+            "de": "Wartezeit in Minuten",
+            "es": "Minutos de espera"
           }
         },
         {
@@ -721,7 +911,9 @@
           "type": "boolean",
           "label": {
             "en": "Real-time tracked",
-            "fr": "Suivi en temps réel"
+            "fr": "Suivi en temps réel",
+            "de": "In Echtzeit verfolgt",
+            "es": "Seguido en tiempo real"
           }
         },
         {
@@ -729,7 +921,9 @@
           "type": "string",
           "label": {
             "en": "Next departure",
-            "fr": "Prochain passage"
+            "fr": "Prochain passage",
+            "de": "Nächste Abfahrt",
+            "es": "Próxima salida"
           }
         },
         {
@@ -737,7 +931,9 @@
           "type": "number",
           "label": {
             "en": "Minutes to the following one",
-            "fr": "Minutes jusqu’au suivant"
+            "fr": "Minutes jusqu’au suivant",
+            "de": "Minuten bis zur folgenden",
+            "es": "Minutos hasta la siguiente"
           }
         },
         {
@@ -745,7 +941,9 @@
           "type": "string",
           "label": {
             "en": "Departure board",
-            "fr": "Tableau des passages"
+            "fr": "Tableau des passages",
+            "de": "Abfahrtstafel",
+            "es": "Panel de salidas"
           }
         },
         {
@@ -753,7 +951,9 @@
           "type": "number",
           "label": {
             "en": "Upcoming departures",
-            "fr": "Passages à venir"
+            "fr": "Passages à venir",
+            "de": "Kommende Abfahrten",
+            "es": "Próximas salidas"
           }
         }
       ]
@@ -762,7 +962,9 @@
       "key": "get_velov_station",
       "label": {
         "en": "Read a Vélo'v station",
-        "fr": "Lire une station Vélo'v"
+        "fr": "Lire une station Vélo'v",
+        "de": "Vélo'v-Station lesen",
+        "es": "Leer una estación Vélo'v"
       },
       "timeout_seconds": 30,
       "fields": [
@@ -772,7 +974,9 @@
           "source": "devices",
           "label": {
             "en": "Vélo'v station",
-            "fr": "Station Vélo'v"
+            "fr": "Station Vélo'v",
+            "de": "Vélo'v-Station",
+            "es": "Estación Vélo'v"
           },
           "required": true
         }
@@ -783,7 +987,9 @@
           "type": "string",
           "label": {
             "en": "Station",
-            "fr": "Station"
+            "fr": "Station",
+            "de": "Station",
+            "es": "Estación"
           }
         },
         {
@@ -791,7 +997,9 @@
           "type": "number",
           "label": {
             "en": "Bikes available",
-            "fr": "Vélos disponibles"
+            "fr": "Vélos disponibles",
+            "de": "Verfügbare Räder",
+            "es": "Bicis disponibles"
           }
         },
         {
@@ -799,7 +1007,9 @@
           "type": "number",
           "label": {
             "en": "Electric bikes available",
-            "fr": "Vélos électriques disponibles"
+            "fr": "Vélos électriques disponibles",
+            "de": "Verfügbare E-Bikes",
+            "es": "Bicis eléctricas disponibles"
           }
         },
         {
@@ -807,7 +1017,9 @@
           "type": "number",
           "label": {
             "en": "Docks available",
-            "fr": "Places disponibles"
+            "fr": "Places disponibles",
+            "de": "Freie Stellplätze",
+            "es": "Anclajes disponibles"
           }
         },
         {
@@ -815,7 +1027,9 @@
           "type": "number",
           "label": {
             "en": "Occupancy (%)",
-            "fr": "Remplissage (%)"
+            "fr": "Remplissage (%)",
+            "de": "Belegung (%)",
+            "es": "Ocupación (%)"
           }
         },
         {
@@ -823,7 +1037,9 @@
           "type": "string",
           "label": {
             "en": "Status",
-            "fr": "État"
+            "fr": "État",
+            "de": "Status",
+            "es": "Estado"
           }
         }
       ]
@@ -832,7 +1048,9 @@
       "key": "get_park_and_ride",
       "label": {
         "en": "Read a park & ride",
-        "fr": "Lire un parc relais"
+        "fr": "Lire un parc relais",
+        "de": "P+R-Parkplatz lesen",
+        "es": "Leer un aparcamiento P+R"
       },
       "timeout_seconds": 60,
       "fields": [
@@ -842,7 +1060,9 @@
           "source": "devices",
           "label": {
             "en": "Park & ride",
-            "fr": "Parc relais"
+            "fr": "Parc relais",
+            "de": "P+R-Parkplatz",
+            "es": "Aparcamiento disuasorio"
           },
           "required": true
         }
@@ -853,7 +1073,9 @@
           "type": "string",
           "label": {
             "en": "Park & ride",
-            "fr": "Parc relais"
+            "fr": "Parc relais",
+            "de": "P+R-Parkplatz",
+            "es": "Aparcamiento disuasorio"
           }
         },
         {
@@ -861,7 +1083,9 @@
           "type": "number",
           "label": {
             "en": "Free spaces",
-            "fr": "Places libres"
+            "fr": "Places libres",
+            "de": "Freie Plätze",
+            "es": "Plazas libres"
           }
         },
         {
@@ -869,7 +1093,9 @@
           "type": "number",
           "label": {
             "en": "Capacity",
-            "fr": "Capacité"
+            "fr": "Capacité",
+            "de": "Kapazität",
+            "es": "Capacidad"
           }
         },
         {
@@ -877,7 +1103,9 @@
           "type": "number",
           "label": {
             "en": "Occupancy (%)",
-            "fr": "Remplissage (%)"
+            "fr": "Remplissage (%)",
+            "de": "Belegung (%)",
+            "es": "Ocupación (%)"
           }
         },
         {
@@ -885,7 +1113,9 @@
           "type": "string",
           "label": {
             "en": "Status",
-            "fr": "État"
+            "fr": "État",
+            "de": "Status",
+            "es": "Estado"
           }
         }
       ]
@@ -896,11 +1126,15 @@
       "key": "departures",
       "label": {
         "en": "TCL departures",
-        "fr": "Passages TCL"
+        "fr": "Passages TCL",
+        "de": "TCL-Abfahrten",
+        "es": "Salidas TCL"
       },
       "description": {
         "en": "The next departures of a watched stop.",
-        "fr": "Les prochains passages d’un arrêt surveillé."
+        "fr": "Les prochains passages d’un arrêt surveillé.",
+        "de": "Die nächsten Abfahrten einer überwachten Haltestelle.",
+        "es": "Las próximas salidas de una parada vigilada."
       },
       "icon": "clock",
       "settings": [
@@ -910,7 +1144,9 @@
           "source": "devices",
           "label": {
             "en": "Transit stop",
-            "fr": "Arrêt"
+            "fr": "Arrêt",
+            "de": "Haltestelle",
+            "es": "Parada"
           },
           "required": true
         }
@@ -920,11 +1156,15 @@
       "key": "velov_station",
       "label": {
         "en": "Vélo'v station",
-        "fr": "Station Vélo'v"
+        "fr": "Station Vélo'v",
+        "de": "Vélo'v-Station",
+        "es": "Estación Vélo'v"
       },
       "description": {
         "en": "Bikes, docks and the curve of the day.",
-        "fr": "Vélos, places et la courbe de la journée."
+        "fr": "Vélos, places et la courbe de la journée.",
+        "de": "Räder, Stellplätze und der Tagesverlauf.",
+        "es": "Bicis, anclajes y la curva del día."
       },
       "icon": "map-pin",
       "settings": [
@@ -934,7 +1174,9 @@
           "source": "devices",
           "label": {
             "en": "Vélo'v station",
-            "fr": "Station Vélo'v"
+            "fr": "Station Vélo'v",
+            "de": "Vélo'v-Station",
+            "es": "Estación Vélo'v"
           },
           "required": true
         }
@@ -944,11 +1186,15 @@
       "key": "park_and_ride",
       "label": {
         "en": "TCL park & ride",
-        "fr": "Parc relais TCL"
+        "fr": "Parc relais TCL",
+        "de": "TCL-P+R-Parkplatz",
+        "es": "Aparcamiento P+R TCL"
       },
       "description": {
         "en": "Free spaces, fill level and the curve of the day.",
-        "fr": "Places libres, remplissage et la courbe de la journée."
+        "fr": "Places libres, remplissage et la courbe de la journée.",
+        "de": "Freie Plätze, Füllstand und der Tagesverlauf.",
+        "es": "Plazas libres, nivel de ocupación y la curva del día."
       },
       "icon": "grid",
       "settings": [
@@ -958,7 +1204,9 @@
           "source": "devices",
           "label": {
             "en": "Park & ride",
-            "fr": "Parc relais"
+            "fr": "Parc relais",
+            "de": "P+R-Parkplatz",
+            "es": "Aparcamiento disuasorio"
           },
           "required": true
         }

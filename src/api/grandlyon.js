@@ -215,7 +215,7 @@ export function resolvedLayerFor(config, layers) {
  *
  * @param {string[]} layers the candidate names that all answered 404
  * @param {string[]} [published] the closest names the platform actually serves
- * @returns {{ en: string, fr: string }}
+ * @returns {{ en: string, fr: string, de: string, es: string }}
  */
 function layerNotFoundMessage(layers, published = []) {
   const tried = layers.join(', ');
@@ -224,8 +224,10 @@ function layerNotFoundMessage(layers, published = []) {
     ? {
         en: ` The platform publishes these look-alikes: ${closest}.`,
         fr: ` La plateforme publie ces noms voisins : ${closest}.`,
+        de: ` Die Plattform veröffentlicht diese ähnlichen Namen: ${closest}.`,
+        es: ` La plataforma publica estos nombres parecidos: ${closest}.`,
       }
-    : { en: '', fr: '' };
+    : { en: '', fr: '', de: '', es: '' };
   return {
     en:
       `Data Grand Lyon answered HTTP 404: none of the datasets this integration knows is ` +
@@ -242,6 +244,22 @@ function layerNotFoundMessage(layers, published = []) {
       `https://github.com/prohand/gladys-transport-commun-lyonnais/issues pour que ` +
       `l’intégration suive.${hint.fr} Votre compte n’est pas en cause : ce n’est pas un ` +
       `problème d’identifiants.`,
+    de:
+      `Data Grand Lyon hat mit HTTP 404 geantwortet: Keiner der Datensätze, die diese ` +
+      `Integration kennt, wird noch veröffentlicht (versucht: ${tried}). Die Plattform ` +
+      `benennt ihre TCL-Ebenen bei jeder Änderung des Netzes um; suchen Sie den aktuellen ` +
+      `Namen auf https://data.grandlyon.com und melden Sie ihn unter ` +
+      `https://github.com/prohand/gladys-transport-commun-lyonnais/issues, damit die ` +
+      `Integration folgen kann.${hint.de} Ihr Konto ist in Ordnung — es handelt sich nicht ` +
+      `um ein Problem mit den Zugangsdaten.`,
+    es:
+      `Data Grand Lyon ha respondido HTTP 404: ninguno de los conjuntos de datos que conoce ` +
+      `esta integración sigue publicado (probados: ${tried}). La plataforma cambia el nombre ` +
+      `de sus capas TCL cada vez que evoluciona la red; busque el nombre actual en ` +
+      `https://data.grandlyon.com e infórmelo en ` +
+      `https://github.com/prohand/gladys-transport-commun-lyonnais/issues para que la ` +
+      `integración lo siga.${hint.es} Su cuenta está bien: no es un problema de ` +
+      `credenciales.`,
   };
 }
 
@@ -268,6 +286,22 @@ const CREDENTIALS_REFUSED = {
     'puis saisissez-le ici, avec l’adresse email de votre compte comme identifiant. Si ' +
     'cette page réclame un ancien mot de passe que vous n’avez jamais défini, ' +
     'déconnectez-vous du portail et utilisez le lien « Mot de passe oublié ? ».',
+  de:
+    'Data Grand Lyon hat die Zugangsdaten abgelehnt. Der Webdienst akzeptiert Ihr ' +
+    'GrandLyon-Connect-Passwort nicht: Melden Sie sich beim Portal an, legen Sie dann auf ' +
+    'https://data.grandlyon.com/onegeo-login/fr/profile/ ein eigenes Passwort für die ' +
+    'Datenplattform fest und geben Sie es hier ein, mit der E-Mail-Adresse Ihres Kontos ' +
+    'als Benutzername. Fragt diese Seite nach einem alten Passwort, das Sie nie festgelegt ' +
+    'haben, melden Sie sich zuerst vom Portal ab und nutzen Sie dessen Link ' +
+    '„Mot de passe oublié ?“ (Passwort vergessen).',
+  es:
+    'Data Grand Lyon ha rechazado las credenciales. El servicio web no acepta su ' +
+    'contraseña de GrandLyon Connect: inicie sesión en el portal, defina después una ' +
+    'contraseña propia de la plataforma de datos en ' +
+    'https://data.grandlyon.com/onegeo-login/fr/profile/ e introdúzcala aquí, con la ' +
+    'dirección de correo electrónico de su cuenta como usuario. Si esa página le pide una ' +
+    'contraseña antigua que nunca definió, cierre primero la sesión del portal y utilice ' +
+    'su enlace «Mot de passe oublié ?» (contraseña olvidada).',
 };
 
 /**
@@ -280,7 +314,7 @@ const CREDENTIALS_REFUSED = {
  *
  * @param {string} layer the layer being read
  * @param {number} timeoutMs the budget that expired
- * @returns {{ en: string, fr: string }}
+ * @returns {{ en: string, fr: string, de: string, es: string }}
  */
 function timedOutMessage(layer, timeoutMs) {
   const seconds = Math.round(timeoutMs / 1000);
@@ -295,6 +329,16 @@ function timedOutMessage(layer, timeoutMs) {
       `plateforme est lente aux heures de pointe et cette lecture télécharge un jeu de ` +
       `données entier : réessayez dans un instant — une fois la réponse obtenue, elle est ` +
       `gardée en mémoire et les recherches suivantes sont immédiates.`,
+    de:
+      `Data Grand Lyon hat beim Lesen von ${layer} nicht innerhalb von ${seconds} s ` +
+      `geantwortet. Die Plattform ist zu Stoßzeiten langsam und dieser Lesevorgang lädt ` +
+      `einen ganzen Datensatz herunter: Versuchen Sie es gleich noch einmal — sobald es ` +
+      `klappt, bleibt die Antwort im Speicher und die nächsten Suchen sind sofort da.`,
+    es:
+      `Data Grand Lyon no ha respondido en ${seconds} s durante la lectura de ${layer}. La ` +
+      `plataforma va lenta en horas punta y esta lectura descarga un conjunto de datos ` +
+      `entero: vuelva a intentarlo dentro de un momento; en cuanto funcione, la respuesta ` +
+      `se guarda en memoria y las búsquedas siguientes son inmediatas.`,
   };
 }
 
@@ -304,7 +348,7 @@ function timedOutMessage(layer, timeoutMs) {
  * @param {string} layer the layer being read
  * @param {string} reason the underlying cause, worth keeping: DNS, TLS and
  *   proxy failures all look the same from here otherwise
- * @returns {{ en: string, fr: string }}
+ * @returns {{ en: string, fr: string, de: string, es: string }}
  */
 function unreachableMessage(layer, reason) {
   return {
@@ -316,6 +360,14 @@ function unreachableMessage(layer, reason) {
       `Data Grand Lyon n’a pas pu être contacté pendant la lecture de ${layer} (${reason}). ` +
       `Vérifiez que le conteneur a accès à internet et que l’URL de base du service web est ` +
       `correcte.`,
+    de:
+      `Data Grand Lyon war beim Lesen von ${layer} nicht erreichbar (${reason}). Prüfen ` +
+      `Sie, ob der Container Internetzugang hat und ob die Basis-URL des Webdienstes ` +
+      `stimmt.`,
+    es:
+      `No se ha podido contactar con Data Grand Lyon durante la lectura de ${layer} ` +
+      `(${reason}). Compruebe que el contenedor tiene acceso a internet y que la URL base ` +
+      `del servicio web es correcta.`,
   };
 }
 
@@ -328,7 +380,7 @@ export class GrandLyonError extends Error {
   /**
    * @param {string} message
    * @param {{ status?: number, layer?: string, published?: string[],
-   *   userMessage?: { en: string, fr: string } }} [details]
+   *   userMessage?: { en: string, fr: string, de: string, es: string } }} [details]
    */
   constructor(message, { status, layer, cause, published, userMessage } = {}) {
     super(message, { cause });
@@ -339,7 +391,7 @@ export class GrandLyonError extends Error {
     // The user cannot rename a layer, but they can paste that list into a bug
     // report — and it is what turns "please report it" into one click.
     this.published = published ?? [];
-    // Bilingual explanation displayed as-is in the Gladys configuration screen
+    // Multi-language explanation displayed as-is in the Gladys configuration screen
     // (see the `test_grandlyon` action). Only set when we have something more
     // useful to say than the raw message.
     this.userMessage = userMessage;
@@ -482,6 +534,8 @@ export async function fetchLayer(
         userMessage: {
           en: 'No Data Grand Lyon credentials: fill in the username and password.',
           fr: 'Identifiants Data Grand Lyon absents : renseignez le nom d’utilisateur et le mot de passe.',
+          de: 'Keine Zugangsdaten für Data Grand Lyon: Geben Sie Benutzername und Passwort ein.',
+          es: 'Faltan las credenciales de Data Grand Lyon: indique el usuario y la contraseña.',
         },
       },
     );
