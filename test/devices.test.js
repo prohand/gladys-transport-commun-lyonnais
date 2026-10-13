@@ -1029,6 +1029,8 @@ test('the park & ride list tells the two kinds of missing count apart', async ()
   assert.match(message.en, /could not read: BONN/);
   assert.match(message.fr, /absents de la couche temps réel[\s\S]*IRYV/);
   assert.match(message.fr, /n’a pas su lire : BONN/);
+  assert.match(message.de, /fehlen in der Echtzeit-Ebene[\s\S]*IRYV/);
+  assert.match(message.es, /no ha podido leer: BONN/);
 });
 
 test('the account test reports a retired dataset without condemning the account', async () => {
@@ -1050,6 +1052,8 @@ test('the account test reports a retired dataset without condemning the account'
   assert.match(message.en, /✖ Park & ride/);
   assert.match(message.fr, /accepté votre compte/);
   assert.match(message.fr, /✖ Parcs relais/);
+  assert.match(message.de, /hat dein Konto akzeptiert[\s\S]*✖ P\+R-Parkplätze: /);
+  assert.match(message.es, /ha aceptado su cuenta[\s\S]*✖ Aparcamientos disuasorios: /);
 });
 
 test('a retired dataset is reported with what the platform publishes instead', async () => {
@@ -1126,4 +1130,6 @@ test('the account test still names the password trap when the account is refused
 
   assert.match(message.en, /onegeo-login/);
   assert.match(message.fr, /GrandLyon Connect/);
+  assert.match(message.de, /GrandLyon-Connect-Passwort/);
+  assert.match(message.es, /onegeo-login/);
 });

@@ -30,6 +30,7 @@ import { checkDatasets, listParkAndRideFacilities, searchStops } from '../api/tc
 import { searchStations } from '../api/velov.js';
 import { GrandLyonError } from '../api/grandlyon.js';
 import { hasGrandLyonCredentials } from '../config.js';
+import { perLanguage } from '../i18n.js';
 import { publishSceneEvents } from '../scenes/triggers.js';
 
 const logger = createLogger({ name: 'devices' });
@@ -168,10 +169,10 @@ export function deviceName(gladys, blueprint, config) {
  * integration cannot read: nothing chosen, a device whose entry was removed
  * from the watch lists, or a device of another kind (the `source: "devices"`
  * selects list every device of the integration, stops, stations and car parks
- * together). It carries the bilingual explanation the widget displays.
+ * together). It carries the multi-language explanation the widget displays.
  */
 export class DeviceSelectionError extends Error {
-  /** @param {{ en: string, fr: string }} userMessage */
+  /** @param {{ en: string, fr: string, de: string, es: string }} userMessage */
   constructor(userMessage) {
     super(userMessage.en);
     this.name = 'DeviceSelectionError';
@@ -179,10 +180,41 @@ export class DeviceSelectionError extends Error {
   }
 }
 
+// `is` completes "This device is …", `choose` completes "Choose …": German
+// declines the article ("ein P+R-Parkplatz", "wähle einen P+R-Parkplatz").
 const KIND_LABELS = {
-  [STOP_TYPE]: { en: 'a transit stop', fr: 'un arrêt' },
-  [VELOV_TYPE]: { en: "a Vélo'v station", fr: 'une station Vélo’v' },
-  [PARK_AND_RIDE_TYPE]: { en: 'a park & ride', fr: 'un parc relais' },
+  [STOP_TYPE]: {
+    is: { en: 'a transit stop', fr: 'un arrêt', de: 'eine Haltestelle', es: 'una parada' },
+    choose: { en: 'a transit stop', fr: 'un arrêt', de: 'eine Haltestelle', es: 'una parada' },
+  },
+  [VELOV_TYPE]: {
+    is: {
+      en: "a Vélo'v station",
+      fr: 'une station Vélo’v',
+      de: 'eine Vélo’v-Station',
+      es: 'una estación Vélo’v',
+    },
+    choose: {
+      en: "a Vélo'v station",
+      fr: 'une station Vélo’v',
+      de: 'eine Vélo’v-Station',
+      es: 'una estación Vélo’v',
+    },
+  },
+  [PARK_AND_RIDE_TYPE]: {
+    is: {
+      en: 'a park & ride',
+      fr: 'un parc relais',
+      de: 'ein P+R-Parkplatz',
+      es: 'un aparcamiento disuasorio',
+    },
+    choose: {
+      en: 'a park & ride',
+      fr: 'un parc relais',
+      de: 'einen P+R-Parkplatz',
+      es: 'un aparcamiento disuasorio',
+    },
+  },
 };
 
 /**
@@ -196,11 +228,13 @@ const KIND_LABELS = {
  * @throws {DeviceSelectionError}
  */
 export function findSelectedBlueprint(gladys, deviceExternalId, config, type) {
-  const kind = KIND_LABELS[type];
+  const kind = KIND_LABELS[type].choose;
   if (typeof deviceExternalId !== 'string' || deviceExternalId.length === 0) {
     throw new DeviceSelectionError({
       en: `Choose ${kind.en} in the settings.`,
       fr: `Choisissez ${kind.fr} dans les réglages.`,
+      de: `Wähle ${kind.de} in den Einstellungen.`,
+      es: `Elija ${kind.es} en los ajustes.`,
     });
   }
   const blueprint = findBlueprintByDevice(gladys, { external_id: deviceExternalId }, config);
@@ -208,16 +242,29 @@ export function findSelectedBlueprint(gladys, deviceExternalId, config, type) {
     throw new DeviceSelectionError({
       en: `This device is no longer in the integration configuration: add it back, or choose another one.`,
       fr: `Cet appareil n’est plus dans la configuration de l’intégration : ajoutez-le à nouveau, ou choisissez-en un autre.`,
+      de: `Dieses Gerät ist nicht mehr in der Konfiguration der Integration: Füge es wieder hinzu oder wähle ein anderes.`,
+      es: `Este dispositivo ya no está en la configuración de la integración: vuelva a añadirlo o elija otro.`,
     });
   }
   if (blueprint.type !== type) {
+    const actual = KIND_LABELS[blueprint.type]?.is;
     throw new DeviceSelectionError({
-      en: `This device is ${KIND_LABELS[blueprint.type]?.en ?? 'another kind of device'}: choose ${kind.en}.`,
-      fr: `Cet appareil est ${KIND_LABELS[blueprint.type]?.fr ?? 'd’un autre type'} : choisissez ${kind.fr}.`,
+      en: `This device is ${actual?.en ?? 'another kind of device'}: choose ${kind.en}.`,
+      fr: `Cet appareil est ${actual?.fr ?? 'd’un autre type'} : choisissez ${kind.fr}.`,
+      de: `Dieses Gerät ist ${actual?.de ?? 'von einem anderen Typ'}: Wähle ${kind.de}.`,
+      es: `Este dispositivo es ${actual?.es ?? 'de otro tipo'}: elija ${kind.es}.`,
     });
   }
   return blueprint;
 }
+
+/** The answer of a search button given fewer than two characters. */
+const TOO_SHORT = {
+  en: 'Type at least 2 characters.',
+  fr: 'Saisissez au moins 2 caractères.',
+  de: 'Gib mindestens 2 Zeichen ein.',
+  es: 'Escriba al menos 2 caracteres.',
+};
 
 /**
  * Handlers of the manifest actions (the buttons of the Configuration screen).
@@ -244,6 +291,8 @@ const RAW_ACTIONS = {
       return {
         en: 'No Data Grand Lyon credentials: fill in the username and password above.',
         fr: 'Identifiants Data Grand Lyon absents : renseignez le nom d’utilisateur et le mot de passe ci-dessus.',
+        de: 'Keine Zugangsdaten für Data Grand Lyon: Gib oben Benutzername und Passwort ein.',
+        es: 'Faltan las credenciales de Data Grand Lyon: indique arriba el usuario y la contraseña.',
       };
     }
 
@@ -264,21 +313,28 @@ const RAW_ACTIONS = {
           ? 'Data Grand Lyon OK : votre compte fonctionne et tous les jeux de données sont lisibles.'
           : `Data Grand Lyon a accepté votre compte, mais ${datasets.length - reachable.length} ` +
             `de ses ${datasets.length} jeux de données n’ont pas pu être lus.`,
+      de:
+        reachable.length === datasets.length
+          ? 'Data Grand Lyon OK: Dein Konto funktioniert und alle Datensätze sind lesbar.'
+          : `Data Grand Lyon hat dein Konto akzeptiert, aber ${datasets.length - reachable.length} ` +
+            `der ${datasets.length} Datensätze konnten nicht gelesen werden.`,
+      es:
+        reachable.length === datasets.length
+          ? 'Data Grand Lyon OK: su cuenta funciona y todos los conjuntos de datos son legibles.'
+          : `Data Grand Lyon ha aceptado su cuenta, pero ${datasets.length - reachable.length} ` +
+            `de sus ${datasets.length} conjuntos de datos no se han podido leer.`,
     };
 
-    const lines = datasets.map((dataset) => ({
-      en: dataset.ok
-        ? `✔ ${dataset.label.en} (${dataset.layer})`
-        : `✖ ${dataset.label.en}: ${describeFailure(dataset.error).en}`,
-      fr: dataset.ok
-        ? `✔ ${dataset.label.fr} (${dataset.layer})`
-        : `✖ ${dataset.label.fr} : ${describeFailure(dataset.error).fr}`,
-    }));
-
-    return {
-      en: [summary.en, ...lines.map((line) => line.en)].join('\n'),
-      fr: [summary.fr, ...lines.map((line) => line.fr)].join('\n'),
-    };
+    return perLanguage((language) => {
+      // French typography puts a space before the colon.
+      const colon = language === 'fr' ? ' :' : ':';
+      const lines = datasets.map((dataset) =>
+        dataset.ok
+          ? `✔ ${dataset.label[language]} (${dataset.layer})`
+          : `✖ ${dataset.label[language]}${colon} ${describeFailure(dataset.error)[language]}`,
+      );
+      return [summary[language], ...lines].join('\n');
+    });
   },
 
   /**
@@ -297,11 +353,16 @@ const RAW_ACTIONS = {
   async search_stops(gladys, { fields, config }) {
     const query = String(fields.query ?? '').trim();
     if (query.length < 2) {
-      return { en: 'Type at least 2 characters.', fr: 'Saisissez au moins 2 caractères.' };
+      return TOO_SHORT;
     }
     const results = await searchStops(config, query);
     if (results.length === 0) {
-      return { en: `No stop matches "${query}".`, fr: `Aucun arrêt ne correspond à "${query}".` };
+      return {
+        en: `No stop matches "${query}".`,
+        fr: `Aucun arrêt ne correspond à "${query}".`,
+        de: `Keine Haltestelle entspricht „${query}“.`,
+        es: `Ninguna parada coincide con «${query}».`,
+      };
     }
     const list = results.map(formatStopResult).join('\n');
     const withoutDirection = results.filter((stop) => stop.directions.length === 0).length;
@@ -314,10 +375,20 @@ const RAW_ACTIONS = {
         withoutDirection > 0
           ? `\n(${withoutDirection} d’entre eux n’ont aucun passage à venir : seules leurs lignes sont connues.)`
           : '',
+      de:
+        withoutDirection > 0
+          ? `\n(${withoutDirection} davon haben gerade keine Abfahrt: Nur ihre Linien sind bekannt.)`
+          : '',
+      es:
+        withoutDirection > 0
+          ? `\n(${withoutDirection} de ellas no tienen ninguna salida ahora mismo: solo se conocen sus líneas.)`
+          : '',
     };
     return {
       en: `Paste one of these ids in "Transit stops":\n${list}${note.en}`,
       fr: `Collez un de ces identifiants dans "Arrêts" :\n${list}${note.fr}`,
+      de: `Füge eine dieser Kennungen in „Haltestellen“ ein:\n${list}${note.de}`,
+      es: `Pegue uno de estos identificadores en «Paradas»:\n${list}${note.es}`,
     };
   },
 
@@ -325,13 +396,15 @@ const RAW_ACTIONS = {
   async search_velov_stations(gladys, { fields, config }) {
     const query = String(fields.query ?? '').trim();
     if (query.length < 2) {
-      return { en: 'Type at least 2 characters.', fr: 'Saisissez au moins 2 caractères.' };
+      return TOO_SHORT;
     }
     const results = await searchStations(config, query);
     if (results.length === 0) {
       return {
         en: `No Vélo'v station matches "${query}".`,
         fr: `Aucune station Vélo'v ne correspond à "${query}".`,
+        de: `Keine Vélo'v-Station entspricht „${query}“.`,
+        es: `Ninguna estación Vélo'v coincide con «${query}».`,
       };
     }
     const list = results
@@ -340,6 +413,8 @@ const RAW_ACTIONS = {
     return {
       en: `Paste one of these ids in "Vélo'v stations":\n${list}`,
       fr: `Collez un de ces identifiants dans "Stations Vélo'v" :\n${list}`,
+      de: `Füge eine dieser Kennungen in „Vélo'v-Stationen“ ein:\n${list}`,
+      es: `Pegue uno de estos identificadores en «Estaciones Vélo'v»:\n${list}`,
     };
   },
 
@@ -357,7 +432,12 @@ const RAW_ACTIONS = {
     const facilities = await listParkAndRideFacilities(config);
 
     if (facilities.length === 0) {
-      return { en: 'No park & ride returned.', fr: 'Aucun parc relais retourné.' };
+      return {
+        en: 'No park & ride returned.',
+        fr: 'Aucun parc relais retourné.',
+        de: 'Kein P+R-Parkplatz zurückgegeben.',
+        es: 'No se ha devuelto ningún aparcamiento disuasorio.',
+      };
     }
 
     const lines = facilities.map(
@@ -374,7 +454,7 @@ const RAW_ACTIONS = {
     const notInLiveLayer = uncounted.filter((facility) => facility.live === false);
     const unreadable = uncounted.filter((facility) => facility.live === true);
     const named = (list) => list.map((facility) => facility.id || facility.name).join(', ');
-    const notes = { en: [], fr: [] };
+    const notes = { en: [], fr: [], de: [], es: [] };
     if (notInLiveLayer.length > 0) {
       notes.en.push(
         `${notInLiveLayer.length} of them are absent from the real-time layer, so the platform ` +
@@ -385,6 +465,16 @@ const RAW_ACTIONS = {
         `${notInLiveLayer.length} d’entre eux sont absents de la couche temps réel : la ` +
           `plateforme ne publie aucun comptage pour eux (${named(notInLiveLayer)}). Ils restent ` +
           'surveillables — leur appareil publie la capacité et un statut « No live count ».',
+      );
+      notes.de.push(
+        `${notInLiveLayer.length} davon fehlen in der Echtzeit-Ebene, daher veröffentlicht die ` +
+          `Plattform für sie keine Zahl freier Plätze: ${named(notInLiveLayer)}. Sie lassen sich ` +
+          'trotzdem überwachen — ihr Gerät veröffentlicht die Kapazität und den Status „No live count“.',
+      );
+      notes.es.push(
+        `${notInLiveLayer.length} de ellos no están en la capa de tiempo real, así que la ` +
+          `plataforma no publica ningún recuento de plazas libres para ellos: ${named(notInLiveLayer)}. ` +
+          'Se pueden vigilar igualmente: su dispositivo publica la capacidad y un estado «No live count».',
       );
     }
     if (unreadable.length > 0) {
@@ -397,15 +487,26 @@ const RAW_ACTIONS = {
           `l’intégration n’a pas su lire : ${named(unreadable)} — merci de le signaler, les ` +
           'colonnes reçues sont dans les journaux.',
       );
+      notes.de.push(
+        `${unreadable.length} davon SIND in der Echtzeit-Ebene, mit einer Zahl, die diese ` +
+          `Integration nicht lesen konnte: ${named(unreadable)} — bitte melde es, die ` +
+          'empfangenen Spalten stehen in den Protokollen.',
+      );
+      notes.es.push(
+        `${unreadable.length} de ellos SÍ están en la capa de tiempo real, con un recuento que ` +
+          `esta integración no ha podido leer: ${named(unreadable)}. Infórmelo, por favor: las ` +
+          'columnas recibidas están en los registros.',
+      );
     }
-    const note = {
-      en: notes.en.length > 0 ? `\n(${notes.en.join('\n')})` : '',
-      fr: notes.fr.length > 0 ? `\n(${notes.fr.join('\n')})` : '',
-    };
+    const note = perLanguage((language) =>
+      notes[language].length > 0 ? `\n(${notes[language].join('\n')})` : '',
+    );
 
     return {
       en: `${facilities.length} park & ride facilities. Paste one of these ids in "Park & ride":\n${lines.join('\n')}${note.en}`,
       fr: `${facilities.length} parcs relais. Collez un de ces identifiants dans "Parcs relais" :\n${lines.join('\n')}${note.fr}`,
+      de: `${facilities.length} P+R-Parkplätze. Füge eine dieser Kennungen in „P+R-Parkplätze (Park & Ride)“ ein:\n${lines.join('\n')}${note.de}`,
+      es: `${facilities.length} aparcamientos disuasorios. Pegue uno de estos identificadores en «Aparcamientos disuasorios (P+R)»:\n${lines.join('\n')}${note.es}`,
     };
   },
 };
@@ -437,7 +538,7 @@ function formatStopResult(stop) {
  * button next to two other ones.
  *
  * @param {Error | undefined} error
- * @returns {{ en: string, fr: string }}
+ * @returns {{ en: string, fr: string, de: string, es: string }}
  */
 function describeFailure(error) {
   if (error instanceof GrandLyonError && error.status === 404) {
@@ -451,14 +552,23 @@ function describeFailure(error) {
       return {
         en: `not published under any name this integration knows; the platform serves ${closest} — please report it`,
         fr: `publié sous aucun nom connu de l’intégration ; la plateforme sert ${closest} — merci de le signaler`,
+        de: `unter keinem Namen veröffentlicht, den diese Integration kennt; die Plattform liefert ${closest} — bitte melde es`,
+        es: `no está publicado con ningún nombre que conozca esta integración; la plataforma sirve ${closest}: infórmelo, por favor`,
       };
     }
     return {
       en: 'not published under any name this integration knows — please report it',
       fr: 'publié sous aucun nom connu de l’intégration — merci de le signaler',
+      de: 'unter keinem Namen veröffentlicht, den diese Integration kennt — bitte melde es',
+      es: 'no está publicado con ningún nombre que conozca esta integración: infórmelo, por favor',
     };
   }
-  return { en: error?.message ?? 'unreadable', fr: error?.message ?? 'illisible' };
+  return {
+    en: error?.message ?? 'unreadable',
+    fr: error?.message ?? 'illisible',
+    de: error?.message ?? 'nicht lesbar',
+    es: error?.message ?? 'ilegible',
+  };
 }
 
 /**
@@ -468,7 +578,7 @@ function describeFailure(error) {
  * An action that throws shows the raw error under the button, which for the
  * most common failure — the platform refusing the credentials — is a bare
  * "HTTP 401" the user cannot do anything with. `GrandLyonError` carries the
- * bilingual explanation instead (see src/api/grandlyon.js), so display it and
+ * multi-language explanation instead (see src/api/grandlyon.js), so display it and
  * let anything else bubble up as a genuine bug.
  */
 export const ACTIONS = Object.fromEntries(

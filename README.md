@@ -19,8 +19,9 @@ Built on the official
 
 ## User documentation
 
-The user-facing guide is in [`docs/en.md`](docs/en.md) (English) and
-[`docs/fr.md`](docs/fr.md) (French). Gladys re-hosts it and links to it from
+The user-facing guide is in [`docs/en.md`](docs/en.md) (English),
+[`docs/fr.md`](docs/fr.md) (French), [`docs/de.md`](docs/de.md) (German) and
+[`docs/es.md`](docs/es.md) (Spanish). Gladys re-hosts it and links to it from
 the Configuration screen. Start there if you just want to use the integration.
 
 ## Data sources

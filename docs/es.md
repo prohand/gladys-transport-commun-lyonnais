@@ -1,0 +1,393 @@
+# Transports en Commun Lyonnais
+
+Lleve la red de transporte público de Lyon a Gladys: las próximas salidas en
+las paradas que usa, las bicis y los anclajes libres de sus estaciones Vélo'v y
+las plazas libres de los aparcamientos disuasorios (P+R) de TCL.
+
+Todos los dispositivos que crea esta integración son de **solo lectura**:
+publican lo que dicen los feeds de datos abiertos y nunca se envía nada de
+vuelta a la red.
+
+## Lo que obtiene
+
+Un dispositivo por cada entrada que indique en la configuración.
+
+**Parada** — para cada una de las próximas salidas (hasta cinco, a su elección):
+
+| Función             | Contenido                                                                                           |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| Next departure      | Minutos de espera (`999` cuando no viene nada)                                                      |
+| Next departure line | `T1 → IUT Feyssine` (un prefijo `~` indica una estimación según el horario en lugar de tiempo real) |
+| Next departures     | Todo el panel en una línea, para un mosaico del panel                                               |
+
+**Estación Vélo'v**
+
+| Función                  | Contenido                                         |
+| ------------------------ | ------------------------------------------------- |
+| Bikes available          | Bicis listas para alquilar                        |
+| Electric bikes available | Las que son eléctricas, cuando el feed lo detalla |
+| Docks available          | Anclajes libres para devolver una bici            |
+| Occupancy                | Porcentaje de anclajes ocupados por una bici      |
+| Status                   | `OK`, `no bike available`, `Out of service`…      |
+
+**Aparcamiento disuasorio (P+R)**
+
+| Función                     | Contenido                                                                  |
+| --------------------------- | -------------------------------------------------------------------------- |
+| Spaces available            | Plazas libres para coches, donde SYTRAL las cuenta en directo              |
+| Accessible spaces available | Plazas libres reservadas a personas con movilidad reducida, si se publican |
+| Total capacity              | Plazas que tiene el aparcamiento, según el inventario                      |
+| Occupancy                   | Porcentaje de la capacidad ocupado                                         |
+| Status                      | `120/655 free`, `Full`, `No live count (287 spaces)`…                      |
+
+No todos los aparcamientos disuasorios se cuentan en tiempo real: el conjunto
+de datos de ocupación solo cubre parte de la red, y el resto se publica como un
+inventario sin recuento en directo. Esos aparcamientos se pueden vigilar
+igualmente: publican su capacidad y un estado `No live count`, y las plazas
+libres aparecerán solas el día en que SYTRAL empiece a contarlas.
+`Spaces available`, `Accessible spaces available` y `Occupancy` se quedan
+entonces vacíos («Sin valor reciente» en Gladys), que es la respuesta honesta:
+en el origen no se publica nada para ellos.
+
+El estado indica en cuál de las dos situaciones se encuentra:
+
+- `No live count (287 spaces)`: el aparcamiento no figura en el conjunto de
+  datos en tiempo real. No hay nada que corregir, son los datos abiertos tal
+  como los publica SYTRAL;
+- `Live count unreadable (287 spaces)`: el aparcamiento **sí** está en el
+  conjunto de datos en tiempo real, pero no se ha podido leer su recuento (una
+  columna renombrada, o un `-1` que significa «desconocido»). Infórmelo, por
+  favor: las columnas recibidas están en los registros del contenedor.
+
+El botón **Listar los aparcamientos disuasorios** dice lo mismo para toda la
+red, así que puede saberlo sin leer los registros.
+
+## Configuración
+
+### 1. Cuenta de Data Grand Lyon (solo para paradas y aparcamientos disuasorios)
+
+Vélo'v funciona sin configurar nada: su feed es totalmente abierto.
+
+Las salidas y la ocupación de los aparcamientos disuasorios proceden de los
+conjuntos de datos en tiempo real de TCL alojados en
+[data.grandlyon.com](https://data.grandlyon.com), que requieren una cuenta
+gratuita.
+
+> **La contraseña que se pide aquí no es la que usa para iniciar sesión.** El
+> portal se usa con GrandLyon Connect (el inicio de sesión único común a todos
+> los servicios de la Métropole de Lyon), pero el servicio web al que llama
+> esta integración solo acepta una contraseña propia de la plataforma de
+> datos. Si introduce su contraseña de GrandLyon Connect, obtendrá «Data Grand
+> Lyon ha rechazado las credenciales».
+
+1. Cree una cuenta, o inicie sesión, en
+   [GrandLyon Connect](https://moncompte.grandlyon.com/login/).
+2. Vaya a
+   [su perfil en la plataforma de datos](https://data.grandlyon.com/onegeo-login/fr/profile/)
+   y defina la contraseña de la plataforma. Puede (y debería) ser distinta de
+   la de GrandLyon Connect.
+
+   Ese formulario se titula «Changer votre mot de passe» y pide una
+   **contraseña antigua**. Si siempre ha iniciado sesión con GrandLyon Connect,
+   no tiene ninguna, y allí tampoco se acepta la contraseña de GrandLyon
+   Connect. Cierre la sesión del portal: la página de perfil le llevará
+   entonces al formulario de inicio de sesión propio de la plataforma de datos,
+   donde el enlace **Mot de passe oublié ?** (contraseña olvidada) le envía por
+   correo electrónico un enlace para definir la contraseña sin conocer la
+   anterior. La contraseña definida así es la que debe pegar en la integración.
+
+3. En la configuración de la integración, indique el **usuario** (por lo
+   general, la dirección de correo electrónico de su cuenta) y esa
+   **contraseña de la plataforma**.
+4. Pulse **Probar la cuenta de Data Grand Lyon**: indica cuántos aparcamientos
+   disuasorios ha podido leer.
+
+Deje ambos campos vacíos si solo vigila estaciones Vélo'v.
+
+### 2. Indicar a la integración qué vigilar
+
+Los tres campos de lista aceptan entradas separadas por comas, puntos y comas o
+saltos de línea. No hace falta buscar los identificadores en un sitio web: los
+botones de la parte inferior de la pantalla Configuración los buscan por usted.
+
+**Paradas** — `<id de parada>[@<línea>[|<línea>…]][:<nombre personalizado>]`
+
+| Entrada                   | Significado                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `1234`                    | Todas las salidas de la parada 1234                  |
+| `1234@T1`                 | Solo la línea T1                                     |
+| `1234@C3\|C13`            | Las líneas C3 y C13                                  |
+| `1234@T1:Tranvía de casa` | Solo T1, y el dispositivo se llama «Tranvía de casa» |
+
+Vigilar la misma parada dos veces con dos filtros de líneas distintos le da dos
+dispositivos, uno por línea, que suele ser lo que se quiere en un panel.
+
+Pulse **Buscar una parada** y escriba un nombre (por ejemplo `Bellecour`) para
+obtener los identificadores que debe pegar. Cada resultado indica también
+adónde van sus líneas:
+
+```
+1234 — Bellecour (A → Perrache, A → Vaulx-en-Velin La Soie)
+5678 — Bellecour (C3 → Gare Saint-Paul)
+```
+
+Eso es lo que necesita para elegir: la red da a las dos aceras de una misma
+calle dos identificadores distintos bajo un mismo nombre, así que la cabecera
+de destino (lo que está escrito en la parte delantera del tranvía) es lo que le
+indica qué andén va en su dirección. Las direcciones proceden de las salidas
+anunciadas en ese momento, por lo que una parada sin servicio aparece solo con
+sus líneas; búsquela de nuevo durante el horario de servicio para verlas.
+
+**Estaciones Vélo'v** — `<id o nombre de estación>[:<nombre personalizado>]`
+
+`10063`, `Hotel de Ville` o `10063:Trabajo`. Pulse **Buscar una estación
+Vélo'v** para buscar por nombre.
+
+**Aparcamientos disuasorios** — `<id o nombre del P+R>[:<nombre personalizado>]`
+
+`Gorge de Loup`, `SOI` o `Parilly:Trabajo`. Los identificadores son códigos
+cortos en mayúsculas (`SOI`, `BON`, `GREY`…), y el nombre funciona igual de
+bien. Pulse **Listar los aparcamientos disuasorios** para ver todos los
+aparcamientos con su identificador y su ocupación actual: los 22, incluidos
+los que SYTRAL no cuenta en tiempo real, que aparecen con `?` plazas libres.
+Aun así dan un dispositivo útil: se publica su capacidad, pero no su número de
+plazas libres.
+
+### 3. Intervalos de actualización
+
+Cada fuente de datos tiene su propio intervalo, porque no cambian a la misma
+velocidad:
+
+| Ajuste                         | Por defecto | Qué controla                                |
+| ------------------------------ | ----------- | ------------------------------------------- |
+| Actualización de salidas       | 60 s        | Las cuentas atrás de cada parada vigilada   |
+| Actualización de Vélo'v        | 120 s       | Disponibilidad de bicis y anclajes          |
+| Actualización de aparcamientos | 300 s       | Plazas libres de cada aparcamiento vigilado |
+
+Los tres aceptan de 30 s a 3600 s. Bajar de 60 s no aporta nada: los feeds de
+origen se recalculan aproximadamente una vez por minuto, así que una consulta
+más rápida devuelve los mismos números y consume su cuota de Data Grand Lyon.
+Gladys nunca sondea más despacio que una vez por minuto, así que un intervalo
+superior a 60 s lo respeta la integración, que simplemente se salta los ciclos
+intermedios.
+
+La integración también agrupa sus peticiones: vigilar diez estaciones Vélo'v
+cuesta dos peticiones HTTP por ciclo, no veinte, y vigilar cinco aparcamientos
+disuasorios cuesta dos. Una lectura que falla (la plataforma tardó demasiado,
+se cortó la red) se reintenta un minuto después y no tras todo el intervalo.
+
+**Qué se guarda.** Un intervalo de actualización corto da una base de datos
+que crece deprisa si se anota cada lectura, así que la integración solo envía a
+Gladys los valores que han cambiado realmente desde la última lectura: un
+aparcamiento cuyas plazas libres no se mueven en toda la noche se registra una
+vez, no trescientas. Las cuentas atrás de las salidas van un paso más allá y no
+guardan ningún historial: «7 minutos, luego 6, luego 5, luego otra vez 12» es la
+forma de cualquier horario y nadie la vuelve a leer, mientras que sería, con
+diferencia, lo que más escribiría de los tres. Siguen en directo en su panel;
+lo que no se conserva es su pasado. La disponibilidad de Vélo'v y la ocupación
+de los aparcamientos disuasorios sí conservan el suyo: esas gráficas tienen
+valor, y un punto por cambio dibuja la misma curva que un punto por consulta.
+
+### 4. Guardar
+
+Pulse **Guardar configuración** y abra la pestaña **Descubrir**: sus paradas,
+estaciones y aparcamientos están ahí, listos para añadirse a Gladys.
+
+## Widgets del panel y escenas
+
+Desde Gladys 5.1, la integración también aporta sus propios widgets del panel y
+sus propios activadores y acciones de escenas. Funcionan con los dispositivos
+que ha creado: añada primero las paradas, estaciones y aparcamientos desde la
+pestaña **Descubrir** y luego elija uno de ellos en la tarjeta del widget o de
+la escena.
+
+### Widgets
+
+En el editor del panel (**Panel → Editar → Nuevo widget**), los widgets están en
+la sección **Widgets de integraciones**.
+
+| Widget               | Qué muestra                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Salidas TCL          | El panel de salidas de una parada: la próxima salida en un mosaico grande y luego hasta ocho salidas, la más próxima primero      |
+| Estación Vélo'v      | Bicis, bicis eléctricas y anclajes libres, el indicador de ocupación, la curva de las últimas 24 horas y el estado de la estación |
+| Aparcamiento P+R TCL | Plazas libres, capacidad, plazas PMR, el indicador de ocupación, la curva de las últimas 24 horas y el estado                     |
+
+En el panel, un punto verde es una salida seguida en tiempo real y un punto gris
+(con el prefijo `~`) una estimación según el horario. Un widget configurado con
+un dispositivo del tipo equivocado (una estación Vélo'v en el widget de
+salidas) lo indica en lugar de quedarse vacío.
+
+Un widget muestra la última lectura del dispositivo mientras sea más reciente
+que la propia tarjeta (30 s para las salidas, 60 s para Vélo'v, 120 s para los
+aparcamientos disuasorios), y los widgets abiertos en el mismo momento
+comparten una sola lectura: un panel abierto en varias pantallas no multiplica
+las peticiones a Data Grand Lyon.
+
+### Activadores de escenas
+
+En el editor de escenas, como **Activador de integración** (categoría **Integraciones**):
+
+| Activador                      | Se dispara cuando                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Salida TCL inminente           | La próxima salida de una línea cruza la marca elegida: 1, 2, 3, 5, 10 o 15 minutos. Filtro de línea opcional (`T1`)                   |
+| Disponibilidad Vélo'v          | Se retira la última bici, vuelve a haber bicis, se ocupa el último anclaje, se liberan anclajes, la estación queda fuera de servicio… |
+| Disponibilidad de aparcamiento | El aparcamiento supera el 90 % de ocupación, se llena o vuelve a tener plazas libres                                                  |
+
+Los pasos siguientes de la escena pueden leer los detalles del evento: la
+línea, su dirección y los minutos de espera; las bicis y los anclajes que
+quedan; las plazas libres y el nivel de ocupación.
+
+Conviene saber que:
+
+- los activadores comparan dos lecturas consecutivas del dispositivo, así que
+  siguen su intervalo de actualización: un aparcamiento disuasorio leído cada
+  5 minutos no puede dispararse antes;
+- no se dispara nada en la primera lectura tras el arranque de la integración:
+  todavía no hay un «antes» con el que comparar;
+- la línea del activador de salidas se compara tal como está escrita en el
+  vehículo, mayúsculas incluidas (`T1`, `C3`).
+
+### Acciones de escenas
+
+En el editor de escenas, como **Acción de integración** (categoría **Integraciones**):
+
+| Acción                    | Entrega a los pasos siguientes                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Leer las próximas salidas | La próxima salida (línea, dirección, minutos, en tiempo real o no), la siguiente y un panel en una sola línea |
+| Leer una estación Vélo'v  | Bicis, bicis eléctricas, anclajes libres, nivel de ocupación y estado                                         |
+| Leer un aparcamiento P+R  | Plazas libres, capacidad, nivel de ocupación y estado                                                         |
+
+Las acciones leen el feed en el momento en que se ejecuta la escena, no el
+último valor que recibió el dispositivo: «a las 7:40, envíame el próximo T1 en
+Bellecour» obtiene la cuenta atrás de las 7:40.
+
+## Ideas de automatizaciones
+
+- A las 8:00 los días laborables, **Leer las próximas salidas** de mi parada y
+  enviarme el panel.
+- Cuando el próximo T1 en Bellecour esté a **5 minutos**, enviarme una
+  notificación: es hora de salir.
+- Cuando la estación Vélo'v cerca del trabajo no tenga **ningún anclaje
+  libre**, avisarme antes de salir.
+- Cuando mi aparcamiento disuasorio habitual supere el **90 % de ocupación**,
+  recordarme que coja el tranvía.
+
+## Solución de problemas
+
+**«Las paradas y los aparcamientos disuasorios necesitan una cuenta de Data
+Grand Lyon»**: el estado de la integración sigue en rojo porque ha indicado una
+parada o un aparcamiento sin rellenar las credenciales. Añádalas o elimine las
+entradas.
+
+**La página de perfil pide una contraseña antigua que nunca definí**: ese
+formulario _cambia_ una contraseña existente, y una cuenta creada con GrandLyon
+Connect no tiene ninguna. Cierre la sesión del portal, vuelva a
+[data.grandlyon.com/onegeo-login/fr/profile/](https://data.grandlyon.com/onegeo-login/fr/profile/)
+(llegará al formulario de inicio de sesión de la plataforma de datos) y use
+**Mot de passe oublié ?** con la dirección de correo electrónico de la cuenta.
+El enlace recibido por correo define la contraseña de la plataforma sin pedir
+ninguna contraseña antigua.
+
+**«Data Grand Lyon ha rechazado las credenciales»**: nueve de cada diez veces,
+la contraseña introducida es la de GrandLyon Connect. El servicio web quiere la
+contraseña que se define en
+[data.grandlyon.com/onegeo-login/fr/profile/](https://data.grandlyon.com/onegeo-login/fr/profile/),
+con la dirección de correo electrónico de su cuenta como usuario. Defínala
+allí, péguela aquí y pulse **Probar la cuenta de Data Grand Lyon**. Si sigue
+fallando, puede que la cuenta aún no haya confirmado su dirección de correo
+electrónico.
+
+**«Data Grand Lyon ha respondido HTTP 404»**: su cuenta está bien; es el propio
+conjunto de datos el que no se publica con el nombre que ha pedido la
+integración. La Métropole cambia el nombre de sus capas TCL cuando cambia la
+red (eso significa el sufijo `_2_0_0` del mensaje). La integración prueba todos
+los nombres que conoce, luego pregunta al propio catálogo de la plataforma cómo
+se llama hoy el conjunto de datos y usa ese nombre, así que la mayoría de los
+cambios de nombre se resuelven solos, sin actualización. Cuando ni siquiera el
+catálogo tiene nada, el mensaje enumera lo que se ha probado y los nombres más
+parecidos que sí publica la plataforma: abra una incidencia con ello y bastará
+con actualizar la integración.
+
+**«Probar la cuenta de Data Grand Lyon» indica un conjunto de datos ilegible**:
+el botón comprueba los tres conjuntos de datos por separado, y su primera línea
+es la que importa: si dice que su cuenta ha sido aceptada, sus credenciales son
+correctas. Una sola línea `✖` significa que ese conjunto de datos se ha
+retirado (véase más arriba); las funciones basadas en los otros dos siguen
+funcionando.
+
+**«Data Grand Lyon no ha respondido en …»**: la plataforma ha tardado demasiado,
+normalmente al descargar todo el directorio de paradas para **Buscar una
+parada**. Pulse el botón otra vez: la primera descarga correcta se guarda en
+memoria durante una hora, así que las búsquedas siguientes responden al
+instante. Si escribe el nombre completo de la parada (`Bellecour` en lugar de
+`belle`), la descarga ni siquiera es necesaria.
+
+**Una parada muestra siempre `999`**: `999` significa «ninguna salida
+anunciada». Fuera del horario de servicio es normal. Si persiste durante el
+día, probablemente el id de la parada es incorrecto (o el filtro de línea nunca
+coincide, p. ej. `@T1` en una parada solo de autobús): vuelva a usar **Buscar
+una parada**.
+
+**Una estación Vélo'v o un aparcamiento disuasorio da error en cada consulta**:
+el identificador no está en el feed. Vuelva a usar el botón de búsqueda
+correspondiente y pegue el id que devuelve; el error de un aparcamiento
+disuasorio también menciona algunos de los identificadores que contiene el
+conjunto de datos.
+
+**Un aparcamiento disuasorio muestra un estado y una capacidad, pero no las
+plazas libres**: SYTRAL no cuenta ese aparcamiento en directo, y la integración
+no se inventará un número: **Listar los aparcamientos disuasorios** muestra el
+mismo `?` a su lado. Son los datos abiertos, no la configuración.
+
+**Un dispositivo no registra nada desde que se actualizó la integración**:
+Gladys conserva las funciones con las que se creó un dispositivo, y un
+contenedor no puede añadir ninguna a un dispositivo que ya existe: volver a
+publicar el descubrimiento solo actualiza sus parámetros. Así que una versión
+que añade una función publica valores que no tienen dónde guardarse. Un
+aparcamiento disuasorio que nadie cuenta en directo es el caso más claro: sus
+dos únicos valores, `Total capacity` y `Status`, son justo las funciones que no
+tiene un dispositivo antiguo, y el aparcamiento se queda vacío mientras los
+registros solo mencionan el feed incompleto. Ahora la integración lo indica: el
+dispositivo lleva un punto naranja en la lista de dispositivos, cuya
+información emergente indica lo que falta, y los registros lo detallan una vez
+(`… does not have the feature(s) capacity, status in Gladys …`). La solución
+está en la pestaña **Descubrir**: pulse **Actualizar** en el dispositivo
+(eliminarlo y volver a añadirlo también funciona), y el dispositivo se vuelve a
+leer al instante.
+
+**Un dispositivo que añadí sigue vacío**: si las funciones no muestran ningún
+valor, el dispositivo nunca se lee. Las versiones antiguas publicaban sus
+dispositivos sin el indicador que Gladys lee para programarlos, así que el
+núcleo nunca los consultaba y no se producía ningún error en ninguna parte.
+Ahora la integración también actualiza sus propios dispositivos, de modo que un
+dispositivo vacío se rellena poco después de reiniciar el contenedor, sin tener
+que eliminarlo y volver a añadirlo. Si después sigue vacío, es la propia
+lectura la que falla: la integración registra cada lectura fallida con su
+motivo.
+
+**He pegado un identificador y la pestaña «Descubrir» sigue vacía**: la pestaña
+«Descubrir» solo muestra lo que la integración ha publicado, y publica cuando
+la configuración se _guarda_, no cuando se edita un campo. Guarde la
+configuración y lea el estado de la integración justo encima: ahora indica qué
+se está vigilando («Conectado. Vigilando 1 parada: aparecen en la pestaña
+«Descubrir».»). Si dice otra cosa, o su entrada no aparece en el recuento, el
+valor no ha llegado a la integración: compruebe que el campo se ha guardado y
+pulse el botón **Buscar** de la pestaña «Descubrir». La integración registra lo
+mismo en cada publicación: `Publishing 1 device(s): Bellecour`.
+
+La integración registra todo lo que hace: consulte los **Registros** de la
+integración desde la interfaz de Gladys, con `LOG_LEVEL=debug` para el detalle
+completo (cada petición saliente se registra en ese nivel).
+
+## Fuentes de datos y créditos
+
+- [Salidas TCL en tiempo real](https://data.grandlyon.com/portail/fr/jeux-de-donnees/prochains-passages-reseau-transports-commun-lyonnais-rhonexpress-disponibilites-temps-reel/info)
+  — Métropole de Lyon / SYTRAL, en Data Grand Lyon.
+- [Disponibilidad de los aparcamientos disuasorios TCL](https://data.grandlyon.com/portail/fr/jeux-de-donnees/parcs-relais-reseau-transports-commun-lyonnais-disponibilites-temps-reel/info)
+  — Métropole de Lyon / SYTRAL, en Data Grand Lyon.
+- [Disponibilidad de Vélo'v](https://transport.data.gouv.fr/datasets/velos-libre-service-lyon-velov-disponibilite-en-temps-reel)
+  — Métropole de Lyon / JCDecaux, publicada como feed
+  [GBFS](https://gbfs.org/documentation/reference/).
+
+Esta es una integración no oficial. No está afiliada a SYTRAL Mobilités, Keolis
+Lyon ni JCDecaux.

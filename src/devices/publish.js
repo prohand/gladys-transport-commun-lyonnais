@@ -165,7 +165,7 @@ function reportOutdatedDevice(deviceExternalId, deviceName, missingKeys, publish
       (publishedCount === 0
         ? 'Nothing of this read could be recorded, which is why this device shows no value. '
         : `${missingKeys.length} value(s) of this read had nowhere to go. `) +
-      'Open the Discovery screen of the integration and press "Update" on this device (deleting ' +
+      'Open the Discover tab of the integration and press "Update" on this device (deleting ' +
       'and adding it again works too) — the values arrive on the read that follows.',
   );
 }
@@ -183,8 +183,8 @@ function shortList(missingKeys) {
   const shown = [];
   let length = 0;
   for (const key of missingKeys) {
-    // 80 characters of keys leaves room for the sentence around them in both
-    // languages.
+    // 80 characters of keys leaves room for the sentence around them in every
+    // language.
     if (length + key.length > 80) {
       return `${shown.join(', ')} (+${missingKeys.length - shown.length})`;
     }
@@ -219,8 +219,10 @@ async function flagDevice(gladys, deviceExternalId, missingKeys) {
     entry.degraded = true;
     const missing = shortList(missingKeys);
     entry.message = {
-      en: `Update this device in the Discovery screen: Gladys is missing ${missing}.`,
+      en: `Update this device in the Discover tab: Gladys is missing ${missing}.`,
       fr: `Mettez cet appareil à jour dans l’écran Découverte : il manque ${missing} à Gladys.`,
+      de: `Aktualisiere dieses Gerät im Reiter „Entdecken“: In Gladys fehlt ${missing}.`,
+      es: `Actualice este dispositivo en la pestaña «Descubrir»: a Gladys le falta ${missing}.`,
     };
   }
   try {
