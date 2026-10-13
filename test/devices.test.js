@@ -1052,7 +1052,7 @@ test('the account test reports a retired dataset without condemning the account'
   assert.match(message.en, /✖ Park & ride/);
   assert.match(message.fr, /accepté votre compte/);
   assert.match(message.fr, /✖ Parcs relais/);
-  assert.match(message.de, /hat Ihr Konto akzeptiert[\s\S]*✖ P\+R-Parkplätze: /);
+  assert.match(message.de, /hat dein Konto akzeptiert[\s\S]*✖ P\+R-Parkplätze: /);
   assert.match(message.es, /ha aceptado su cuenta[\s\S]*✖ Aparcamientos disuasorios: /);
 });
 

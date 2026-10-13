@@ -190,7 +190,7 @@ valor, y un punto por cambio dibuja la misma curva que un punto por consulta.
 
 ### 4. Guardar
 
-Guarde la configuración y abra la pestaña **Descubrir**: sus paradas,
+Pulse **Guardar configuración** y abra la pestaña **Descubrir**: sus paradas,
 estaciones y aparcamientos están ahí, listos para añadirse a Gladys.
 
 ## Widgets del panel y escenas
@@ -203,7 +203,8 @@ la escena.
 
 ### Widgets
 
-En el editor del panel, los widgets aparecen bajo el nombre de la integración.
+En el editor del panel (**Panel → Editar → Nuevo widget**), los widgets están en
+la sección **Widgets de integraciones**.
 
 | Widget               | Qué muestra                                                                                                                       |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -224,7 +225,7 @@ las peticiones a Data Grand Lyon.
 
 ### Activadores de escenas
 
-En el editor de escenas, en **Integraciones**:
+En el editor de escenas, como **Activador de integración** (categoría **Integraciones**):
 
 | Activador                      | Se dispara cuando                                                                                                                     |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -247,6 +248,8 @@ Conviene saber que:
   vehículo, mayúsculas incluidas (`T1`, `C3`).
 
 ### Acciones de escenas
+
+En el editor de escenas, como **Acción de integración** (categoría **Integraciones**):
 
 | Acción                    | Entrega a los pasos siguientes                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------- |

@@ -226,7 +226,7 @@ test('a widget bound to a device of another kind explains itself instead of fail
     {
       en: 'This device is a park & ride: choose a transit stop.',
       fr: 'Cet appareil est un parc relais : choisissez un arrêt.',
-      de: 'Dieses Gerät ist ein P+R-Parkplatz: Wählen Sie eine Haltestelle.',
+      de: 'Dieses Gerät ist ein P+R-Parkplatz: Wähle eine Haltestelle.',
       es: 'Este dispositivo es un aparcamiento disuasorio: elija una parada.',
     },
   ]);
@@ -241,7 +241,7 @@ test('a widget with no device chosen asks for one', async () => {
     {
       en: "Choose a Vélo'v station in the settings.",
       fr: 'Choisissez une station Vélo’v dans les réglages.',
-      de: 'Wählen Sie eine Vélo’v-Station in den Einstellungen.',
+      de: 'Wähle eine Vélo’v-Station in den Einstellungen.',
       es: 'Elija una estación Vélo’v en los ajustes.',
     },
   ]);

@@ -181,7 +181,7 @@ export class DeviceSelectionError extends Error {
 }
 
 // `is` completes "This device is …", `choose` completes "Choose …": German
-// declines the article ("ein P+R-Parkplatz", "wählen Sie einen P+R-Parkplatz").
+// declines the article ("ein P+R-Parkplatz", "wähle einen P+R-Parkplatz").
 const KIND_LABELS = {
   [STOP_TYPE]: {
     is: { en: 'a transit stop', fr: 'un arrêt', de: 'eine Haltestelle', es: 'una parada' },
@@ -233,7 +233,7 @@ export function findSelectedBlueprint(gladys, deviceExternalId, config, type) {
     throw new DeviceSelectionError({
       en: `Choose ${kind.en} in the settings.`,
       fr: `Choisissez ${kind.fr} dans les réglages.`,
-      de: `Wählen Sie ${kind.de} in den Einstellungen.`,
+      de: `Wähle ${kind.de} in den Einstellungen.`,
       es: `Elija ${kind.es} en los ajustes.`,
     });
   }
@@ -242,7 +242,7 @@ export function findSelectedBlueprint(gladys, deviceExternalId, config, type) {
     throw new DeviceSelectionError({
       en: `This device is no longer in the integration configuration: add it back, or choose another one.`,
       fr: `Cet appareil n’est plus dans la configuration de l’intégration : ajoutez-le à nouveau, ou choisissez-en un autre.`,
-      de: `Dieses Gerät ist nicht mehr in der Konfiguration der Integration: Fügen Sie es wieder hinzu oder wählen Sie ein anderes.`,
+      de: `Dieses Gerät ist nicht mehr in der Konfiguration der Integration: Füge es wieder hinzu oder wähle ein anderes.`,
       es: `Este dispositivo ya no está en la configuración de la integración: vuelva a añadirlo o elija otro.`,
     });
   }
@@ -251,7 +251,7 @@ export function findSelectedBlueprint(gladys, deviceExternalId, config, type) {
     throw new DeviceSelectionError({
       en: `This device is ${actual?.en ?? 'another kind of device'}: choose ${kind.en}.`,
       fr: `Cet appareil est ${actual?.fr ?? 'd’un autre type'} : choisissez ${kind.fr}.`,
-      de: `Dieses Gerät ist ${actual?.de ?? 'von einem anderen Typ'}: Wählen Sie ${kind.de}.`,
+      de: `Dieses Gerät ist ${actual?.de ?? 'von einem anderen Typ'}: Wähle ${kind.de}.`,
       es: `Este dispositivo es ${actual?.es ?? 'de otro tipo'}: elija ${kind.es}.`,
     });
   }
@@ -262,7 +262,7 @@ export function findSelectedBlueprint(gladys, deviceExternalId, config, type) {
 const TOO_SHORT = {
   en: 'Type at least 2 characters.',
   fr: 'Saisissez au moins 2 caractères.',
-  de: 'Geben Sie mindestens 2 Zeichen ein.',
+  de: 'Gib mindestens 2 Zeichen ein.',
   es: 'Escriba al menos 2 caracteres.',
 };
 
@@ -291,7 +291,7 @@ const RAW_ACTIONS = {
       return {
         en: 'No Data Grand Lyon credentials: fill in the username and password above.',
         fr: 'Identifiants Data Grand Lyon absents : renseignez le nom d’utilisateur et le mot de passe ci-dessus.',
-        de: 'Keine Zugangsdaten für Data Grand Lyon: Geben Sie oben Benutzername und Passwort ein.',
+        de: 'Keine Zugangsdaten für Data Grand Lyon: Gib oben Benutzername und Passwort ein.',
         es: 'Faltan las credenciales de Data Grand Lyon: indique arriba el usuario y la contraseña.',
       };
     }
@@ -315,8 +315,8 @@ const RAW_ACTIONS = {
             `de ses ${datasets.length} jeux de données n’ont pas pu être lus.`,
       de:
         reachable.length === datasets.length
-          ? 'Data Grand Lyon OK: Ihr Konto funktioniert und alle Datensätze sind lesbar.'
-          : `Data Grand Lyon hat Ihr Konto akzeptiert, aber ${datasets.length - reachable.length} ` +
+          ? 'Data Grand Lyon OK: Dein Konto funktioniert und alle Datensätze sind lesbar.'
+          : `Data Grand Lyon hat dein Konto akzeptiert, aber ${datasets.length - reachable.length} ` +
             `der ${datasets.length} Datensätze konnten nicht gelesen werden.`,
       es:
         reachable.length === datasets.length
@@ -387,7 +387,7 @@ const RAW_ACTIONS = {
     return {
       en: `Paste one of these ids in "Transit stops":\n${list}${note.en}`,
       fr: `Collez un de ces identifiants dans "Arrêts" :\n${list}${note.fr}`,
-      de: `Fügen Sie eine dieser Kennungen in „Haltestellen“ ein:\n${list}${note.de}`,
+      de: `Füge eine dieser Kennungen in „Haltestellen“ ein:\n${list}${note.de}`,
       es: `Pegue uno de estos identificadores en «Paradas»:\n${list}${note.es}`,
     };
   },
@@ -413,7 +413,7 @@ const RAW_ACTIONS = {
     return {
       en: `Paste one of these ids in "Vélo'v stations":\n${list}`,
       fr: `Collez un de ces identifiants dans "Stations Vélo'v" :\n${list}`,
-      de: `Fügen Sie eine dieser Kennungen in „Vélo'v-Stationen“ ein:\n${list}`,
+      de: `Füge eine dieser Kennungen in „Vélo'v-Stationen“ ein:\n${list}`,
       es: `Pegue uno de estos identificadores en «Estaciones Vélo'v»:\n${list}`,
     };
   },
@@ -489,7 +489,7 @@ const RAW_ACTIONS = {
       );
       notes.de.push(
         `${unreadable.length} davon SIND in der Echtzeit-Ebene, mit einer Zahl, die diese ` +
-          `Integration nicht lesen konnte: ${named(unreadable)} — bitte melden Sie es, die ` +
+          `Integration nicht lesen konnte: ${named(unreadable)} — bitte melde es, die ` +
           'empfangenen Spalten stehen in den Protokollen.',
       );
       notes.es.push(
@@ -505,7 +505,7 @@ const RAW_ACTIONS = {
     return {
       en: `${facilities.length} park & ride facilities. Paste one of these ids in "Park & ride":\n${lines.join('\n')}${note.en}`,
       fr: `${facilities.length} parcs relais. Collez un de ces identifiants dans "Parcs relais" :\n${lines.join('\n')}${note.fr}`,
-      de: `${facilities.length} P+R-Parkplätze. Fügen Sie eine dieser Kennungen in „P+R-Parkplätze (Park & Ride)“ ein:\n${lines.join('\n')}${note.de}`,
+      de: `${facilities.length} P+R-Parkplätze. Füge eine dieser Kennungen in „P+R-Parkplätze (Park & Ride)“ ein:\n${lines.join('\n')}${note.de}`,
       es: `${facilities.length} aparcamientos disuasorios. Pegue uno de estos identificadores en «Aparcamientos disuasorios (P+R)»:\n${lines.join('\n')}${note.es}`,
     };
   },
@@ -552,14 +552,14 @@ function describeFailure(error) {
       return {
         en: `not published under any name this integration knows; the platform serves ${closest} — please report it`,
         fr: `publié sous aucun nom connu de l’intégration ; la plateforme sert ${closest} — merci de le signaler`,
-        de: `unter keinem Namen veröffentlicht, den diese Integration kennt; die Plattform liefert ${closest} — bitte melden Sie es`,
+        de: `unter keinem Namen veröffentlicht, den diese Integration kennt; die Plattform liefert ${closest} — bitte melde es`,
         es: `no está publicado con ningún nombre que conozca esta integración; la plataforma sirve ${closest}: infórmelo, por favor`,
       };
     }
     return {
       en: 'not published under any name this integration knows — please report it',
       fr: 'publié sous aucun nom connu de l’intégration — merci de le signaler',
-      de: 'unter keinem Namen veröffentlicht, den diese Integration kennt — bitte melden Sie es',
+      de: 'unter keinem Namen veröffentlicht, den diese Integration kennt — bitte melde es',
       es: 'no está publicado con ningún nombre que conozca esta integración: infórmelo, por favor',
     };
   }

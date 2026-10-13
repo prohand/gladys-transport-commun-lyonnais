@@ -27,7 +27,7 @@
       "description": {
         "en": "This integration creates one read-only device per transit stop, Vélo'v station and park & ride you list below. Vélo'v works out of the box (open GBFS feed). Transit stops and park & ride read the TCL real-time datasets on Data Grand Lyon, which need a free account.",
         "fr": "Cette intégration crée un appareil en lecture seule par arrêt, station Vélo'v et parc relais listé ci-dessous. Vélo'v fonctionne sans rien configurer (flux GBFS ouvert). Les arrêts et les parcs relais lisent les jeux de données temps réel TCL sur Data Grand Lyon, qui nécessitent un compte gratuit.",
-        "de": "Diese Integration erstellt ein schreibgeschütztes Gerät pro Haltestelle, Vélo'v-Station und P+R-Parkplatz, die Sie unten angeben. Vélo'v funktioniert ohne weitere Einrichtung (offener GBFS-Feed). Haltestellen und P+R-Parkplätze lesen die TCL-Echtzeitdatensätze auf Data Grand Lyon, für die ein kostenloses Konto nötig ist.",
+        "de": "Diese Integration erstellt ein schreibgeschütztes Gerät pro Haltestelle, Vélo'v-Station und P+R-Parkplatz, die du unten angibst. Vélo'v funktioniert ohne weitere Einrichtung (offener GBFS-Feed). Haltestellen und P+R-Parkplätze lesen die TCL-Echtzeitdatensätze auf Data Grand Lyon, für die ein kostenloses Konto nötig ist.",
         "es": "Esta integración crea un dispositivo de solo lectura por cada parada, estación Vélo'v y aparcamiento disuasorio que indique a continuación. Vélo'v funciona sin configurar nada (feed GBFS abierto). Las paradas y los aparcamientos disuasorios leen los conjuntos de datos en tiempo real de TCL en Data Grand Lyon, que requieren una cuenta gratuita."
       },
       "links": [
@@ -72,7 +72,7 @@
       "description": {
         "en": "You sign in on data.grandlyon.com with GrandLyon Connect, but the API needs a separate password that you set on the data platform itself. If its profile page asks for an old password you never had, log out of the portal and use its forgotten-password link. Leave both fields empty if you only watch Vélo'v stations.",
         "fr": "Vous vous connectez à data.grandlyon.com avec GrandLyon Connect, mais l'API exige un mot de passe distinct, à définir sur la plateforme de données. Si sa page de profil réclame un ancien mot de passe que vous n'avez jamais eu, déconnectez-vous du portail et utilisez son lien « Mot de passe oublié ? ». Laissez les deux champs vides si vous ne surveillez que des stations Vélo'v.",
-        "de": "Sie melden sich bei data.grandlyon.com mit GrandLyon Connect an, die API benötigt jedoch ein eigenes Passwort, das Sie auf der Datenplattform selbst festlegen. Fragt deren Profilseite nach einem alten Passwort, das Sie nie hatten, melden Sie sich vom Portal ab und nutzen Sie dessen Link „Mot de passe oublié ?“ (Passwort vergessen). Lassen Sie beide Felder leer, wenn Sie nur Vélo'v-Stationen überwachen.",
+        "de": "Du meldest dich bei data.grandlyon.com mit GrandLyon Connect an, die API benötigt jedoch ein eigenes Passwort, das du auf der Datenplattform selbst festlegst. Fragt deren Profilseite nach einem alten Passwort, das du nie hattest, melde dich vom Portal ab und nutze dessen Link „Mot de passe oublié ?“ (Passwort vergessen). Lass beide Felder leer, wenn du nur Vélo'v-Stationen überwachst.",
         "es": "En data.grandlyon.com se inicia sesión con GrandLyon Connect, pero la API necesita una contraseña distinta, que se define en la propia plataforma de datos. Si su página de perfil le pide una contraseña antigua que nunca tuvo, cierre la sesión del portal y utilice su enlace «Mot de passe oublié ?» (contraseña olvidada). Deje ambos campos vacíos si solo vigila estaciones Vélo'v."
       },
       "links": [
@@ -108,7 +108,7 @@
       "description": {
         "en": "The login of your data platform account — in general the email address of your GrandLyon Connect account.",
         "fr": "L'identifiant de votre compte sur la plateforme de données — en général l'adresse email de votre compte GrandLyon Connect.",
-        "de": "Der Benutzername Ihres Kontos auf der Datenplattform — in der Regel die E-Mail-Adresse Ihres GrandLyon-Connect-Kontos.",
+        "de": "Der Benutzername deines Kontos auf der Datenplattform — in der Regel die E-Mail-Adresse deines GrandLyon-Connect-Kontos.",
         "es": "El usuario de su cuenta en la plataforma de datos: por lo general, la dirección de correo electrónico de su cuenta GrandLyon Connect."
       },
       "required": false,
@@ -131,7 +131,7 @@
       "description": {
         "en": "The password you defined on data.grandlyon.com/onegeo-login/fr/profile/, NOT your GrandLyon Connect password.",
         "fr": "Le mot de passe défini sur data.grandlyon.com/onegeo-login/fr/profile/, PAS votre mot de passe GrandLyon Connect.",
-        "de": "Das auf data.grandlyon.com/onegeo-login/fr/profile/ festgelegte Passwort, NICHT Ihr GrandLyon-Connect-Passwort.",
+        "de": "Das auf data.grandlyon.com/onegeo-login/fr/profile/ festgelegte Passwort, NICHT dein GrandLyon-Connect-Passwort.",
         "es": "La contraseña definida en data.grandlyon.com/onegeo-login/fr/profile/, NO su contraseña de GrandLyon Connect."
       },
       "required": false
@@ -148,7 +148,7 @@
       "description": {
         "en": "Separate entries with commas or newlines. Use the buttons at the bottom of this screen to look up the identifiers without leaving Gladys.",
         "fr": "Séparez les entrées par des virgules ou des retours à la ligne. Utilisez les boutons en bas de cet écran pour retrouver les identifiants sans quitter Gladys.",
-        "de": "Trennen Sie die Einträge durch Kommas oder Zeilenumbrüche. Mit den Schaltflächen unten auf dieser Seite finden Sie die Kennungen, ohne Gladys zu verlassen.",
+        "de": "Trenne die Einträge durch Kommas oder Zeilenumbrüche. Mit den Schaltflächen unten auf dieser Seite findest du die Kennungen, ohne Gladys zu verlassen.",
         "es": "Separe las entradas con comas o saltos de línea. Utilice los botones de la parte inferior de esta pantalla para buscar los identificadores sin salir de Gladys."
       }
     },

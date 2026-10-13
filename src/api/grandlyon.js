@@ -247,10 +247,10 @@ function layerNotFoundMessage(layers, published = []) {
     de:
       `Data Grand Lyon hat mit HTTP 404 geantwortet: Keiner der Datensätze, die diese ` +
       `Integration kennt, wird noch veröffentlicht (versucht: ${tried}). Die Plattform ` +
-      `benennt ihre TCL-Ebenen bei jeder Änderung des Netzes um; suchen Sie den aktuellen ` +
-      `Namen auf https://data.grandlyon.com und melden Sie ihn unter ` +
+      `benennt ihre TCL-Ebenen bei jeder Änderung des Netzes um; such den aktuellen ` +
+      `Namen auf https://data.grandlyon.com und melde ihn unter ` +
       `https://github.com/prohand/gladys-transport-commun-lyonnais/issues, damit die ` +
-      `Integration folgen kann.${hint.de} Ihr Konto ist in Ordnung — es handelt sich nicht ` +
+      `Integration folgen kann.${hint.de} Dein Konto ist in Ordnung — es handelt sich nicht ` +
       `um ein Problem mit den Zugangsdaten.`,
     es:
       `Data Grand Lyon ha respondido HTTP 404: ninguno de los conjuntos de datos que conoce ` +
@@ -287,12 +287,12 @@ const CREDENTIALS_REFUSED = {
     'cette page réclame un ancien mot de passe que vous n’avez jamais défini, ' +
     'déconnectez-vous du portail et utilisez le lien « Mot de passe oublié ? ».',
   de:
-    'Data Grand Lyon hat die Zugangsdaten abgelehnt. Der Webdienst akzeptiert Ihr ' +
-    'GrandLyon-Connect-Passwort nicht: Melden Sie sich beim Portal an, legen Sie dann auf ' +
+    'Data Grand Lyon hat die Zugangsdaten abgelehnt. Der Webdienst akzeptiert dein ' +
+    'GrandLyon-Connect-Passwort nicht: Melde dich beim Portal an, lege dann auf ' +
     'https://data.grandlyon.com/onegeo-login/fr/profile/ ein eigenes Passwort für die ' +
-    'Datenplattform fest und geben Sie es hier ein, mit der E-Mail-Adresse Ihres Kontos ' +
-    'als Benutzername. Fragt diese Seite nach einem alten Passwort, das Sie nie festgelegt ' +
-    'haben, melden Sie sich zuerst vom Portal ab und nutzen Sie dessen Link ' +
+    'Datenplattform fest und gib es hier ein, mit der E-Mail-Adresse deines Kontos ' +
+    'als Benutzername. Fragt diese Seite nach einem alten Passwort, das du nie festgelegt ' +
+    'hast, melde dich zuerst vom Portal ab und nutze dessen Link ' +
     '„Mot de passe oublié ?“ (Passwort vergessen).',
   es:
     'Data Grand Lyon ha rechazado las credenciales. El servicio web no acepta su ' +
@@ -332,7 +332,7 @@ function timedOutMessage(layer, timeoutMs) {
     de:
       `Data Grand Lyon hat beim Lesen von ${layer} nicht innerhalb von ${seconds} s ` +
       `geantwortet. Die Plattform ist zu Stoßzeiten langsam und dieser Lesevorgang lädt ` +
-      `einen ganzen Datensatz herunter: Versuchen Sie es gleich noch einmal — sobald es ` +
+      `einen ganzen Datensatz herunter: Versuche es gleich noch einmal — sobald es ` +
       `klappt, bleibt die Antwort im Speicher und die nächsten Suchen sind sofort da.`,
     es:
       `Data Grand Lyon no ha respondido en ${seconds} s durante la lectura de ${layer}. La ` +
@@ -361,8 +361,8 @@ function unreachableMessage(layer, reason) {
       `Vérifiez que le conteneur a accès à internet et que l’URL de base du service web est ` +
       `correcte.`,
     de:
-      `Data Grand Lyon war beim Lesen von ${layer} nicht erreichbar (${reason}). Prüfen ` +
-      `Sie, ob der Container Internetzugang hat und ob die Basis-URL des Webdienstes ` +
+      `Data Grand Lyon war beim Lesen von ${layer} nicht erreichbar (${reason}). Prüfe, ` +
+      `ob der Container Internetzugang hat und ob die Basis-URL des Webdienstes ` +
       `stimmt.`,
     es:
       `No se ha podido contactar con Data Grand Lyon durante la lectura de ${layer} ` +
@@ -534,7 +534,7 @@ export async function fetchLayer(
         userMessage: {
           en: 'No Data Grand Lyon credentials: fill in the username and password.',
           fr: 'Identifiants Data Grand Lyon absents : renseignez le nom d’utilisateur et le mot de passe.',
-          de: 'Keine Zugangsdaten für Data Grand Lyon: Geben Sie Benutzername und Passwort ein.',
+          de: 'Keine Zugangsdaten für Data Grand Lyon: Gib Benutzername und Passwort ein.',
           es: 'Faltan las credenciales de Data Grand Lyon: indique el usuario y la contraseña.',
         },
       },

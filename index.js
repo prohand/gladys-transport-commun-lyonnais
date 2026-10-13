@@ -173,7 +173,7 @@ gladys.on('connected', async () => {
       .setConnectionStatus(false, {
         en: 'Initialization failed, check the integration logs.',
         fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
-        de: 'Die Initialisierung ist fehlgeschlagen, prüfen Sie die Protokolle der Integration.',
+        de: 'Die Initialisierung ist fehlgeschlagen, prüfe die Protokolle der Integration.',
         es: 'La inicialización ha fallado, consulte los registros de la integración.',
       })
       .catch(() => {});
@@ -263,7 +263,7 @@ async function reportConnectionStatus() {
     await gladys.setConnectionStatus(false, {
       en: 'Transit stops and park & ride need a Data Grand Lyon account: fill in the username and password.',
       fr: 'Les arrêts et parcs relais nécessitent un compte Data Grand Lyon : renseignez le nom d’utilisateur et le mot de passe.',
-      de: 'Haltestellen und P+R-Parkplätze erfordern ein Konto bei Data Grand Lyon: Geben Sie Benutzername und Passwort ein.',
+      de: 'Haltestellen und P+R-Parkplätze erfordern ein Konto bei Data Grand Lyon: Gib Benutzername und Passwort ein.',
       es: 'Las paradas y los aparcamientos disuasorios necesitan una cuenta de Data Grand Lyon: indique el usuario y la contraseña.',
     });
     return;
@@ -273,7 +273,7 @@ async function reportConnectionStatus() {
     await gladys.setConnectionStatus(false, {
       en: 'Nothing to watch yet: add a transit stop, a Vélo’v station or a park & ride in the configuration.',
       fr: 'Rien à surveiller : ajoutez un arrêt, une station Vélo’v ou un parc relais dans la configuration.',
-      de: 'Noch nichts zu überwachen: Fügen Sie in der Konfiguration eine Haltestelle, eine Vélo’v-Station oder einen P+R-Parkplatz hinzu.',
+      de: 'Noch nichts zu überwachen: Füge in der Konfiguration eine Haltestelle, eine Vélo’v-Station oder einen P+R-Parkplatz hinzu.',
       es: 'Todavía no hay nada que vigilar: añada una parada, una estación Vélo’v o un aparcamiento disuasorio en la configuración.',
     });
     return;
@@ -285,7 +285,7 @@ async function reportConnectionStatus() {
   // "I pasted a stop id and the Discovery screen stayed empty" report.
   const watched = describeWatchList(config.watched);
   await gladys.setConnectionStatus(true, {
-    en: `Connected. Watching ${watched.en} — they appear in the Discovery screen.`,
+    en: `Connected. Watching ${watched.en} — they appear in the Discover tab.`,
     fr: `Connecté. Surveille ${watched.fr} — ils apparaissent dans l’écran Découverte.`,
     de: `Verbunden. Überwacht ${watched.de} — sie erscheinen im Reiter „Entdecken“.`,
     es: `Conectado. Vigilando ${watched.es}: aparecen en la pestaña «Descubrir».`,

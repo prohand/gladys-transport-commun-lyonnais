@@ -1,16 +1,16 @@
 # Transports en Commun Lyonnais
 
-Holen Sie den öffentlichen Nahverkehr von Lyon in Gladys: die nächsten
-Abfahrten an den Haltestellen, die Sie nutzen, die Räder und freien Stellplätze
-an Ihren Vélo'v-Stationen und die freien Plätze auf den P+R-Parkplätzen der TCL.
+Hol dir den öffentlichen Nahverkehr von Lyon in Gladys: die nächsten
+Abfahrten an den Haltestellen, die du nutzt, die Räder und freien Stellplätze
+an deinen Vélo'v-Stationen und die freien Plätze auf den P+R-Parkplätzen der TCL.
 
 Jedes Gerät, das diese Integration erstellt, ist **schreibgeschützt**: Es
 veröffentlicht, was die Open-Data-Feeds melden, und es wird nie etwas an das
 Netz zurückgesendet.
 
-## Was Sie erhalten
+## Was du erhältst
 
-Ein Gerät pro Eintrag, den Sie in der Konfiguration angeben.
+Ein Gerät pro Eintrag, den du in der Konfiguration angibst.
 
 **Haltestelle** — für jede der nächsten Abfahrten (bis zu fünf, nach Wahl):
 
@@ -55,11 +55,11 @@ Der Status sagt, welche der beiden Situationen vorliegt:
   Nichts zu beheben, so veröffentlicht SYTRAL die offenen Daten;
 - `Live count unreadable (287 spaces)` — der Parkplatz **ist** im
   Echtzeit-Datensatz, aber seine Zählung konnte nicht gelesen werden (eine
-  umbenannte Spalte oder ein `-1`, das „unbekannt“ bedeutet). Bitte melden Sie
+  umbenannte Spalte oder ein `-1`, das „unbekannt“ bedeutet). Bitte melde
   es: Die empfangenen Spalten stehen in den Protokollen des Containers.
 
 Die Schaltfläche **P+R-Parkplätze auflisten** zeigt dasselbe für das ganze
-Netz, sodass Sie es erkennen können, ohne die Protokolle zu lesen.
+Netz, sodass du es erkennen kannst, ohne die Protokolle zu lesen.
 
 ## Konfiguration
 
@@ -71,44 +71,44 @@ Die Abfahrten und die Belegung der P+R-Parkplätze stammen aus den
 TCL-Echtzeitdatensätzen auf [data.grandlyon.com](https://data.grandlyon.com),
 für die ein kostenloses Konto nötig ist.
 
-> **Das hier verlangte Passwort ist nicht das, mit dem Sie sich anmelden.** Sie
-> nutzen das Portal mit GrandLyon Connect (der gemeinsamen Anmeldung aller
+> **Das hier verlangte Passwort ist nicht das, mit dem du dich anmeldest.** Du
+> nutzt das Portal mit GrandLyon Connect (der gemeinsamen Anmeldung aller
 > Dienste der Métropole de Lyon), der Webdienst, den diese Integration aufruft,
-> akzeptiert jedoch nur ein eigenes Passwort der Datenplattform. Mit Ihrem
-> GrandLyon-Connect-Passwort erhalten Sie „Data Grand Lyon hat die Zugangsdaten
+> akzeptiert jedoch nur ein eigenes Passwort der Datenplattform. Mit deinem
+> GrandLyon-Connect-Passwort erhältst du „Data Grand Lyon hat die Zugangsdaten
 > abgelehnt“.
 
-1. Erstellen Sie ein Konto bei
-   [GrandLyon Connect](https://moncompte.grandlyon.com/login/) oder melden Sie
-   sich dort an.
-2. Öffnen Sie
-   [Ihr Profil auf der Datenplattform](https://data.grandlyon.com/onegeo-login/fr/profile/)
-   und legen Sie das Passwort der Plattform fest. Es kann — und sollte — sich
+1. Erstelle ein Konto bei
+   [GrandLyon Connect](https://moncompte.grandlyon.com/login/) oder melde
+   dich dort an.
+2. Öffne
+   [dein Profil auf der Datenplattform](https://data.grandlyon.com/onegeo-login/fr/profile/)
+   und lege das Passwort der Plattform fest. Es kann — und sollte — sich
    vom GrandLyon-Connect-Passwort unterscheiden.
 
    Dieses Formular heißt „Changer votre mot de passe“ und verlangt ein **altes
-   Passwort**. Wenn Sie sich bisher nur über GrandLyon Connect angemeldet
-   haben, besitzen Sie keines — und das GrandLyon-Connect-Passwort wird dort
-   ebenfalls nicht akzeptiert. Melden Sie sich vom Portal ab: Die Profilseite
+   Passwort**. Wenn du dich bisher nur über GrandLyon Connect angemeldet
+   hast, besitzt du keines — und das GrandLyon-Connect-Passwort wird dort
+   ebenfalls nicht akzeptiert. Melde dich vom Portal ab: Die Profilseite
    führt dann zum eigenen Anmeldeformular der Datenplattform, wo der Link
-   **Mot de passe oublié ?** (Passwort vergessen) Ihnen per E-Mail einen Link
-   schickt, mit dem Sie das Passwort festlegen, ohne das vorherige zu kennen.
-   Das so festgelegte Passwort ist das, das Sie in die Integration eintragen.
+   **Mot de passe oublié ?** (Passwort vergessen) dir per E-Mail einen Link
+   schickt, mit dem du das Passwort festlegst, ohne das vorherige zu kennen.
+   Das so festgelegte Passwort ist das, das du in die Integration einträgst.
 
-3. Geben Sie in der Konfiguration der Integration den **Benutzernamen** (in der
-   Regel die E-Mail-Adresse Ihres Kontos) und dieses **Passwort der
+3. Gib in der Konfiguration der Integration den **Benutzernamen** (in der
+   Regel die E-Mail-Adresse deines Kontos) und dieses **Passwort der
    Plattform** ein.
-4. Drücken Sie **Konto bei Data Grand Lyon testen** — es meldet, wie viele
+4. Drücke **Konto bei Data Grand Lyon testen** — es meldet, wie viele
    P+R-Parkplätze es lesen konnte.
 
-Lassen Sie beide Felder leer, wenn Sie nur Vélo'v-Stationen überwachen.
+Lass beide Felder leer, wenn du nur Vélo'v-Stationen überwachst.
 
 ### 2. Der Integration sagen, was überwacht werden soll
 
 Die drei Listenfelder akzeptieren Einträge, die durch Kommas, Semikolons oder
-Zeilenumbrüche getrennt sind. Sie müssen die Kennungen nicht auf einer Website
-suchen: Die Schaltflächen unten auf der Seite „Konfiguration“ suchen sie für
-Sie.
+Zeilenumbrüche getrennt sind. Du musst die Kennungen nicht auf einer Website
+suchen: Die Schaltflächen unten im Reiter **Konfiguration** suchen sie für
+dich.
 
 **Haltestellen** — `<Haltestellen-ID>[@<Linie>[|<Linie>…]][:<eigener Name>]`
 
@@ -119,11 +119,11 @@ Sie.
 | `1234@C3\|C13`          | Die Linien C3 und C13                       |
 | `1234@T1:Tram zu Hause` | Nur T1, und das Gerät heißt „Tram zu Hause“ |
 
-Wenn Sie dieselbe Haltestelle zweimal mit zwei verschiedenen Linienfiltern
-überwachen, erhalten Sie zwei Geräte — eines pro Linie, was auf einem
+Wenn du dieselbe Haltestelle zweimal mit zwei verschiedenen Linienfiltern
+überwachst, erhältst du zwei Geräte — eines pro Linie, was auf einem
 Dashboard meist genau das Richtige ist.
 
-Drücken Sie **Haltestelle suchen** und geben Sie einen Namen ein (zum Beispiel
+Drücke **Haltestelle suchen** und gib einen Namen ein (zum Beispiel
 `Bellecour`), um die einzufügenden Kennungen zu erhalten. Jedes Ergebnis sagt
 auch, wohin seine Linien fahren:
 
@@ -132,23 +132,23 @@ auch, wohin seine Linien fahren:
 5678 — Bellecour (C3 → Gare Saint-Paul)
 ```
 
-Genau danach müssen Sie wählen: Das Netz vergibt den beiden Straßenseiten
+Genau danach musst du wählen: Das Netz vergibt den beiden Straßenseiten
 unter einem Namen zwei verschiedene Kennungen, und die Endhaltestelle — die
-vorne an der Tram steht — verrät, welcher Bahnsteig in Ihre Richtung fährt.
+vorne an der Tram steht — verrät, welcher Bahnsteig in deine Richtung fährt.
 Die Richtungen stammen aus den gerade angekündigten Abfahrten; eine Haltestelle,
-an der nichts fährt, erscheint daher nur mit ihren Linien. Suchen Sie sie
+an der nichts fährt, erscheint daher nur mit ihren Linien. Such sie
 während der Betriebszeiten erneut, um die Richtungen zu sehen.
 
 **Vélo'v-Stationen** — `<Stations-ID oder Name>[:<eigener Name>]`
 
-`10063`, `Hotel de Ville` oder `10063:Arbeit`. Drücken Sie **Vélo'v-Station
+`10063`, `Hotel de Ville` oder `10063:Arbeit`. Drücke **Vélo'v-Station
 suchen**, um nach Namen zu suchen.
 
 **P+R-Parkplätze** — `<P+R-ID oder Name>[:<eigener Name>]`
 
 `Gorge de Loup`, `SOI` oder `Parilly:Pendeln`. Die Kennungen sind kurze Codes
 in Großbuchstaben (`SOI`, `BON`, `GREY`…), der Name funktioniert genauso gut.
-Drücken Sie **P+R-Parkplätze auflisten**, um alle Parkplätze mit ihrer Kennung
+Drücke **P+R-Parkplätze auflisten**, um alle Parkplätze mit ihrer Kennung
 und ihrer aktuellen Belegung zu sehen — alle 22, auch die, die SYTRAL nicht in
 Echtzeit zählt; diese erscheinen mit `?` freien Plätzen. Auch sie ergeben ein
 brauchbares Gerät: Ihre Kapazität wird veröffentlicht, die Zahl der freien
@@ -167,7 +167,7 @@ Jede Datenquelle hat ihr eigenes Intervall, weil sie sich nicht gleich schnell
 
 Alle drei akzeptieren 30 s bis 3600 s. Unter 60 s zu gehen bringt nichts: Die
 Quell-Feeds werden selbst nur etwa einmal pro Minute neu berechnet, ein
-schnelleres Abfragen liefert also dieselben Zahlen und verbraucht dabei Ihr
+schnelleres Abfragen liefert also dieselben Zahlen und verbraucht dabei dein
 Kontingent bei Data Grand Lyon. Gladys selbst taktet nie langsamer als einmal
 pro Minute; ein Intervall über 60 s setzt die Integration um, indem sie die
 Takte dazwischen einfach überspringt.
@@ -186,7 +186,7 @@ Nacht nicht bewegen, wird einmal gespeichert, nicht dreihundertmal. Die
 Countdowns der Abfahrten gehen noch einen Schritt weiter und behalten überhaupt
 keinen Verlauf — „7 Minuten, dann 6, dann 5, dann wieder 12“ ist die Form jedes
 Fahrplans, und niemand liest sie zurück, obwohl sie von den dreien mit Abstand
-am meisten schreiben würden. Auf Ihrem Dashboard sind sie trotzdem live; nur
+am meisten schreiben würden. Auf deinem Dashboard sind sie trotzdem live; nur
 ihre Vergangenheit wird nicht aufbewahrt. Die Vélo'v-Verfügbarkeit und die
 Belegung der P+R-Parkplätze behalten ihren Verlauf: Diese Diagramme haben einen
 Wert, und ein Punkt pro Änderung zeichnet dieselbe Kurve wie ein Punkt pro
@@ -194,21 +194,22 @@ Abfrage.
 
 ### 4. Speichern
 
-Speichern Sie die Konfiguration und öffnen Sie dann den Reiter **Entdecken**:
-Ihre Haltestellen, Stationen und Parkplätze stehen dort bereit, um zu Gladys
+Drücke **Konfiguration speichern** und öffne dann den Reiter **Entdecken**:
+Deine Haltestellen, Stationen und Parkplätze stehen dort bereit, um zu Gladys
 hinzugefügt zu werden.
 
 ## Dashboard-Widgets und Szenen
 
 Seit Gladys 5.1 bringt die Integration auch eigene Dashboard-Widgets sowie
-eigene Szenen-Auslöser und -Aktionen mit. Sie arbeiten mit den Geräten, die Sie
-erstellt haben: Fügen Sie zuerst die Haltestellen, Stationen und Parkplätze im
-Reiter **Entdecken** hinzu und wählen Sie dann eines davon in der Widget- oder
+eigene Szenen-Auslöser und -Aktionen mit. Sie arbeiten mit den Geräten, die du
+erstellt hast: Füge zuerst die Haltestellen, Stationen und Parkplätze im
+Reiter **Entdecken** hinzu und wähle dann eines davon in der Widget- oder
 Szenenkarte.
 
 ### Widgets
 
-Im Dashboard-Editor stehen die Widgets unter dem Namen der Integration.
+Im Dashboard-Editor (**Dashboard → Bearbeiten → Neues Widget**) stehen die
+Widgets im Abschnitt **Integrations-Widgets**.
 
 | Widget            | Was es zeigt                                                                                                              |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -229,7 +230,7 @@ bleibt, vervielfacht nicht die Anfragen an Data Grand Lyon.
 
 ### Szenen-Auslöser
 
-Im Szenen-Editor unter **Integrationen**:
+Im Szenen-Editor, als **Integrations-Auslöser** (Kategorie **Integrationen**):
 
 | Auslöser                      | Wird ausgelöst, wenn                                                                                                                               |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -252,6 +253,8 @@ Gut zu wissen:
   steht, Großschreibung inbegriffen (`T1`, `C3`).
 
 ### Szenen-Aktionen
+
+Im Szenen-Editor, als **Integrations-Aktion** (Kategorie **Integrationen**):
 
 | Aktion                  | Liefert den folgenden Schritten                                                                                 |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -277,30 +280,30 @@ in Bellecour“ liefert den Countdown von 7:40.
 ## Fehlerbehebung
 
 **„Haltestellen und P+R-Parkplätze erfordern ein Konto bei Data Grand Lyon“** —
-der Status der Integration bleibt rot, weil Sie eine Haltestelle oder einen
-Parkplatz angegeben haben, ohne die Zugangsdaten auszufüllen. Tragen Sie sie
-ein oder entfernen Sie die Einträge.
+der Status der Integration bleibt rot, weil du eine Haltestelle oder einen
+Parkplatz angegeben hast, ohne die Zugangsdaten auszufüllen. Trag sie
+ein oder entferne die Einträge.
 
 **Die Profilseite verlangt ein altes Passwort, das ich nie festgelegt habe** —
 dieses Formular _ändert_ ein bestehendes Passwort, und ein über GrandLyon
-Connect erstelltes Konto hat keines. Melden Sie sich vom Portal ab, öffnen Sie
+Connect erstelltes Konto hat keines. Melde dich vom Portal ab, öffne
 erneut
 [data.grandlyon.com/onegeo-login/fr/profile/](https://data.grandlyon.com/onegeo-login/fr/profile/)
-— Sie landen auf dem Anmeldeformular der Datenplattform — und nutzen Sie
+— du landest auf dem Anmeldeformular der Datenplattform — und nutze
 **Mot de passe oublié ?** mit der E-Mail-Adresse des Kontos. Der per E-Mail
 geschickte Link legt das Passwort der Plattform fest, ohne dass ein altes
 Passwort nötig ist.
 
 **„Data Grand Lyon hat die Zugangsdaten abgelehnt“** — in neun von zehn Fällen
 ist das eingegebene Passwort das von GrandLyon Connect. Der Webdienst will das
-Passwort, das Sie auf
+Passwort, das du auf
 [data.grandlyon.com/onegeo-login/fr/profile/](https://data.grandlyon.com/onegeo-login/fr/profile/)
-festlegen, mit der E-Mail-Adresse Ihres Kontos als Benutzernamen. Legen Sie es
-dort fest, tragen Sie es hier ein und drücken Sie **Konto bei Data Grand Lyon
+festlegst, mit der E-Mail-Adresse deines Kontos als Benutzernamen. Leg es
+dort fest, trag es hier ein und drücke **Konto bei Data Grand Lyon
 testen**. Schlägt es weiterhin fehl, hat das Konto seine E-Mail-Adresse
 möglicherweise noch nicht bestätigt.
 
-**„Data Grand Lyon hat mit HTTP 404 geantwortet“** — Ihr Konto ist in Ordnung:
+**„Data Grand Lyon hat mit HTTP 404 geantwortet“** — dein Konto ist in Ordnung:
 Der Datensatz selbst wird nicht unter dem Namen veröffentlicht, den die
 Integration angefragt hat. Die Métropole benennt ihre TCL-Ebenen um, wenn sich
 das Netz ändert (dafür steht das Suffix `_2_0_0` in der Meldung). Die
@@ -308,33 +311,33 @@ Integration probiert jeden Namen, den sie kennt, fragt dann den Katalog der
 Plattform, wie der Datensatz heute heißt, und verwendet diesen Namen; die
 meisten Umbenennungen heilen sich so ohne Update von selbst. Wenn selbst der
 Katalog nichts hat, listet die Meldung auf, was versucht wurde, und die
-ähnlichsten Namen, die die Plattform veröffentlicht: Eröffnen Sie damit ein
+ähnlichsten Namen, die die Plattform veröffentlicht: Eröffne damit ein
 Issue, dann genügt ein Update der Integration.
 
 **„Konto bei Data Grand Lyon testen“ meldet einen Datensatz als nicht lesbar** —
 die Schaltfläche prüft die drei Datensätze einzeln, und ihre erste Zeile ist
-die entscheidende: Wenn sie sagt, dass Ihr Konto akzeptiert wurde, stimmen Ihre
+die entscheidende: Wenn sie sagt, dass dein Konto akzeptiert wurde, stimmen deine
 Zugangsdaten. Eine einzelne `✖`-Zeile bedeutet, dass dieser eine Datensatz
 eingestellt wurde (siehe oben); die Funktionen, die auf den beiden anderen
 beruhen, funktionieren weiter.
 
 **„Data Grand Lyon hat … nicht innerhalb von … geantwortet“** — die Plattform hat
 zu lange gebraucht, meist beim Herunterladen des ganzen
-Haltestellenverzeichnisses für **Haltestelle suchen**. Drücken Sie die
+Haltestellenverzeichnisses für **Haltestelle suchen**. Drücke die
 Schaltfläche erneut: Der erste erfolgreiche Download bleibt eine Stunde im
-Speicher, die folgenden Suchen antworten sofort. Wenn Sie den Namen einer
-Haltestelle vollständig eingeben (`Bellecour` statt `belle`), entfällt der
+Speicher, die folgenden Suchen antworten sofort. Wenn du den Namen einer
+Haltestelle vollständig eingibst (`Bellecour` statt `belle`), entfällt der
 Download ganz.
 
 **Eine Haltestelle zeigt immer `999`** — `999` bedeutet „keine Abfahrt
 angekündigt“. Außerhalb der Betriebszeiten ist das normal. Bleibt es tagsüber
 so, ist die Haltestellen-ID wahrscheinlich falsch (oder der Linienfilter passt
-nie, z. B. `@T1` an einer reinen Bushaltestelle): Führen Sie **Haltestelle
+nie, z. B. `@T1` an einer reinen Bushaltestelle): Führe **Haltestelle
 suchen** erneut aus.
 
 **Eine Vélo'v-Station oder ein P+R-Parkplatz meldet bei jeder Abfrage einen
-Fehler** — die Kennung ist nicht im Feed. Führen Sie die passende
-Suchschaltfläche erneut aus und tragen Sie die zurückgegebene ID ein; der
+Fehler** — die Kennung ist nicht im Feed. Führe die passende
+Suchschaltfläche erneut aus und trag die zurückgegebene ID ein; der
 Fehler eines P+R-Parkplatzes nennt außerdem einige der Kennungen, die der
 Datensatz enthält.
 
@@ -355,7 +358,7 @@ während die Protokolle nur den dünnen Feed erwähnen. Die Integration sagt das
 jetzt: Das Gerät trägt in der Geräteliste einen orangefarbenen Punkt, dessen
 Tooltip nennt, was fehlt, und die Protokolle schreiben es einmal aus
 (`… does not have the feature(s) capacity, status in Gladys …`). Die Lösung
-liegt im Reiter **Entdecken**: Drücken Sie beim Gerät auf **Aktualisieren**
+liegt im Reiter **Entdecken**: Drücke beim Gerät auf **Aktualisieren**
 (es zu löschen und erneut hinzuzufügen funktioniert auch), und das Gerät wird
 sofort neu gelesen.
 
@@ -372,16 +375,16 @@ fehlgeschlagenen Lesevorgang mit seinem Grund.
 **Ich habe eine Kennung eingefügt und der Reiter „Entdecken“ bleibt leer** —
 der Reiter „Entdecken“ listet nur, was die Integration veröffentlicht hat, und
 sie veröffentlicht, wenn die Konfiguration _gespeichert_ wird, nicht beim
-Bearbeiten eines Feldes. Speichern Sie die Konfiguration und lesen Sie dann
+Bearbeiten eines Feldes. Drücke **Konfiguration speichern** und lies dann
 den Status der Integration direkt darüber: Er nennt jetzt, was überwacht wird
 („Verbunden. Überwacht 1 Haltestelle — sie erscheinen im Reiter „Entdecken“.“).
-Steht dort etwas anderes oder fehlt Ihr Eintrag in der Zählung, ist der Wert
-nicht bei der Integration angekommen — prüfen Sie, ob das Feld gespeichert
-wurde, und drücken Sie dann die Schaltfläche **Scannen** im Reiter
+Steht dort etwas anderes oder fehlt dein Eintrag in der Zählung, ist der Wert
+nicht bei der Integration angekommen — prüfe, ob das Feld gespeichert
+wurde, und drücke dann die Schaltfläche **Scannen** im Reiter
 „Entdecken“. Die Integration protokolliert dasselbe bei jeder
 Veröffentlichung: `Publishing 1 device(s): Bellecour`.
 
-Die Integration protokolliert alles, was sie tut: Lesen Sie die
+Die Integration protokolliert alles, was sie tut: Lies den Reiter
 **Protokolle** der Integration in der Gladys-Oberfläche, mit `LOG_LEVEL=debug`
 für alle Details (jede ausgehende Anfrage wird auf dieser Stufe
 protokolliert).
