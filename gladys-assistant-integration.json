@@ -8,8 +8,8 @@
     "de": "Nächste TCL-Abfahrten, Vélo'v-Verfügbarkeit und freie Plätze auf P+R-Parkplätzen in Lyon.",
     "es": "Próximas salidas TCL, disponibilidad de Vélo'v y plazas en aparcamientos disuasorios de Lyon."
   },
-  "version": "2.3.0",
-  "docker_image": "ghcr.io/prohand/gladys-transport-commun-lyonnais:2.3.0",
+  "version": "2.3.1",
+  "docker_image": "ghcr.io/prohand/gladys-transport-commun-lyonnais:2.3.1",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-transport-commun-lyonnais/main/cover.png",
   "categories": ["environment"],
