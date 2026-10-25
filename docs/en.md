@@ -7,6 +7,8 @@ spaces in the TCL park & ride car parks.
 Every device this integration creates is **read-only**: it publishes what the
 open data feeds say, and nothing is ever sent back to the network.
 
+Requires **Gladys 5.3.0 or later**.
+
 ## What you get
 
 One device per entry you list in the configuration.

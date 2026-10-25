@@ -109,9 +109,10 @@ test('each device is published with a poll frequency the Gladys scheduler accept
 test('every device is published with should_poll, the flag that schedules it', () => {
   // The core inserts a device in its poll scheduler when `should_poll` is
   // true, and reads the flag from this very payload (the Discovery screen
-  // posts it as is to POST /device). Publishing `poll_frequency` alone stores
-  // a frequency nothing acts upon: that is the "device added, features stay
-  // empty forever" report — no tick, no state, and no error anywhere.
+  // posts it as is to POST /device). Before Gladys 5.3, publishing
+  // `poll_frequency` alone stored a frequency nothing acted upon: that is the
+  // "device added, features stay empty forever" report — no tick, no state,
+  // and no error anywhere. 5.3 sets the flag itself, the payload still says it.
   const gladys = createFakeGladys();
   const devices = buildDiscoveredDevices(gladys, CONFIG);
 

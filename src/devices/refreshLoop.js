@@ -3,8 +3,10 @@
 // user actually created.
 //
 // Gladys polls a device only when its row carries `should_poll` — a flag read
-// once, from the payload the Discovery screen posts at creation
-// (see src/devices/transitStop.js). Two consequences shape this module:
+// once, from the payload the Discovery screen posts at creation (see
+// src/devices/transitStop.js; since Gladys 5.3 the core also sets it by itself
+// when `poll_frequency` is present, but only for devices created from then on).
+// Two consequences shape this module:
 //
 //   - a device created before that flag was published is scheduled by nobody,
 //     and nothing in the integration can flip it: `publishDiscoveredDevices`

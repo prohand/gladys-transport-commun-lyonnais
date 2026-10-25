@@ -194,10 +194,16 @@ rejected manifest blocks publication. The rules that bite most often:
   **closed** vocabulary (`INTEGRATION_CATALOG_CATEGORIES` in the core):
   `climate`, `lighting`, `energy`, `security`, `multimedia`, `appliances`,
   `environment`, `protocols`, `network`, `notifications`, `assistants`,
-  `services`. There is no `transport` — an unknown key is silently dropped at
-  indexing time and the integration ends up filed under nothing. This one lives
-  in `environment`, the shelf the spec defines as carrying the "open-data
-  daily-life feeds" (air quality, fuel prices, water restrictions).
+  `services`, `transport`, `vehicles`, `servers`, `leisure` — an unknown key is
+  silently dropped at indexing time and the integration ends up filed under
+  nothing. This one lives in `transport`. That shelf only joined the vocabulary
+  in 2026-10; until then the integration was filed under `environment` (the
+  shelf of the "open-data daily-life feeds"), for want of a better one.
+- `keywords` (1-10 unique terms of 2-30 characters, search only, never
+  displayed) and `countries` (upper-case ISO alpha-2 codes; `["FR"]` here, the
+  network only exists in Lyon) require `gladys_version >= 5.3.0`, the floor of
+  the manifest. Keywords name the network, its operators and its modes
+  (`sytral`, `keolis`, `métro`...), never a stop: see "What goes public".
 
 `test/manifest.test.js` enforces all of the above plus the code/manifest
 consistency (every action has a handler and vice versa). When you change the
@@ -221,15 +227,17 @@ minutes" from reading the platform every minute. A blueprint therefore exposes
 `pollIntervalMs(config)` next to `onPoll`, and `pollDevice` is the entry point
 `index.js` wires to `gladys.onPoll`.
 
-`poll_frequency` alone schedules nothing. The core inserts a device in
-`devicesByPollFrequency` only when its row also carries `should_poll: true`,
-and it reads that flag once, from the discovery payload the Discovery screen
-posts to `POST /device` at creation. A device published without it is created,
-displayed, and never polled — no tick, no state, no error: the reported
-"aucune valeur enregistrée lorsque l'on ajoute un appareil", with the
-integration logging nothing at all because nothing ever asked it for anything.
-Every blueprint therefore publishes `should_poll: true` next to
-`poll_frequency`.
+Before Gladys 5.3, `poll_frequency` alone scheduled nothing. The core inserts
+a device in `devicesByPollFrequency` only when its row also carries
+`should_poll: true`, and it reads that flag once, from the discovery payload
+the Discovery screen posts to `POST /device` at creation. A device published
+without it was created, displayed, and never polled — no tick, no state, no
+error: the reported "aucune valeur enregistrée lorsque l'on ajoute un
+appareil", with the integration logging nothing at all because nothing ever
+asked it for anything. Since 5.3 (the manifest floor) the core sets the flag
+itself when `poll_frequency` is present; every blueprint still publishes
+`should_poll: true` next to `poll_frequency` — redundant, harmless, and it must
+stay a boolean.
 
 That flag is also unfixable from the container once the device exists:
 re-publishing a discovery only upserts the `params` and the feature
@@ -300,9 +308,10 @@ is a string.
 ## Widgets, scene triggers and scene actions
 
 Declared in the manifest (`widgets`, `scene_triggers`, `scene_actions`), which
-forces `gladys_version >= 5.1.0`: an older core rejects any unknown manifest
-field, and the store refuses the declaration below that range. They need SDK
-`>= 0.14.0`.
+forces `gladys_version >= 5.1.0` (the floor is `>=5.3.0` today, for `keywords`
+and `countries`): an older core rejects any unknown manifest field, and the
+store refuses the declaration below that range. They need SDK `>= 0.14.0`
+(the integration is on 0.16).
 
 - **Keys are forever.** A published widget, trigger or action key, and a
   trigger option value (`threshold`, `event`), is referenced by the users'

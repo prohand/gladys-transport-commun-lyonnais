@@ -8,6 +8,8 @@ Todos los dispositivos que crea esta integración son de **solo lectura**:
 publican lo que dicen los feeds de datos abiertos y nunca se envía nada de
 vuelta a la red.
 
+Requiere **Gladys 5.3.0 o posterior**.
+
 ## Lo que obtiene
 
 Un dispositivo por cada entrada que indique en la configuración.
