@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-25
+
 ### Added
 
 - The integration is now filed on the new `transport` shelf of the Gladys
@@ -148,7 +150,8 @@ First public release.
 - Survive a republished dataset instead of reporting HTTP 404
 - Publish devices Gladys accepts, list every P+R, file the integration under a real category
 
-[Unreleased]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.3.1...HEAD
+[Unreleased]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/prohand/gladys-transport-commun-lyonnais/compare/v2.2.1...v2.2.2
