@@ -8,6 +8,8 @@ Tous les appareils créés par cette intégration sont en **lecture seule** : il
 publient ce que disent les flux open data, et rien n'est jamais renvoyé au
 réseau.
 
+Nécessite **Gladys 5.3.0 ou plus récent**.
+
 ## Ce que vous obtenez
 
 Un appareil par entrée listée dans la configuration.

@@ -159,12 +159,15 @@ export function createTransitStopBlueprint(stop) {
         // accepts the values its own scheduler knows: the configured refresh
         // interval is honored by pollSchedule.js, not by this field.
         poll_frequency: gladysPollFrequency(config.departures_poll_frequency),
-        // `should_poll` is what actually schedules the device: the core reads
-        // it at creation (POST /device, straight from this payload) and only
-        // inserts the device in `devicesByPollFrequency` when it is true —
-        // `poll_frequency` alone is stored and never acted upon. Publishing it
-        // without this flag is what made every freshly added device sit in the
+        // `should_poll` is what scheduled the device before Gladys 5.3: the
+        // core reads it at creation (POST /device, straight from this payload)
+        // and only inserts the device in `devicesByPollFrequency` when it is
+        // true — before 5.3, `poll_frequency` alone was stored and never acted
+        // upon, which is what made every freshly added device sit in the
         // dashboard with empty features forever: no tick, no state, no error.
+        // Since 5.3 the core sets the flag itself when `poll_frequency` is
+        // present, so this is redundant there, but kept: it costs nothing and
+        // states plainly what the device expects.
         should_poll: true,
         params: [
           { name: 'stop_id', value: stop.id },

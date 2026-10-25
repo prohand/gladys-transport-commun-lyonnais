@@ -119,8 +119,8 @@ export function createVelovStationBlueprint(watched) {
         name: watched.name ?? `Vélo'v ${watched.id}`,
         external_id: ids.device,
         poll_frequency: gladysPollFrequency(config.velov_poll_frequency),
-        // Without this flag the core stores `poll_frequency` and never
-        // schedules the device: see src/devices/transitStop.js.
+        // Without this flag a core older than 5.3 stores `poll_frequency`
+        // and never schedules the device: see src/devices/transitStop.js.
         should_poll: true,
         params: [
           { name: 'station_id', value: watched.id },

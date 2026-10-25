@@ -6,6 +6,18 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The integration is now filed on the new `transport` shelf of the Gladys
+  catalog (it sat under `environment` until the shelf existed), shown only to
+  instances located in France, and found in the catalog search by the network's
+  operators and modes (SYTRAL, Keolis, métro, tramway, bus, Vélo'v…).
+
+### Changed
+
+- Requires Gladys 5.3.0 or later (catalog keywords and countries).
+- `@gladysassistant/integration-sdk` updated to 0.16.0.
+
 ## [2.3.1] - 2026-10-23
 
 - Maintenance release, no functional change.

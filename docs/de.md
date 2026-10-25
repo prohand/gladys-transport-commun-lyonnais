@@ -8,6 +8,8 @@ Jedes Gerät, das diese Integration erstellt, ist **schreibgeschützt**: Es
 veröffentlicht, was die Open-Data-Feeds melden, und es wird nie etwas an das
 Netz zurückgesendet.
 
+Erfordert **Gladys 5.3.0 oder neuer**.
+
 ## Was du erhältst
 
 Ein Gerät pro Eintrag, den du in der Konfiguration angibst.

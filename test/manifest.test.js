@@ -88,9 +88,9 @@ test('every poll frequency is configurable and bounded', () => {
 // (`INTEGRATION_CATALOG_CATEGORIES` in the Gladys core, mirrored by the store
 // indexer). It is NOT open: a key outside this list is dropped with a warning
 // when the manifest is indexed, which leaves the integration filed under
-// nothing at all. "transport" — the obvious word for this integration — is one
-// of those non-existent keys, and `environment` is the shelf that carries the
-// open-data daily-life feeds (air quality, fuel prices, water restrictions).
+// nothing at all. `transport` — the obvious shelf for this integration — only
+// joined the list in 2026-10 (with `vehicles`, `servers` and `leisure`); until
+// then the integration sat in `environment`, for want of better.
 const INTEGRATION_CATALOG_CATEGORIES = [
   'climate',
   'lighting',
@@ -104,7 +104,34 @@ const INTEGRATION_CATALOG_CATEGORIES = [
   'notifications',
   'assistants',
   'services',
+  'transport',
+  'vehicles',
+  'servers',
+  'leisure',
 ];
+
+/**
+ * The minimum version of the `gladys_version` range, as numbers.
+ *
+ * @returns {[number, number, number]}
+ */
+function gladysFloor() {
+  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.(\d+)/);
+  assert.ok(minVersion, 'gladys_version must declare a minimum version');
+  return [Number(minVersion[1]), Number(minVersion[2]), Number(minVersion[3])];
+}
+
+/**
+ * Whether the `gladys_version` floor is at least `major.minor.0`.
+ *
+ * @param {number} major
+ * @param {number} minor
+ * @returns {boolean}
+ */
+function floorAtLeast(major, minor) {
+  const [floorMajor, floorMinor] = gladysFloor();
+  return floorMajor > major || (floorMajor === major && floorMinor >= minor);
+}
 
 test('every declared category exists in the Gladys catalog vocabulary', () => {
   for (const category of manifest.categories) {
@@ -113,16 +140,53 @@ test('every declared category exists in the Gladys catalog vocabulary', () => {
       `category "${category}" is not part of the Gladys catalog vocabulary`,
     );
   }
+  assert.equal(new Set(manifest.categories).size, manifest.categories.length);
 });
 
 test('declaring catalog categories requires Gladys >= 4.86.0', () => {
   assert.ok(manifest.categories.length >= 1 && manifest.categories.length <= 3);
-  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
-  assert.ok(minVersion, 'gladys_version must declare a minimum version');
-  const [, major, minor] = minVersion.map(Number);
   assert.ok(
-    major > 4 || (major === 4 && minor >= 86),
+    floorAtLeast(4, 86),
     `categories requires gladys_version >= 4.86.0, got "${manifest.gladys_version}"`,
+  );
+});
+
+// --- Search keywords and countries (Gladys >= 5.3.0) -------------------------
+//
+// `keywords` only feed the catalog search (never displayed), `countries` hides
+// the integration from the browse views of an instance located elsewhere. Both
+// are unknown to a core older than 5.3.0, which rejects the whole manifest over
+// an unknown field: the floor moves with them.
+
+test('keywords are 1-10 unique terms of 2-30 characters', () => {
+  const { keywords } = manifest;
+  assert.ok(Array.isArray(keywords) && keywords.length >= 1 && keywords.length <= 10);
+  const normalized = keywords.map((keyword) => {
+    assert.equal(typeof keyword, 'string');
+    const trimmed = keyword.trim();
+    assert.ok(trimmed.length >= 2 && trimmed.length <= 30, `keyword "${keyword}" length`);
+    return trimmed.toLowerCase();
+  });
+  assert.equal(new Set(normalized).size, normalized.length, 'keywords must be unique');
+});
+
+test('countries are unique upper-case ISO 3166-1 alpha-2 codes: France only', () => {
+  const { countries } = manifest;
+  assert.ok(Array.isArray(countries) && countries.length >= 1 && countries.length <= 20);
+  for (const country of countries) {
+    assert.match(country, /^[A-Z]{2}$/);
+  }
+  assert.equal(new Set(countries).size, countries.length);
+  // The TCL network, Vélo'v and the Data Grand Lyon feeds only exist in Lyon.
+  assert.deepEqual(countries, ['FR']);
+});
+
+test('keywords, countries and music require Gladys >= 5.3.0', () => {
+  const declared = ['keywords', 'countries', 'music'].filter((field) => field in manifest);
+  if (declared.length === 0) return;
+  assert.ok(
+    floorAtLeast(5, 3),
+    `${declared.join(', ')} requires gladys_version >= 5.3.0, got "${manifest.gladys_version}"`,
   );
 });
 
@@ -287,10 +351,8 @@ const CAPABILITY_KEY = /^[a-z0-9_]{2,32}$/;
 const SCALAR_TYPES = ['string', 'number', 'boolean'];
 
 test('widgets and scene declarations require Gladys >= 5.1.0', () => {
-  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
-  const [, major, minor] = minVersion.map(Number);
   assert.ok(
-    major > 5 || (major === 5 && minor >= 1),
+    floorAtLeast(5, 1),
     `widgets and scene declarations require gladys_version >= 5.1.0, got "${manifest.gladys_version}"`,
   );
 });

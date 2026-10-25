@@ -10,7 +10,7 @@ Lyon's public transport network (TCL):
   park & ride card) and **scene triggers and actions** (a departure
   approaching, a station running out of bikes, a car park filling up).
 
-Built on the official
+Requires Gladys 5.3.0 or later. Built on the official
 [integration-template-js](https://github.com/GladysAssistant/integration-template-js).
 
 > Unofficial integration, not affiliated with SYTRAL Mobilités, Keolis Lyon or
